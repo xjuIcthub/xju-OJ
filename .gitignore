@@ -1,0 +1,39 @@
+# ===== 敏感配置 =====
+.env
+.env.local
+.env.*.local
+config.yaml
+application-prod.yml
+
+# ===== OJ 核心数据（绝对禁止上传）=====
+data/
+backup/
+test_data/
+uploads/
+logs/
+*.log
+*.db
+*.sqlite3
+*.sqlite-journal
+*.pid
+
+# ===== SSL 证书和私钥 =====
+*.key
+*.crt
+*.pem
+
+# ===== 判题临时文件 =====
+judge/temp/
+sandbox/
+tmp/
+
+# ===== 系统和依赖 =====
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+node_modules/
+target/
+*.class
+.idea/
+.vscode/
