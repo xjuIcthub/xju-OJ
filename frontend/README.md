@@ -1,4 +1,17 @@
-# OnlineJudge Front End
+# frontend
+
+这是单仓库中的浏览器静态入口，保留原 OnlineJudgeFE 的 Vue 2、Vue Router、Vuex、Axios 和 Webpack 3 基线。
+
+- 用户端和 `/admin/` 管理端仍是两个 history 入口。
+- Axios 的同源基址继续是 `/api`，CSRF Cookie/Header 继续使用 `csrftoken`/`X-CSRFToken`。
+- `/public` 由部署层发布后端运行时公开资源；前端不直接读取测试数据。
+- 当前阶段只完成目录收敛；Node/Yarn、依赖版本、API 路径和旧构建方式不升级。构建入口仍是 `npm run build:dll` 与 `npm run build`，精确版本见 `docs/contracts/version-matrix.md`。
+
+## 原始模块说明
+
+以下保留原 OnlineJudgeFE 的开发说明。
+
+### OnlineJudge Front End
 [![vue](https://img.shields.io/badge/vue-2.5.13-blue.svg?style=flat-square)](https://github.com/vuejs/vue)
 [![vuex](https://img.shields.io/badge/vuex-3.0.1-blue.svg?style=flat-square)](https://vuex.vuejs.org/)
 [![echarts](https://img.shields.io/badge/echarts-3.8.3-blue.svg?style=flat-square)](https://github.com/ecomfe/echarts)

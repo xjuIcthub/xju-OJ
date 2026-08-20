@@ -65,3 +65,13 @@ Windows 下的安装仅供体验，勿在生产环境使用。如有必要，请
 ## 遇到了问题？
 
 请参照: [http://opensource.qduoj.com/](http://opensource.qduoj.com/#/onlinejudge/faq) ，如有其他问题请入群讨论或提issue。
+
+## 当前单仓库布局（阶段 01 基线）
+
+源码已纳管为三个一级业务模块：
+
+- `frontend/`：Vue 2/Webpack 3 用户端与 `/admin/` 管理端静态入口；浏览器仍同源请求 `/api`。
+- `backend/`：Django API、业务 app、迁移和异步任务；内部 app 名称、数据库表名、Session/CSRF 约定不改。
+- `server/`：`judge-server/` Flask 判题服务与 `judger/` C/Seccomp 沙箱；JudgeServer HTTP 协议和结果字段不改。
+
+`docker-compose.yml` 仍是旧远程镜像部署的兼容基线，不代表新模块已经独立构建或切换生产流量。目录移动、许可证边界和阶段 00 契约记录见 `docs/contracts/` 与 `docs/plans/oj-unification/execution-log.md`；前端/后端 API 拆分、判题镜像和 Compose 改造按后续阶段执行。

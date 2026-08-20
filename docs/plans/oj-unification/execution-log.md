@@ -111,3 +111,16 @@ coverage report
 ## 阶段边界
 
 本阶段没有执行 `mv`、`git mv`、旧目录删除、业务代码修改、生产 `makemigrations`/`migrate`、数据修复或 Redis 清空。下一阶段必须在本文件及三份合同验收、提交后才允许开始。
+
+## 阶段 01：目录收敛执行记录
+
+- 基线提交：`038b02d84728bc7aaf9b83ab613972ad0f729ffd`，提交后切换到受控分支 `chore/unified-oj-layout`。
+- 受控移动已完成：`OnlineJudgeFE/ -> frontend/`、`OnlineJudge/ -> backend/`、`JudgeServer/ -> server/judge-server/`、`Judger/ -> server/judger/`。
+- 迁移保留 backend 的过渡 `data/` 运行目录（未纳管）；未复制第二份 Judger 源码。
+- 已删除移动后的 `server/judge-server/.gitmodules` 和空 `server/judge-server/Judger/`；这是失效历史子模块清理，不是业务代码变更。
+- 已逐项复制无秘密默认资源到 `backend/resources/bootstrap/public/avatar/default.png` 与 `backend/resources/bootstrap/public/website/favicon.ico`，并以 SHA-256 比对源文件一致。
+- 根 `.gitignore` 新增 `runtime/`；`data/` 过渡保护保留。`runtime/backend/config/secret.key`、`runtime/backend/test_case/example` 均被忽略，bootstrap 资源不被忽略。
+- 新增/补充 `frontend/README.md`、`backend/README.md`、`server/README.md`、`server/LICENSES.md`、根 README 中英说明以及 `docs/contracts/path-reference-inventory.md`。
+- 阶段 01 的 `rg` 路径引用清单已生成并按后续阶段、保持不变、历史文档三类归档；`backend/Dockerfile`、frontend 旧 Nginx、JudgeServer build context 和旧 Compose 未在本阶段改写。
+- 最小验证：frontend manifest 读取成功；backend Django check 仍因环境缺少 Django 而在导入阶段失败；Judger CMake 路径检查仍因环境缺少 `seccomp.h` 失败。两类失败均与阶段 00 相同，未归因于目录移动；生成的 `build-layout-check/` 已清理。
+- 阶段 01 未改 Django app label、migration 内容、API 路径、响应包装、数据库表名、JudgeServer 协议、依赖版本或容器拓扑。

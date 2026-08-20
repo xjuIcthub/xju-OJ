@@ -1,4 +1,18 @@
-# OnlineJudge 2.0
+# backend
+
+这是单仓库中的 Django 业务 API 与异步任务模块，保留内部包名和 app label：`oj`、`account`、`announcement`、`conf`、`contest`、`fps`、`judge`、`options`、`problem`、`submission`、`utils`。
+
+- `oj.settings`、`oj.wsgi`、`manage.py` 和所有迁移依赖保持原路径语义。
+- 浏览器 API 继续挂在 `/api`，响应包装、Session/CSRF、数据库表名和 JudgeServer 心跳协议不变。
+- PostgreSQL 保存业务数据；Redis DB 1 继续承载 Session/cache/waiting queue，DB 4 继续承载 Dramatiq broker/result。
+- `data/test_case/<test_case_id>` 与 `Problem.test_case_id` 保持绑定；测试数据只供后端/判题服务使用。
+- 本阶段只做目录和 Git 收敛；API、worker 拆分、运行时根目录和 Nginx 移出安排在后续阶段。
+
+## 原始模块说明
+
+以下保留原 OnlineJudge 的开发说明。
+
+### OnlineJudge 2.0
 
 [![Python](https://img.shields.io/badge/python-3.8.0-blue.svg?style=flat-square)](https://www.python.org/downloads/release/python-362/)
 [![Django](https://img.shields.io/badge/django-3.2.9-blue.svg?style=flat-square)](https://www.djangoproject.com/)
