@@ -70,7 +70,8 @@ class SubmissionAPI(APIView):
         except Problem.DoesNotExist:
             return self.error("Problem not exist")
         if data["language"] not in problem.languages:
-            return self.error(f"{data['language']} is not allowed in the problem")
+            language_name = data["language"]
+            return self.error(f"{language_name} is not allowed in the problem")
         submission = Submission.objects.create(user_id=request.user.id,
                                                username=request.user.username,
                                                language=data["language"],

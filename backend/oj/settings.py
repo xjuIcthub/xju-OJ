@@ -137,7 +137,8 @@ UPLOAD_DIR = f"{DATA_DIR}{UPLOAD_PREFIX}"
 STATICFILES_DIRS = [os.path.join(DATA_DIR, "public")]
 
 
-LOGGING_HANDLERS = ['console', 'sentry'] if production_env else ['console']
+SENTRY_DSN = get_env('SENTRY_DSN', '')
+LOGGING_HANDLERS = ['console', 'sentry'] if production_env and SENTRY_DSN else ['console']
 LOGGING = {
    'version': 1,
    'disable_existing_loggers': False,
@@ -240,7 +241,7 @@ DRAMATIQ_RESULT_BACKEND = {
 }
 
 RAVEN_CONFIG = {
-    'dsn': 'https://b200023b8aed4d708fb593c5e0a6ad3d:1fddaba168f84fcf97e0d549faaeaff0@sentry.io/263057'
+    'dsn': SENTRY_DSN
 }
 
 IP_HEADER = "HTTP_X_REAL_IP"

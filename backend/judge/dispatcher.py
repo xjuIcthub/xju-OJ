@@ -134,7 +134,9 @@ class JudgeDispatcher(DispatcherBase):
 
         if language in self.problem.template:
             template = parse_problem_template(self.problem.template[language])
-            code = f"{template['prepend']}\n{self.submission.code}\n{template['append']}"
+            prepend = template["prepend"]
+            append = template["append"]
+            code = f"{prepend}\n{self.submission.code}\n{append}"
         else:
             code = self.submission.code
 

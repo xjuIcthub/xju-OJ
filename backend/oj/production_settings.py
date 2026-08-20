@@ -1,3 +1,5 @@
+import os
+
 from utils.shortcuts import get_env
 
 DATABASES = {
@@ -20,4 +22,5 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
-DATA_DIR = "/data"
+runtime_root = get_env("RUNTIME_ROOT", "")
+DATA_DIR = get_env("OJ_DATA_DIR", os.path.join(runtime_root, "backend") if runtime_root else "/data")

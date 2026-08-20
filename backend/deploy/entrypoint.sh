@@ -1,77 +1,116 @@
 #!/bin/sh
+set -eu
 
-APP=/app
-DATA=/data
-
-mkdir -p $DATA/log $DATA/config $DATA/ssl $DATA/test_case $DATA/public/upload $DATA/public/avatar $DATA/public/website
-
-if [ ! -f "$DATA/config/secret.key" ]; then
-    echo $(cat /dev/urandom | head -1 | md5sum | head -c 32) > "$DATA/config/secret.key"
-fi
-
-if [ ! -f "$DATA/public/avatar/default.png" ]; then
-    cp data/public/avatar/default.png $DATA/public/avatar
-fi
-
-if [ ! -f "$DATA/public/website/favicon.ico" ]; then
-    cp data/public/website/favicon.ico $DATA/public/website
-fi
-
-SSL="$DATA/ssl"
-if [ ! -f "$SSL/server.key" ]; then
-    openssl req -x509 -newkey rsa:2048 -keyout "$SSL/server.key" -out "$SSL/server.crt" -days 1000 \
-        -subj "/C=CN/ST=Beijing/L=Beijing/O=Beijing OnlineJudge Technology Co., Ltd./OU=Service Infrastructure Department/CN=`hostname`" -nodes
-fi
-
-cd $APP/deploy/nginx
-ln -sf locations.conf https_locations.conf
-if [ -z "$FORCE_HTTPS" ]; then
-    ln -sf locations.conf http_locations.conf
+APP_ROOT=${APP_ROOT:-/app}
+RUNTIME_ROOT=${RUNTIME_ROOT:-/data}
+if [ -n "${OJ_DATA_DIR:-}" ]; then
+    DATA_DIR=$OJ_DATA_DIR
+elif [ "$RUNTIME_ROOT" = "/data" ]; then
+    # Keep the legacy image/Compose default compatible.
+    DATA_DIR=/data
 else
-    ln -sf https_redirect.conf http_locations.conf
+    DATA_DIR="$RUNTIME_ROOT/backend"
 fi
+export OJ_DATA_DIR=$DATA_DIR
 
-if [ ! -z "$LOWER_IP_HEADER" ]; then
-    sed -i "s/__IP_HEADER__/\$http_$LOWER_IP_HEADER/g" api_proxy.conf;
-else
-    sed -i "s/__IP_HEADER__/\$remote_addr/g" api_proxy.conf;
-fi
+backend_user=backend
 
-if [ -z "$MAX_WORKER_NUM" ]; then
-    export CPU_CORE_NUM=$(grep -c ^processor /proc/cpuinfo)
-    if [[ $CPU_CORE_NUM -lt 2 ]]; then
-        export MAX_WORKER_NUM=2
-    else
-        export MAX_WORKER_NUM=$(($CPU_CORE_NUM))
+run_backend() {
+    if [ "$(id -u)" -eq 0 ] && command -v su-exec >/dev/null 2>&1; then
+        exec su-exec "$backend_user" "$@"
     fi
-fi
+    exec "$@"
+}
 
-cd $APP/dist
-if [ ! -z "$STATIC_CDN_HOST" ]; then
-    find . -name "*.*" -type f -exec sed -i "s/__STATIC_CDN_HOST__/\/$STATIC_CDN_HOST/g" {} \;
-else
-    find . -name "*.*" -type f -exec sed -i "s/__STATIC_CDN_HOST__\///g" {} \;
-fi
+run_backend_shell() {
+    if [ "$(id -u)" -eq 0 ] && command -v su-exec >/dev/null 2>&1; then
+        exec su-exec "$backend_user" /bin/sh -c "$1"
+    fi
+    exec /bin/sh -c "$1"
+}
 
-cd $APP
+bootstrap_runtime() {
+    if [ "${1:-}" = "--dry-run" ]; then
+        test -d "$APP_ROOT/resources/bootstrap/public/avatar"
+        test -d "$APP_ROOT/resources/bootstrap/public/website"
+        printf '%s\n' "runtime bootstrap check passed for $DATA_DIR"
+        return
+    fi
 
-n=0
-while [ $n -lt 5 ]
-do
-    python manage.py migrate --no-input &&
-    python manage.py inituser --username=root --password=rootroot --action=create_super_admin &&
-    echo "from options.options import SysOptions; SysOptions.judge_server_token='$JUDGE_SERVER_TOKEN'" | python manage.py shell &&
-    echo "from conf.models import JudgeServer; JudgeServer.objects.update(task_number=0)" | python manage.py shell &&
-    break
-    n=$(($n+1))
-    echo "Failed to migrate, going to retry..."
-    sleep 8
-done
+    umask 077
+    mkdir -p "$DATA_DIR/config" "$DATA_DIR/log" "$DATA_DIR/ssl" "$DATA_DIR/test_case" \
+        "$DATA_DIR/public/upload" "$DATA_DIR/public/avatar" "$DATA_DIR/public/website"
 
-addgroup -g 903 spj
-adduser -u 900 -S -G spj server
+    if [ ! -f "$DATA_DIR/config/secret.key" ]; then
+        secret_tmp="$DATA_DIR/config/.secret.key.$$"
+        head -c 32 /dev/urandom | base64 | tr -d '\n' > "$secret_tmp"
+        printf '\n' >> "$secret_tmp"
+        chmod 600 "$secret_tmp"
+        mv "$secret_tmp" "$DATA_DIR/config/secret.key"
+    fi
 
-chown -R server:spj $DATA $APP/dist
-find $DATA/test_case -type d -exec chmod 710 {} \;
-find $DATA/test_case -type f -exec chmod 640 {} \;
-exec supervisord -c /app/deploy/supervisord.conf
+    if [ ! -f "$DATA_DIR/public/avatar/default.png" ]; then
+        install -m 0644 "$APP_ROOT/resources/bootstrap/public/avatar/default.png" \
+            "$DATA_DIR/public/avatar/default.png"
+    fi
+    if [ ! -f "$DATA_DIR/public/website/favicon.ico" ]; then
+        install -m 0644 "$APP_ROOT/resources/bootstrap/public/website/favicon.ico" \
+            "$DATA_DIR/public/website/favicon.ico"
+    fi
+
+    # Frontend mounts only public/ read-only; keep config and mutable private data isolated.
+    chmod 755 "$DATA_DIR" "$DATA_DIR/public" "$DATA_DIR/public/avatar" \
+        "$DATA_DIR/public/upload" "$DATA_DIR/public/website"
+    chmod 700 "$DATA_DIR/config"
+    chmod 750 "$DATA_DIR/log" "$DATA_DIR/ssl" "$DATA_DIR/test_case"
+
+    if [ "$(id -u)" -eq 0 ] && id "$backend_user" >/dev/null 2>&1; then
+        chown -R "$backend_user:$backend_user" "$DATA_DIR"
+        chmod 755 "$DATA_DIR" "$DATA_DIR/public" "$DATA_DIR/public/avatar" \
+            "$DATA_DIR/public/upload" "$DATA_DIR/public/website"
+        chmod 700 "$DATA_DIR/config"
+        chmod 600 "$DATA_DIR/config/secret.key"
+        chmod 750 "$DATA_DIR/log" "$DATA_DIR/ssl" "$DATA_DIR/test_case"
+    fi
+    printf '%s\n' "runtime bootstrap completed for $DATA_DIR"
+}
+
+case "${1:-}" in
+    bootstrap-runtime)
+        shift
+        bootstrap_runtime "$@"
+        ;;
+    migrate)
+        run_backend_shell 'python3 manage.py check --settings=oj.settings && python3 manage.py migrate --no-input --settings=oj.settings'
+        ;;
+    configure-judge-token)
+        run_backend python3 manage.py configure_judge_token --settings=oj.settings
+        ;;
+    create-initial-admin)
+        run_backend python3 manage.py create_initial_admin --settings=oj.settings
+        ;;
+    api)
+        shift
+        workers=${GUNICORN_WORKERS:-2}
+        threads=${GUNICORN_THREADS:-4}
+        run_backend gunicorn oj.wsgi:application --bind 0.0.0.0:8000 \
+            --workers "$workers" --threads "$threads" --max-requests-jitter 10000 \
+            --max-requests 1000000 --keep-alive 32 "$@"
+        ;;
+    worker)
+        shift
+        processes=${DRAMATIQ_PROCESSES:-1}
+        threads=${DRAMATIQ_THREADS:-4}
+        run_backend python3 manage.py rundramatiq --processes "$processes" --threads "$threads" "$@"
+        ;;
+    manage)
+        shift
+        run_backend python3 manage.py "$@"
+        ;;
+    *)
+        cat >&2 <<'EOF'
+Usage: entrypoint.sh {bootstrap-runtime|migrate|configure-judge-token|create-initial-admin|api|worker|manage}
+EOF
+        exit 2
+        ;;
+esac

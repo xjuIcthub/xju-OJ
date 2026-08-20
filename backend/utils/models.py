@@ -1,5 +1,5 @@
-from django.db.models import JSONField  # NOQA
 from django.db import models
+from django.contrib.postgres.fields import JSONField  # NOQA
 
 from utils.xss_filter import XSSHtml
 

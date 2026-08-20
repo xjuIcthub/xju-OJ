@@ -134,3 +134,15 @@ coverage report
 - 使用 Nginx 容器 + backend-api stub 完成静态路由冒烟：`/`、`/admin/`、history 路由、`/public/website/favicon.ico` 和 `/api/website/` 均成功；`/admin` 301 到 `/admin/`，JSON `error/data` 包装未被改写。Nginx 语法检查在为 `backend-api` 提供隔离 hosts 映射后通过。
 - 生成 JS 未发现 Token 值、数据库连接、`backend-api:8000` 或 secret 文件内容；`/api/admin/test_case` 等公开 API 路径属于既有前端调用，不视为内部服务泄露。
 - 阶段 02 未改 Vue 双入口、`/admin/` history base、Axios `/api`、CSRF Cookie/Header、`/public` 语义、Django API、数据库表名或 JudgeServer 协议。
+
+## 阶段 03：backend API/Worker 执行记录
+
+- 已重写 `backend/Dockerfile`：移除 frontend downloader/dist、Nginx、Supervisor；新增 backend-only Python 镜像、BuildKit 缓存、非 root API/Worker、显式 `bootstrap-runtime`/`migrate`/`api`/`worker`/`manage` 命令。
+- 已扩展 `backend/.dockerignore`，排除 runtime/data、密钥证书、日志、前端、缓存和旧 Nginx/Supervisor 配置；镜像边界检查确认 `/app/dist`、`/app/deploy/nginx`、`supervisord.conf` 不存在。
+- 已将 runtime 参数化为 `OJ_DATA_DIR` 优先、其次 `RUNTIME_ROOT/backend`，无变量时保留 `/data` 旧默认；开发默认仍为 `backend/data`，可通过环境变量迁出。
+- `bootstrap-runtime` 仅幂等创建目录、0600 secret 和缺失的 avatar/favicon；`configure_judge_token` 拒绝覆盖已有 token；`create_initial_admin` 仅新安装从外部密码文件创建且拒绝短密码/已有超级管理员；旧 `root/rootroot` 启动路径已移除。
+- `SENTRY_DSN` 改为外部环境注入；源码和镜像不再包含固定监控连接串。`health_check.py` 改为检查 API `/api/website/`，不再依赖 Supervisor RPC。
+- 为保持历史 migration graph 的字段序列化，`utils.models.JSONField` 改回与历史 migration 一致的 PostgreSQL JSONField；`makemigrations --check --dry-run` 在隔离 PostgreSQL 上通过且没有生成 migration。Django 3.2 的字段弃用 warning 已记录，后续升级单独处理。
+- 为保持 Redis 4.0 运行兼容，requirements 显式固定 `redis==4.6.0`；未固定时 resolver 选出的 Redis 8 客户端会发送 RESP3 `HELLO`，导致现有 Redis 4 的 Session/cache 失败。
+- backend 镜像构建通过；隔离 PostgreSQL 10 + Redis 4.0 上完成 bootstrap、全量 migrate、JudgeServer token 一次性配置、初始管理员创建、重复 token 拒绝、showmigrations、migrate plan、makemigrations check、Redis cache probe，以及独立 API/Worker 容器启动和 `/api/website/` 200 冒烟。
+- 首次 app 测试暴露两类基线问题：未固定的 resolver 选择 Redis 8 客户端而旧 Redis 4 不支持 RESP3 `HELLO`；测试 fixture 仍引用已不在当前语言矩阵的 Python2，并有一处错误包装断言过时。固定 `redis==4.6.0` 后，未改业务 API/响应语义；仅同步测试 fixture 到当前既有语言矩阵和实际 `invalid-language` 响应，最终 119 个测试全部通过。Django 3.2 仍报告 15 个历史 PostgreSQL JSONField 弃用 warning，未升级框架或迁移。完整输出保留在本轮外部工作日志，阶段文档只记录脱敏根因。

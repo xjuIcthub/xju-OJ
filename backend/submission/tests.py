@@ -7,7 +7,7 @@ from .models import Submission
 
 DEFAULT_PROBLEM_DATA = {"_id": "A-110", "title": "test", "description": "<p>test</p>", "input_description": "test",
                         "output_description": "test", "time_limit": 1000, "memory_limit": 256, "difficulty": "Low",
-                        "visible": True, "tags": ["test"], "languages": ["C", "C++", "Java", "Python2"], "template": {},
+                        "visible": True, "tags": ["test"], "languages": ["C", "C++", "Java", "Python3"], "template": {},
                         "samples": [{"input": "test", "output": "test"}], "spj": False, "spj_language": "C",
                         "spj_code": "", "test_case_id": "499b26290cc7994e0b497212e842ea85",
                         "test_case_score": [{"output_name": "1.out", "input_name": "1.in", "output_size": 0,
@@ -70,9 +70,9 @@ class SubmissionAPITest(SubmissionPrepare):
         judge_task.assert_called()
 
     def test_create_submission_with_wrong_language(self, judge_task):
-        self.submission_data.update({"language": "Python3"})
+        self.submission_data.update({"language": "Python2"})
         resp = self.client.post(self.url, self.submission_data)
         self.assertFailed(resp)
-        self.assertDictEqual(resp.data, {"error": "error",
-                                         "data": "Python3 is now allowed in the problem"})
+        self.assertDictEqual(resp.data, {"error": "invalid-language",
+                                         "data": "language: Python2 is not a valid language"})
         judge_task.assert_not_called()

@@ -5,8 +5,9 @@
 - `oj.settings`、`oj.wsgi`、`manage.py` 和所有迁移依赖保持原路径语义。
 - 浏览器 API 继续挂在 `/api`，响应包装、Session/CSRF、数据库表名和 JudgeServer 心跳协议不变。
 - PostgreSQL 保存业务数据；Redis DB 1 继续承载 Session/cache/waiting queue，DB 4 继续承载 Dramatiq broker/result。
-- `data/test_case/<test_case_id>` 与 `Problem.test_case_id` 保持绑定；测试数据只供后端/判题服务使用。
-- 本阶段只做目录和 Git 收敛；API、worker 拆分、运行时根目录和 Nginx 移出安排在后续阶段。
+- `OJ_DATA_DIR`/`RUNTIME_ROOT` 控制运行时目录；`data/test_case/<test_case_id>` 与 `Problem.test_case_id` 保持绑定，测试数据只供后端/判题服务使用。
+- API、Worker、一次性 bootstrap/migrate/admin 命令由 `deploy/entrypoint.sh` 显式启动；frontend 负责静态资源、`/api` 和 `/public` 网关。
+- `deploy/nginx/` 与 `deploy/supervisord.conf` 仅保留为迁移/回滚参考，不进入 backend 镜像运行路径。
 
 ## 原始模块说明
 
@@ -41,6 +42,21 @@ Main modules are available below:
 + Frontend(Vue): [https://github.com/QingdaoU/OnlineJudgeFE](https://github.com/QingdaoU/OnlineJudgeFE)
 + Judger Sandbox(Seccomp): [https://github.com/QingdaoU/Judger](https://github.com/QingdaoU/Judger)
 + JudgeServer(A wrapper for Judger): [https://github.com/QingdaoU/JudgeServer](https://github.com/QingdaoU/JudgeServer)
+
+## Backend commands
+
+在 runtime 目录已经准备好后，可分别执行：
+
+```bash
+./deploy/entrypoint.sh bootstrap-runtime --dry-run
+./deploy/entrypoint.sh migrate
+./deploy/entrypoint.sh api
+./deploy/entrypoint.sh worker
+```
+
+`configure-judge-token` 和 `create-initial-admin` 只接受外部 Secret/文件输入，已有配置或管理员时不会覆盖；不要把密码、Token 或 `secret.key` 写入命令行、镜像或日志。
+
+`deploy/runtime_smoke.py` 可在 API 容器中检查 `/api/website/`、Redis DB 1/4 和一次短 TTL cache 往返；Worker 容器使用 `--worker` 只检查 Redis/队列依赖。
 
 ## Installation
 
