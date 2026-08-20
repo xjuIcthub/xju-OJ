@@ -1,5 +1,5 @@
 # Preserve upstream source bytes during the baseline import; these trees contain
 # intentional historical CRLF/trailing whitespace that is not a behavior change.
-Judger/** whitespace=-blank-at-eol,-blank-at-eof
-OnlineJudge/** whitespace=-blank-at-eol,-blank-at-eof
-OnlineJudgeFE/** whitespace=-blank-at-eol,-blank-at-eof
+backend/** whitespace=-blank-at-eol,-blank-at-eof
+frontend/** whitespace=-blank-at-eol,-blank-at-eof
+server/** whitespace=-blank-at-eol,-blank-at-eof
