@@ -5,7 +5,8 @@
 - 用户端和 `/admin/` 管理端仍是两个 history 入口。
 - Axios 的同源基址继续是 `/api`，CSRF Cookie/Header 继续使用 `csrftoken`/`X-CSRFToken`。
 - `/public` 由部署层发布后端运行时公开资源；前端不直接读取测试数据。
-- 当前阶段只完成目录收敛；Node/Yarn、依赖版本、API 路径和旧构建方式不升级。构建入口仍是 `npm run build:dll` 与 `npm run build`，精确版本见 `docs/contracts/version-matrix.md`。
+- 当前阶段保留 Vue/Webpack 和业务依赖版本，不升级产品依赖。已验证的构建运行时为 Node `14.21.3`（见 `.nvmrc`）和 Yarn `1.22.x`；构建入口是 `yarn run build:ci`（DLL + production build），精确证据见 `docs/contracts/frontend-build.md`。
+- Node 24 在旧 UglifyJS 上触发 OpenSSL 兼容错误，因此不作为默认构建运行时；不要用升级依赖掩盖该基线差异。
 
 ## 原始模块说明
 
@@ -31,38 +32,18 @@
 
 ## Get Started
 
-Install nodejs **v8.12.0** first.
-
-### Linux
+Use Node **14.21.3** and Yarn **1.22.x**. Do not replace the frozen-lockfile install with `npm install`.
 
 ```bash
-npm install
-# we use webpack DllReference to decrease the build time,
-# this command only needs execute once unless you upgrade the package in build/webpack.dll.conf.js
-export NODE_ENV=development 
-npm run build:dll
+corepack yarn install --frozen-lockfile
+yarn run build:ci
 
-# the dev-server will set proxy table to your backend
+# the dev-server requires a backend target and keeps /api + /public same-origin
 export TARGET=http://Your-backend
-
-# serve with hot reload at localhost:8080
-npm run dev
+yarn run dev
 ```
-### Windows
 
-```bash
-npm install
-# we use webpack DllReference to decrease the build time,
-# this command only needs execute once unless you upgrade the package in build/webpack.dll.conf.js
-set NODE_ENV=development 
-npm run build:dll
-
-# the dev-server will set proxy table to your backend
-set TARGET=http://Your-backend
-
-# serve with hot reload at localhost:8080
-npm run dev
-```
+On Windows, set `TARGET` with the shell's environment-variable syntax before running `yarn run dev`. The first build runs the DLL step automatically; `yarn run build:ci` is the reproducible CI entry point.
 
 ## Screenshots
 

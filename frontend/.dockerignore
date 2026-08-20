@@ -1,0 +1,17 @@
+.git
+.gitignore
+node_modules/
+dist/
+static/js/vendor.dll*.js
+build/vendor-manifest.json
+*.log
+.env
+.env.*
+*.key
+*.crt
+*.pem
+config.yaml
+application-prod.yml
+runtime/
+data/
+

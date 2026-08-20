@@ -2,6 +2,9 @@
 require('./check-versions')()
 
 const config = require('../config')
+if (!process.env.TARGET) {
+  throw new Error('TARGET is required for the frontend development proxy (for example, TARGET=http://backend-api:8000)')
+}
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = JSON.parse(config.dev.env.NODE_ENV)
 }

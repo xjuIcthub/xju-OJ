@@ -124,3 +124,13 @@ coverage report
 - 阶段 01 的 `rg` 路径引用清单已生成并按后续阶段、保持不变、历史文档三类归档；`backend/Dockerfile`、frontend 旧 Nginx、JudgeServer build context 和旧 Compose 未在本阶段改写。
 - 最小验证：frontend manifest 读取成功；backend Django check 仍因环境缺少 Django 而在导入阶段失败；Judger CMake 路径检查仍因环境缺少 `seccomp.h` 失败。两类失败均与阶段 00 相同，未归因于目录移动；生成的 `build-layout-check/` 已清理。
 - 阶段 01 未改 Django app label、migration 内容、API 路径、响应包装、数据库表名、JudgeServer 协议、依赖版本或容器拓扑。
+
+## 阶段 02：frontend 独立化执行记录
+
+- 构建候选 Node `14.21.3` + Yarn `1.22.x` 已在官方 Node 14 临时副本中通过 frozen install、DLL、production build 和重复构建；生成 `dist/index.html`、`dist/admin/index.html`，两次 79 个产物的文件清单与 SHA-256 一致。
+- 宿主 Node `24.16.0` + Corepack Yarn `1.22.22` 的 frozen install、lint 和带 OpenSSL legacy provider 的 build 通过；未加 provider 的旧 UglifyJS/OpenSSL 错误已记录，但 Node 24 未选为默认运行时。
+- 新增 `frontend/.nvmrc`、`frontend/.dockerignore`、多阶段 `frontend/Dockerfile`、`frontend/nginx/nginx.conf`、`build:ci`，并让 `dev.env.js` 优先使用 `GIT_COMMIT`、无 Git 时回退 `unknown`；未升级业务依赖或改 `yarn.lock`。
+- `frontend` Docker build 在构建环境显式传入可达的 HTTP(S) proxy 后成功；未传 proxy 的首次尝试因 Docker builder 使用不可达的 `127.0.0.1:9098` 失败，根因是环境网络而非 Dockerfile。镜像内入口、Nginx 配置和 `index.html`/`admin/index.html` 检查通过。
+- 使用 Nginx 容器 + backend-api stub 完成静态路由冒烟：`/`、`/admin/`、history 路由、`/public/website/favicon.ico` 和 `/api/website/` 均成功；`/admin` 301 到 `/admin/`，JSON `error/data` 包装未被改写。Nginx 语法检查在为 `backend-api` 提供隔离 hosts 映射后通过。
+- 生成 JS 未发现 Token 值、数据库连接、`backend-api:8000` 或 secret 文件内容；`/api/admin/test_case` 等公开 API 路径属于既有前端调用，不视为内部服务泄露。
+- 阶段 02 未改 Vue 双入口、`/admin/` history base、Axios `/api`、CSRF Cookie/Header、`/public` 语义、Django API、数据库表名或 JudgeServer 协议。
