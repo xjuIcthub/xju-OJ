@@ -1,0 +1,100 @@
+# Step 29：deploy.sh 与全栈 Smoke
+
+## 目标
+
+提供根目录 `./deploy.sh`，覆盖 preflight、build/pull、基础设施 readiness、bootstrap、migration、初始化、启动、smoke 和失败保留现场；不生成或泄露秘密。
+
+## 进入条件
+
+- Step 28 Compose `config --quiet` 和隔离全栈启动通过。
+- Step 27 有可消费的 image digest/cache 方案。
+- 迁移命令和初始化命令已有明确 owner/幂等语义。
+
+## deploy.sh 固定行为
+
+脚本必须：
+
+1. `set -eu`，定位仓库根目录。
+2. 检查 Docker daemon、Compose v2、必要的 buildx/registry 能力。
+3. 加载 `.env`，检查 `${VAR:?message}`、绝对路径和 Secret 文件权限。
+4. 执行 `docker compose config --quiet`。
+5. 创建必要空目录，不生成/回显 Secret。
+6. `DEPLOY_MODE=build` 调 buildx bake/build；`pull` 只拉不可变 image reference。
+7. 启动 PG/Redis，等待 healthy。
+8. 运行 backend bootstrap-runtime（生产 Secret 缺失即失败）。
+9. 运行 migrate；迁移失败非零退出。
+10. create-once 初始化 Judge token、管理员；已有值不覆盖。
+11. 启动 backend-api、worker、judge-server、frontend，使用 `up -d --remove-orphans --wait`。
+12. 执行 HTTP/API/Session/CSRF/public/Judge/Redis/Worker smoke。
+13. 只有全部成功才写 `deployments/current.json`，并把上一成功版本保存为 `previous.json`。
+
+## 明确禁止
+
+- `docker compose down -v`。
+- 删除 runtime、volume prune、system prune --volumes。
+- DROP/重建数据库。
+- 重置管理员、Judge token、Django Secret。
+- 把 Secret 作为命令行参数、echo、日志或镜像 ARG。
+- 域名/端口配置变化时自动 build frontend。
+
+## Smoke 清单
+
+- `GET /`、`/admin/`、`/admin` redirect、deep link。
+- `/api/website/`、登录、Session refresh/logout。
+- CSRF 合法/非法请求。
+- `/public/` 读取、静态缓存 headers。
+- backend worker enqueue/result。
+- Judge `/ping`、heartbeat、至少一组 `/judge` 和 `/compile_spj`。
+- 端口审计：只有 frontend 绑定宿主。
+- Redis DB1/DB4 runtime smoke。
+
+## 配置变更路径
+
+只改 `.env` 的域名/端口/upstream 时：
+
+```bash
+./deploy.sh --config-only
+# 或由脚本识别 config hash 后执行：
+docker compose config --quiet
+docker compose up -d --remove-orphans --wait
+```
+
+不执行依赖下载和业务 build；完成后重新 smoke。
+
+## 计划命令
+
+```bash
+shellcheck deploy.sh
+sh -n deploy.sh
+git diff --check
+./deploy.sh --help
+./deploy.sh --dry-run
+```
+
+`--dry-run` 只校验，不读取/打印 Secret 内容。真实首次部署和升级只在隔离 staging 运行。
+
+## 验收
+
+- 首次部署、普通升级、仅配置变更、pull 模式、build 模式均有记录。
+- 失败返回非零，保存 `docker compose ps`、无 Secret 日志和当前 deployment metadata。
+- 成功后 current/previous/history 含 release tag、commit、完整 image digest、时间。
+- smoke 失败不会自动删除旧服务/卷/Secret。
+
+## 停止条件
+
+- 任何 Secret 进入日志/命令/镜像。
+- 迁移/初始化失败仍继续启动业务。
+- 失败路径自动删卷、删库或重置账号。
+- smoke 没覆盖 Session/CSRF、Judge、DB1/DB4 或端口隔离。
+
+## 回滚
+
+脚本本身失败时保留现场，人工按 Step30 选择旧 Compose/旧 digest。脚本不得自动执行不可逆数据回滚。
+
+## 完成标志
+
+提交格式建议：
+
+```text
+feat(deploy): add fail-closed compose deployment entrypoint
+```
