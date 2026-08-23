@@ -46,3 +46,15 @@
 - 已知风险: 当前宿主 Node/pnpm/uv 仍为旧工具版本；Step 03 必须重新执行 Ubuntu/runtime-root/权限/工具链门，后续镜像构建必须使用锁定 digest。
 - 回滚点: `d59d274ce3237bb10165fc9afadc4260aa79c359`；本 Step 仅新增文档，错误时回到该提交即可。
 - 下一步: Step 01 — 行为合同与特征测试。
+
+### 2026-08-23 — Step 01
+
+- Commit: 本条记录随 `step 01: characterize compatibility contracts` 独立提交
+- 变更摘要: 新增 API/Session/CSRF、路由、数据身份、Judge 协议 golden；新增 Django、frontend 路由、Judge transport 的可重复特征测试和隔离 schema/Redis/migration 快照。
+- 实际命令: 在临时 PostgreSQL 10/Redis 4 容器与临时 runtime root 中执行 `python manage.py check`、`showmigrations --plan`、`makemigrations --check --dry-run`、`test`；执行标记的 `tests.contracts` 两次；执行 frontend route manifest 两次；执行 Judge protocol unittest 两次；通过临时 Nginx gateway 用 curl/Playwright 核验 `/admin`、SPA deep link、`/public`、`/api/website/` 和响应边界。
+- 测试/验收结果: 标记的 backend 合同套件 `7 tests` 两次通过；Judge transport 套件 `4 tests` 两次通过；frontend 静态路由合同和 gateway HTTP 合同通过；未标记的旧 `python manage.py test` 实际为 `0 tests`，并记录在 known failures；发现并记录 15 个现有 JSONField W904 警告和 dist 浏览器启动错误，未在 characterization Step 中修复旧行为。
+- 镜像与 digest: 仅使用当前基线的临时 PostgreSQL 10/Redis 4 容器和仓库现有 frontend/dist；未构建、发布或修改生产镜像，未产生新的发布 digest。
+- 数据/Redis/queue 证据: 只使用临时数据库/runtimes；生成 `migration-plan.txt`、`schema-redis-golden.json`；DB1 保持 session/cache/waiting_queue，DB4 保持 Dramatiq broker/result，快照 key 数为 0；未连接生产数据。
+- 已知风险: 完整 JudgeServer compiler/Seccomp runtime corpus 因没有现成 baseline JudgeServer 服务未执行；frontend committed dist 的 `__STATIC_CDN_HOST__` JS URL 在 history fallback 下返回 HTML，Playwright 观察到 `Unexpected token '<'`，均记录于 `docs/contracts/step01-known-failures.md`。
+- 回滚点: `f899a96deffa16aedd8a2fc2e803f77c0adc6da4`；本 Step 只新增合同、测试和快照资产，删除本 Step 文件即可回到 Step 00 行为。
+- 下一步: Step 02 — 现状盘点与构建基线。

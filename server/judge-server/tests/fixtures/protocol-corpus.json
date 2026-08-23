@@ -1,0 +1,13 @@
+{
+  "positive": {
+    "ping": {"err": null, "data_action": "pong"},
+    "compile_spj": {"err": null, "data": "success"},
+    "judge_result_fields": ["cpu_time", "memory", "real_time", "result", "signal", "exit_code", "error", "output_md5", "output", "test_case"]
+  },
+  "negative": {
+    "invalid_token": {"err": "TokenVerificationFailed"},
+    "invalid_request": {"err": "InvalidRequest"},
+    "judge_input": "exactly one of test_case_id or test_case"
+  },
+  "secrets": "none"
+}

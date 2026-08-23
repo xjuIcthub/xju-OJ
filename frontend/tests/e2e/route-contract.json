@@ -1,0 +1,22 @@
+{
+  "entrypoints": [
+    {"path": "/", "kind": "user-spa", "refresh": true},
+    {"path": "/admin/", "kind": "admin-spa", "refresh": true}
+  ],
+  "deep_links": [
+    "/problem/1",
+    "/contest/1/problems",
+    "/admin/problem/create",
+    "/admin/contest"
+  ],
+  "api": [
+    {"path": "/api/website/", "same_origin": true, "content_type": "application/json;charset=UTF-8"}
+  ],
+  "public": [
+    {"path": "/public/known-file", "missing_fallback": "404"},
+    {"path": "/public/missing-file", "missing_fallback": "404"}
+  ],
+  "redirects": [
+    {"from": "/admin", "to": "/admin/", "status": 301}
+  ]
+}

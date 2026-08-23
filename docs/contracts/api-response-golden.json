@@ -1,0 +1,43 @@
+{
+  "website": {
+    "request": {
+      "method": "GET",
+      "path": "/api/website/"
+    },
+    "status": 200,
+    "content_type": "application/json;charset=UTF-8",
+    "payload_shape": {
+      "error": null,
+      "data_keys": [
+        "website_base_url",
+        "website_name",
+        "website_name_shortcut",
+        "website_footer",
+        "allow_register",
+        "submission_list_show_all"
+      ]
+    }
+  },
+  "invalid_login": {
+    "request": {
+      "method": "POST",
+      "path": "/api/login/",
+      "content_type": "application/json",
+      "body_shape": ["username", "password"]
+    },
+    "status": 200,
+    "payload": {
+      "error": "error",
+      "data": "Invalid username or password"
+    }
+  },
+  "missing_csrf": {
+    "request": {
+      "method": "POST",
+      "path": "/api/login/",
+      "content_type": "application/json",
+      "csrf": "missing"
+    },
+    "status": 403
+  }
+}

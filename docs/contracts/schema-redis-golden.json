@@ -1,0 +1,55 @@
+{
+  "broker_location_suffix": "4",
+  "cache_location_suffix": "1",
+  "redis": {
+    "db1": {
+      "keys": 0,
+      "role": "session/cache/waiting_queue"
+    },
+    "db4": {
+      "keys": 0,
+      "role": "dramatiq broker/result"
+    }
+  },
+  "sequences": [
+    "acm_contest_rank_id_seq",
+    "announcement_id_seq",
+    "auth_group_id_seq",
+    "auth_group_permissions_id_seq",
+    "auth_permission_id_seq",
+    "contest_announcement_id_seq",
+    "contest_id_seq",
+    "django_content_type_id_seq",
+    "django_migrations_id_seq",
+    "judge_server_id_seq",
+    "oi_contest_rank_id_seq",
+    "options_sysoptions_id_seq",
+    "problem_id_seq",
+    "problem_tag_id_seq",
+    "problem_tags_id_seq",
+    "user_id_seq",
+    "user_profile_id_seq"
+  ],
+  "tables": [
+    "acm_contest_rank",
+    "announcement",
+    "auth_group",
+    "auth_group_permissions",
+    "auth_permission",
+    "contest",
+    "contest_announcement",
+    "django_content_type",
+    "django_dramatiq_task",
+    "django_migrations",
+    "django_session",
+    "judge_server",
+    "oi_contest_rank",
+    "options_sysoptions",
+    "problem",
+    "problem_tag",
+    "problem_tags",
+    "submission",
+    "user",
+    "user_profile"
+  ]
+}
