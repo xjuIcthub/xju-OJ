@@ -58,3 +58,15 @@
 - 已知风险: 完整 JudgeServer compiler/Seccomp runtime corpus 因没有现成 baseline JudgeServer 服务未执行；frontend committed dist 的 `__STATIC_CDN_HOST__` JS URL 在 history fallback 下返回 HTML，Playwright 观察到 `Unexpected token '<'`，均记录于 `docs/contracts/step01-known-failures.md`。
 - 回滚点: `f899a96deffa16aedd8a2fc2e803f77c0adc6da4`；本 Step 只新增合同、测试和快照资产，删除本 Step 文件即可回到 Step 00 行为。
 - 下一步: Step 02 — 现状盘点与构建基线。
+
+### 2026-08-23 — Step 02
+
+- Commit: 本条记录随 `step 02: record inventory and build baseline` 独立提交
+- 变更摘要: 新增源码/依赖/构建/运行卷盘点、当前 Compose 镜像 digest、cold/warm 构建指标和已知发现。
+- 实际命令: 执行 Step 02 的 `find`、`git ls-files`、`find docs/research`、`du`、`git diff --check`；盘点 package/lock、两 SPA、Webpack/Babel、Axios/CSRF、Django URL/JSONField、Redis DB1/DB4、Judge CMake/Dockerfile、Compose 和 runtime path metadata；执行 `docker compose config --quiet`；通过隔离临时目录测量 frontend Webpack、backend Buildx 和 Judger CMake cold/warm；查询当前 Compose 远程 image manifest digest。
+- 测试/验收结果: 当前源文件 554、Git tracked files 534、research reports 7；frontend compatibility build 在 `NODE_OPTIONS=--openssl-legacy-provider` 下 cold 16.91s/warm 8.17s；未加 workaround 的 Node24 cold build 1.15s 失败，错误已记录；backend image cold 142.03s/warm 1.35s；隔离 Debian Judger build 成功，native host 因缺少 `seccomp.h` 的失败已记录；Compose config 通过但报告 obsolete `version` warning。
+- 镜像与 digest: 记录当前 Compose `postgres:10-alpine`、`redis:4.0-alpine`、remote judge/backend `1.6.1` 的 manifest digest；记录本地存在的 stage image size/layer/ID；临时 backend build tags 已删除，未推送任何镜像。
+- 数据/Redis/queue 证据: 只读取本地脱敏目录的名称/模式，未读取 secret 内容；记录 `backend/data/config/secret.key` 为 600 且未被 Git 跟踪；没有访问生产数据库、Redis、queue、dump、RDB/AOF 或用户上传。
+- 已知风险: frontend 老 Webpack/Babel 与 Node24 的 OpenSSL 兼容问题；Judge Dockerfile 的 `COPY Judger/`/`COPY server/` context/case mismatch；host 缺少 libseccomp dev header；root Compose 仍是 PG10/Redis4、backend 发布端口和浮动 tag。详见 `docs/contracts/step02-known-findings.md`。
+- 回滚点: `3e209be8e5574aa4f4ec211dc0da2ce054e0f358`；本 Step 只新增脱敏清单/指标，删除本 Step 文件即可回到 Step 01。
+- 下一步: Step 03 — Ubuntu >=22.04 运行前置。
