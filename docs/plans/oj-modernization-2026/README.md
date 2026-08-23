@@ -23,11 +23,13 @@
 
 以下两项是用户明确给出的硬约束，覆盖调研报告中关于其他宿主或 Python 版本的建议：
 
-- 生产宿主：**Ubuntu 24.04 LTS**。
-- backend、JudgeServer 及其 Python 构建链：**Python 3.12.x，`>=3.12,<3.13`**。
+- 生产宿主：**Ubuntu 22.04 LTS 或更新的受支持 Ubuntu 版本（`>=22.04`）**。
+- backend、JudgeServer 及其 Python 构建链：**Python 3.10.x，`>=3.10,<3.11`**。
 - Judge 容器启动保持 root；Judger 自行降权到固定 UID/GID 并加载 Seccomp。
 - server 不得使用 `privileged`、Docker socket、`SYS_ADMIN`。
 - 只有 frontend 可以发布宿主端口；backend/server 只在 Compose 内网通信。
+
+Python 3.10 是用户指定的固定 feature line；Step 00 必须复核其安全支持状态、可用 patch 和基础镜像维护来源。若无法取得受维护且可锁 digest 的 Python 3.10 构建，不得静默升级，也不得继续生产发布。
 
 宿主 OS 与容器基础 OS 是不同层次：计划允许经过验证的 Debian slim/Bookworm/Trixie 容器，但不能把它写成宿主要求。所有容器基础镜像、系统包和 Python/Node patch 在 Step 00 重新核实并锁 digest。
 
@@ -35,7 +37,7 @@
 
 | 议题 | 本计划决策 | 处理方式 |
 |---|---|---|
-| Python | 3.12.x | 不执行 3.12→3.13/3.14；在 Step 00 锁定 micro 与 digest |
+| Python | 3.10.x | 本轮固定 3.10，不自动升级到更高 feature line；在 Step 00 锁定 micro 与 digest |
 | Node | 24.x LTS，报告候选 24.19.0 | Node 26 不进入本轮生产基线 |
 | pnpm | 11.x，候选 11.22.0 | 报告另有 11.21.0；Step 00 以官方稳定版和 lock 重建结果定案，禁止 pnpm 12 RC |
 | Vite | Vue 2 桥接 7.3.6，最终 8.2.1 | Vite 8 单独发布，不和 Vue 3 首次上线绑定 |
@@ -44,7 +46,7 @@
 | uv | 0.12.5 候选 | Step 00 重核并提交 `uv.lock` |
 | PostgreSQL | **18.6 主方案，17.11 备用** | 报告对 17/18 有分歧；先用 PG18 fresh restore 演练，若出现 blocker 才切 PG17 |
 | Redis | 6.2.23 → 7.4.10 → 8.2.8 | 每一跳独立窗口；不切 Valkey，不直接复用旧 data directory |
-| Judge 工具链 | Python 3.12、GCC 14.2、JDK 21、Go 1.26.x、Node 24、libseccomp 2.6.x | 每种语言单独升级和回归；amd64 先生产，arm64 先 experimental |
+| Judge 工具链 | Python 3.10、GCC 14.2、JDK 21、Go 1.26.x、Node 24、libseccomp 2.6.x | 每种语言单独升级和回归；amd64 先生产，arm64 先 experimental |
 
 所有“候选版本”必须在实施时通过官方发布页、包元数据、兼容矩阵和实际构建重新确认。没有 digest 的版本不能进入生产 Compose。
 
@@ -100,7 +102,7 @@ redis          <- 独立数据服务；DB1 与 DB4 职责不变
 | 00 | [决策门与版本锁](00-decision-gates.md) | 无 | 版本锁、硬约束、停止门 |
 | 01 | [行为合同与特征测试](01-contract-characterization.md) | 00 | API/Session/CSRF/Judge golden |
 | 02 | [现状盘点与构建基线](02-inventory-build-baseline.md) | 00 | inventory、构建/数据指标 |
-| 03 | [Ubuntu 24.04 运行前置](03-ubuntu24-runtime-preflight.md) | 00 | 宿主 preflight、目录与工具链门 |
+| 03 | [Ubuntu >=22.04 运行前置](03-ubuntu22-plus-runtime-preflight.md) | 00 | 宿主 preflight、目录与工具链门 |
 | 04 | [Frontend pnpm 锁定](04-frontend-pnpm-lock.md) | 01,02 | pnpm lock、隐式依赖清单 |
 | 05 | [Vite 7 双入口桥接](05-frontend-vite-bridge.md) | 04 | Vue2 + Vite 双入口 |
 | 06 | [Frontend 桥接镜像与 Nginx](06-frontend-bridge-image.md) | 03,05 | 独立 frontend 镜像、同源网关 |
@@ -110,7 +112,7 @@ redis          <- 独立数据服务；DB1 与 DB4 职责不变
 | 10 | [Frontend 最终平台清理](10-frontend-final-cleanup.md) | 09 | Vite8、Pinia、旧链路删除 |
 | 11 | [Backend uv 元数据](11-backend-uv-metadata.md) | 01,02 | pyproject、首版 lock |
 | 12 | [Backend uv 安装器与镜像](12-backend-uv-image.md) | 03,11 | locked 安装与角色运行镜像 |
-| 13 | [Backend Python 基础镜像](13-backend-base-image.md) | 12 | Python3.12 slim/兼容性证据 |
+| 13 | [Backend Python 基础镜像](13-backend-base-image.md) | 12 | Python3.10 slim/兼容性证据 |
 | 14 | [Django 兼容债务清理](14-backend-compat-prep.md) | 13 | URL/JSONField/legacy 门 |
 | 15 | [Django 4.2 检查点](15-backend-django42.md) | 14,22 | 4.2 deprecation 清零 |
 | 16 | [psycopg3 独立迁移](16-backend-psycopg3.md) | 15,22 | Psycopg3 driver release |
@@ -121,7 +123,7 @@ redis          <- 独立数据服务；DB1 与 DB4 职责不变
 | 21 | [PostgreSQL 恢复演练](21-postgres-rehearsal.md) | 19 | PG18 fresh restore 证据 |
 | 22 | [PostgreSQL 生产切换](22-postgres-cutover.md) | 21 | PG18（或批准的 PG17）切换 |
 | 23 | [Server 构建边界](23-server-build-boundary.md) | 02,03 | 根 context、toolchain stages |
-| 24 | [Server 工具链迁移](24-server-toolchain.md) | 23 | Python3.12/GCC/JDK/Go/Node |
+| 24 | [Server 工具链迁移](24-server-toolchain.md) | 23 | Python3.10/GCC/JDK/Go/Node |
 | 25 | [Server 协议与健康](25-server-protocol-health.md) | 23,24 | liveness/heartbeat/协议回归 |
 | 26 | [Server 安全与多架构](26-server-hardening-multiarc.md) | 24,25 | hardening、amd64 gate、arm64实验 |
 | 27 | [BuildKit、Bake 与供应链](27-buildkit-bake-supply-chain.md) | 06,12,26 | cache、digest、SBOM、provenance |
@@ -150,9 +152,9 @@ git diff --name-only <previous-step-tag>..HEAD
 
 ## 9. 全局完成标准
 
-- Ubuntu 24.04 宿主上可从锁文件和 digest 重建三业务镜像。
+- Ubuntu `>=22.04` 的受支持宿主上可从锁文件和 digest 重建三业务镜像。
 - frontend 两个 SPA 的路由、API、Session/CSRF、上传和 `/public` 通过浏览器回归。
-- backend 在 Python 3.12、Django 5.2、Psycopg3、Redis8/Dramatiq 目标组合下通过全量测试。
+- backend 在 Python 3.10、Django 5.2、Psycopg3、Redis8/Dramatiq 目标组合下通过全量测试。
 - PG 与 Redis 有真实 snapshot 的 restore 演练记录，DB1/DB4 和 waiting_queue 可核账。
 - Judge 协议字段、结果码、Token、UID/GID、资源限制、`/test_case:ro` 和 Seccomp corpus 通过。
 - Compose 只让 frontend 发布宿主端口；`./deploy.sh` 对首次部署、普通升级、配置变更、镜像回滚均可验证。

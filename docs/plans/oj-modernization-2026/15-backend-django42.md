@@ -2,7 +2,7 @@
 
 ## 目标
 
-用 Django 4.2.30 在 Python3.12、已升级 PostgreSQL 集群的 staging 中消化 deprecation，作为可回滚的中间点；不把 4.2 作为长期生产版本。
+用 Django 4.2.30 在 Python3.10、已升级 PostgreSQL 集群的 staging 中消化 deprecation，作为可回滚的中间点；不把 4.2 作为长期生产版本。
 
 ## 依赖与前置
 

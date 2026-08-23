@@ -7,7 +7,7 @@
 ## 进入条件
 
 - Step 02 已记录当前远程镜像与本地源码差异。
-- Step 03 Ubuntu24.04/buildx 可用。
+- Step 03 Ubuntu `>=22.04`/buildx 可用。
 - Step 01 已有 Judge protocol、结果字段、权限和 corpus 基线。
 
 ## 当前 blocker
@@ -45,7 +45,7 @@ COPY server/judge-server/ /src/server/judge-server/
 ## 镜像阶段
 
 ```text
-judge-toolchain     OS + toolchains + libseccomp + Python3.12 support
+judge-toolchain     OS + toolchains + libseccomp + Python3.10 support
 judger-build        CMake + libjudger.so + Python binding wheel
 judge-server-deps   pyproject/uv.lock + Flask/Gunicorn dependencies
 judge-server        native artifacts + app + root entrypoint

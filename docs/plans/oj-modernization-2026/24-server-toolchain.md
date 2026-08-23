@@ -2,7 +2,7 @@
 
 ## 目标
 
-在构建边界稳定后，逐项固定 JudgeServer/Judger 的 Python3.12、GCC14.2、JDK21、Go1.26.x、Node24 和 libseccomp2.6.x；每种语言独立回归。
+在构建边界稳定后，逐项固定 JudgeServer/Judger 的 Python3.10、GCC14.2、JDK21、Go1.26.x、Node24 和 libseccomp2.6.x；每种语言独立回归。
 
 ## 进入条件
 
@@ -12,7 +12,7 @@
 
 ## 工具链策略
 
-- Python：JudgeServer 与 backend 固定 3.12.x；Judge builder/runtime 的 patch、ABI、digest 都记录。
+- Python：JudgeServer 与 backend 固定 3.10.x；Judge builder/runtime 的 patch、ABI、digest 都记录。目标发行版若不原生提供 Python3.10，必须使用受维护、可重建并锁 digest 的上游 Python stage，不能混装其他发行版的 Python 包。
 - C/C++：GCC/G++14.2.x、C17/C++20，验证历史题结果和时限。
 - Java：OpenJDK/Temurin21；Java25 后置，不在本轮追新。
 - Go：1.26.x（候选1.26.5），不称 LTS。

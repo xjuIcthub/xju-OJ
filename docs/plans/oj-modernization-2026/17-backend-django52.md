@@ -2,7 +2,7 @@
 
 ## 目标
 
-在 Django4.2/Psycopg3、PostgreSQL目标集群和 Python3.12 已稳定后，单独落地 Django5.2.17；本次发布必须 schema-neutral。
+在 Django4.2/Psycopg3、PostgreSQL目标集群和 Python3.10 已稳定后，单独落地 Django5.2.17；本次发布必须 schema-neutral。
 
 ## 进入条件
 
@@ -14,7 +14,7 @@
 
 ## 目标组合
 
-- Python3.12.x `<3.13`。
+- Python3.10.x `<3.11`。
 - Django5.2.17 LTS。
 - DRF 暂留 3.17.2 bridge。
 - Psycopg3.3.4。
@@ -67,7 +67,7 @@ fresh DB 需在隔离环境完整 replay；生产克隆需比较 migration state
 提交格式建议：
 
 ```text
-build(backend): land Django 5.2 LTS on Python 3.12
+build(backend): land Django 5.2 LTS on Python 3.10
 ```
 
 Django5.2 是最终框架目标；之后只做独立生态依赖升级。

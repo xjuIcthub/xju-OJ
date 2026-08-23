@@ -6,7 +6,7 @@
 
 ## 进入条件
 
-- Step 13 的 Python3.12 镜像通过。
+- Step 13 的 Python3.10 镜像通过。
 - Step 01 的 URL/API/schema golden 可运行。
 - 任何 migration 修改都必须经过专项审查。
 

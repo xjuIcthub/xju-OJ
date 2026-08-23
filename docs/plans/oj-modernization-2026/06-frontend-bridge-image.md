@@ -7,7 +7,7 @@
 ## 进入条件
 
 - Step 05 两个 Vite 入口和浏览器合同通过。
-- Step 03 Ubuntu 24.04 宿主可运行 BuildKit。
+- Step 03 已确认 Ubuntu `>=22.04` 宿主可运行 BuildKit。
 - backend 测试地址和 public/test_case fixture 可用。
 
 ## 文件范围

@@ -8,7 +8,7 @@
 
 - Step 24 工具链 corpus 通过。
 - Step 25 协议/liveness/heartbeat 回归通过。
-- Ubuntu24.04 实际 Docker/cgroup/Seccomp 行为已经能复现。
+- Ubuntu `>=22.04` 实际 Docker/cgroup/Seccomp 行为已经能复现。
 
 ## 初始安全配置
 

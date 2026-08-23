@@ -6,7 +6,7 @@
 
 ## 进入条件
 
-- Step 03 Ubuntu24.04 目录、权限和备份路径通过。
+- Step 03 Ubuntu `>=22.04` 目录、权限和备份路径通过。
 - Step 01 已定义 schema/Redis/Judge 合同。
 - 运维已批准 staging clone；生产读取命令必须只读或按 runbook 执行。
 

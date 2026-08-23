@@ -2,7 +2,7 @@
 
 ## 目标
 
-在 Ubuntu 24.04 staging 和批准的生产窗口中验证完整发布链、N/N-1 兼容、镜像回滚、数据回滚边界和最终验收；这是计划的收口 Step。
+在仍受支持的 Ubuntu `>=22.04` staging 和批准的生产窗口中验证完整发布链、N/N-1 兼容、镜像回滚、数据回滚边界和最终验收；这是计划的收口 Step。
 
 ## 进入条件
 
@@ -50,7 +50,7 @@
 
 ### Backend/data
 
-- Python3.12、Django5.2、Psycopg3、DRF目标版本、Redis8.2、Dramatiq目标版本。
+- Python3.10、Django5.2、Psycopg3、DRF目标版本、Redis8.2、Dramatiq目标版本。
 - 全量测试、fresh DB migration、生产克隆校验、API/admin/public、worker/retry/result。
 - PG row/schema/JSONB/sequence/index/ACL/timezone；Redis DB1/DB4/waiting_queue manifest。
 
@@ -92,7 +92,7 @@
 提交格式建议：
 
 ```text
-release: complete Ubuntu 24.04 modernization acceptance
+release: complete Ubuntu 22+ modernization acceptance
 ```
 
 最终完成不是“服务能启动”，而是所有合同、数据恢复、判题安全、构建可复现和回滚证据都齐全。

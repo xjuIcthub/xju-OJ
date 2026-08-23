@@ -33,8 +33,8 @@
 
 | 组件 | 候选 | 本轮规则 |
 |---|---|---|
-| 宿主 | Ubuntu 24.04 LTS | 固定，不可替换 |
-| Python | 3.12.x `<3.13` | backend/JudgeServer 同一维护线；锁 micro |
+| 宿主 | Ubuntu `>=22.04`，且仍在官方支持期 | 22.04 LTS 可用；更新版本也必须通过同一 preflight |
+| Python | 3.10.x `<3.11` | backend/JudgeServer 同一维护线；锁 micro |
 | Node | 24.x LTS，优先 24.19.0 | 不选 Node26 Current |
 | pnpm | 11.x，优先 11.22.0 | 报告有 11.21.0/11.22.0 冲突，以 Step 00 重核结果定案 |
 | Vite bridge/final | 7.3.6 / 8.2.1 | 分两个发布 |
@@ -43,18 +43,18 @@
 | uv | 0.12.5 | lock 与镜像同时固定 |
 | PostgreSQL | 18.6；备用17.11 | 以 PG18 restore rehearsal 结果做 GO/NO-GO |
 | Redis | 6.2.23 → 7.4.10 → 8.2.8 | 不直接跨代、不切 Valkey |
-| Judge | Python3.12、GCC14.2、JDK21、Go1.26.x、Node24、libseccomp2.6.x | 每种语言独立验证 |
+| Judge | Python3.10、GCC14.2、JDK21、Go1.26.x、Node24、libseccomp2.6.x | 每种语言独立验证 |
 
 精确版本若在实施日已变化，不能静默改计划；必须更新版本锁、影响的 Step 和回滚标签。
 
 ## 必须记录的决策
 
-1. Python 3.12 的具体 micro、基础镜像 digest、`python --version` 和 ABI。
+1. Python 3.10 的具体 micro、安全支持状态、维护来源、基础镜像 digest、`python --version` 和 ABI。
 2. Node、pnpm、Vite、uv、Django、数据库镜像和 Judge toolchain 的官方来源。
 3. PG18 与 PG17 的 staging 选择结果；若选择 PG17，记录 blocker 和复审日期。
 4. Redis 许可证审查结果；本计划默认不切 Valkey。
 5. amd64 为 Judge 生产架构；arm64 的支持状态必须写成 experimental 或 supported，不能模糊描述。
-6. Ubuntu 24.04 宿主的 Docker Engine、Compose plugin、Buildx/BuildKit 版本及 cgroup v2 状态。
+6. Ubuntu `>=22.04` 宿主的精确版本、支持状态、Docker Engine、Compose plugin、Buildx/BuildKit 版本及 cgroup v2 状态。
 
 ## 计划命令
 
@@ -83,15 +83,16 @@ sed -n '1,80p' backend/deploy/requirements.txt
 
 - 版本锁中没有未解释的候选冲突。
 - 明确标注哪些组件有 LTS，哪些只有 stable/current/maintenance；不得给 Vite、pnpm、GCC、Go 等错误贴 LTS 标签。
-- Python 3.13/3.14 不出现在生产实施命令、Dockerfile 或 `requires-python` 中。
+- Python 3.11 及以上不进入新的生产实施命令、`requires-python` 或目标镜像定义；现有源码中的更高版本声明登记为 Step 13/24 的待修正基线差异。
 - PG、Redis、Django、frontend、Judge 各自有独立回滚标签。
 - 兼容文档列出 API、Session/CSRF、数据库、Redis DB1/DB4、Judge、安全边界。
 
 ## 停止条件
 
-- 不能确认 Ubuntu 24.04 宿主或 Python3.12 运行基线。
+- 不能确认宿主为仍受支持的 Ubuntu `>=22.04`，或不能确认 Python3.10 运行基线。
 - 版本来源只有博客/搜索摘要，没有官方或包元数据证据。
 - 只能通过浮动 tag 构建，无法保存 digest。
+- Python3.10 已无受维护的 patch/基础镜像来源，且没有获批的安全维护方案。
 - PG/Redis 主版本方案没有独立回滚卷和 restore 证据。
 - 任何候选要求改变 app label、表名、migration 历史或判题协议。
 

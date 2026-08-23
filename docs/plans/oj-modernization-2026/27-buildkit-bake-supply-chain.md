@@ -7,7 +7,7 @@
 ## 进入条件
 
 - Step 06 frontend、Step 12/13 backend、Step 23/24/26 server image stages 已能独立构建。
-- Step 03 持久化 BuildKit builder 和 Ubuntu24.04 preflight 通过。
+- Step 03 持久化 BuildKit builder 和 Ubuntu `>=22.04` preflight 通过。
 - 镜像 registry、权限和 cache namespace 已批准。
 
 ## Target 设计
@@ -35,7 +35,7 @@ Backend：
 
 ```text
 COPY pyproject.toml uv.lock
-RUN --mount=type=cache,id=uv-${TARGETOS}-${TARGETARCH}-py312,target=/root/.cache/uv \
+RUN --mount=type=cache,id=uv-${TARGETOS}-${TARGETARCH}-py310,target=/root/.cache/uv \
     uv sync --locked --no-install-project --no-dev
 COPY source
 RUN uv sync --locked --no-dev

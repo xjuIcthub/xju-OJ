@@ -2,7 +2,7 @@
 
 ## 目标
 
-在 Django4.2、Python3.12、目标 PostgreSQL 集群已稳定后，单独切换数据库 driver；不同时升级 Django、PostgreSQL、连接池或 Dramatiq。
+在 Django4.2、Python3.10、目标 PostgreSQL 集群已稳定后，单独切换数据库 driver；不同时升级 Django、PostgreSQL、连接池或 Dramatiq。
 
 ## 进入条件
 

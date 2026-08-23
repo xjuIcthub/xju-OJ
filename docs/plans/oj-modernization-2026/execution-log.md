@@ -4,8 +4,8 @@
 
 ## 全局信息
 
-- 生产宿主：Ubuntu 24.04 LTS
-- Python：3.12.x（精确 micro：待 Step 00 锁定）
+- 生产宿主：Ubuntu >=22.04（精确版本与支持状态：待 Step 00 锁定）
+- Python：3.10.x（精确 micro：待 Step 00 锁定）
 - 当前分支：`main`
 - 计划入口：[README.md](README.md)
 - 当前 Step：未开始

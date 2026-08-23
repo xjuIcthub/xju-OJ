@@ -2,7 +2,7 @@
 
 ## 目标
 
-将 backend Docker/CI/管理命令从 pip requirements 切换为 `uv sync --locked`，保持 Python3.12、旧框架和数据库连接不变。
+将 backend Docker/CI/管理命令从 pip requirements 切换为 `uv sync --locked`，保持 Python3.10、旧框架和数据库连接不变。
 
 ## 进入条件
 
@@ -21,7 +21,7 @@
 ## Docker 分层
 
 ```text
-base: Python3.12 + 系统运行库 + 精确 uv
+base: Python3.10 + 系统运行库 + 精确 uv
 deps: 只复制 pyproject.toml/uv.lock，uv sync --locked --no-install-project
 app: 复制 backend 源码，必要时 uv sync --locked --no-dev
 runtime: API/Worker 共用已安装环境

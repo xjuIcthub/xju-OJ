@@ -1,12 +1,12 @@
-# Step 03：Ubuntu 24.04 运行前置
+# Step 03：Ubuntu >=22.04 运行前置
 
 ## 目标
 
-在 Ubuntu 24.04 LTS 宿主上建立可验证的 Docker、Compose、BuildKit、目录、权限和 Secret 文件前置条件；不启动新生产业务，不生成秘密。
+在仍受官方支持的 Ubuntu `>=22.04` 宿主上建立可验证的 Docker、Compose、BuildKit、目录、权限和 Secret 文件前置条件；生产优先使用 LTS，不启动新生产业务，不生成秘密。
 
 ## 进入条件
 
-- Step 00 已锁定 Python3.12 和容器候选。
+- Step 00 已锁定 Python3.10 和容器候选。
 - Step 02 已记录当前卷、容量和构建基线。
 - 目标机器由运维授权，执行命令不包含密码、Token 或私钥。
 
@@ -14,7 +14,7 @@
 
 必须记录但不写入应用日志：
 
-- Ubuntu `24.04`、内核、架构、cgroup v2。
+- Ubuntu 精确版本（必须 `>=22.04` 且仍受支持）、内核、架构、cgroup v2。
 - Docker Engine、containerd、Compose plugin、buildx、BuildKit 版本。
 - systemd、时间同步、UTC、locale、磁盘空间/inode、挂载选项。
 - 防火墙规则：只允许 frontend 配置的 HTTP/HTTPS；不开放 8000、8080、5432、6379。
@@ -69,7 +69,8 @@ PG/Redis 每代使用独立目录；不覆盖旧卷。`RUNTIME_ROOT` 必须是�
 ```bash
 set -eu
 . /etc/os-release
-[ "$ID" = ubuntu ] && [ "$VERSION_ID" = 24.04 ]
+[ "$ID" = ubuntu ]
+dpkg --compare-versions "$VERSION_ID" ge 22.04
 
 uname -m
 stat -fc '%T' /sys/fs/cgroup
@@ -98,7 +99,7 @@ install -d -m 0700 "$RUNTIME_ROOT/secrets" "$BACKUP_ROOT"
 
 ## 停止条件
 
-- 宿主不是 Ubuntu 24.04 或 cgroup/容器权限行为无法解释。
+- 宿主不是 Ubuntu、版本低于 22.04、已结束官方支持，或 cgroup/容器权限行为无法解释。
 - 磁盘不足以并存 old/new/backup。
 - Docker/Compose 不支持计划中的 health、`--wait`、BuildKit cache 或 secrets。
 - 生产 Secret 只能通过命令行参数或 `.env` 明文提供。
@@ -113,7 +114,7 @@ install -d -m 0700 "$RUNTIME_ROOT/secrets" "$BACKUP_ROOT"
 提交格式建议：
 
 ```text
-ops: establish Ubuntu 24.04 deployment preflight
+ops: establish Ubuntu 22+ deployment preflight
 ```
 
 通过后才能构建新镜像或创建新数据库/Redis 卷。

@@ -8,7 +8,7 @@
 
 - Step 01 已记录实际测试收集数、migration graph、API/Redis/Worker contract。
 - Step 02 已完成 requirements 和直接 import 盘点。
-- Python 3.12 micro 已由 Step 00 锁定。
+- Python 3.10 micro 已由 Step 00 锁定。
 
 ## 文件范围
 
@@ -25,7 +25,7 @@
 
 ## pyproject 规则
 
-- `requires-python = ">=3.12,<3.13"`。
+- `requires-python = ">=3.10,<3.11"`。
 - runtime、test、lint 分组；不要把生产依赖和测试工具混成一个无边界列表。
 - 第一版保持 Django3.2.25、DRF3.14、Dramatiq1.16、django-dramatiq0.11、django-redis5.4、redis4.6、psycopg2 2.9.9 的实际行为。
 - `jsonfield==3.2.0` 暂时进入 production/migrate 依赖，直到全部历史 migration 可在空库重放且不再需要它。
@@ -43,7 +43,7 @@
 ```bash
 cd backend
 uv --version
-uv init --bare --python 3.12
+uv init --bare --python 3.10
 # 按现有 requirements/直接 import 生成声明
 uv lock
 uv sync --locked --group test --group lint
@@ -52,7 +52,7 @@ uv run --locked --no-sync python manage.py test
 uv run --locked --no-sync python manage.py makemigrations --check --dry-run
 ```
 
-命令应在干净 Python3.12 环境运行。不要用 `uv add` 无约束地把最新包引入；每个变更记录来源和原因。
+命令应在干净 Python3.10 环境运行。不要用 `uv add` 无约束地把最新包引入；每个变更记录来源和原因。
 
 ## 验收
 
