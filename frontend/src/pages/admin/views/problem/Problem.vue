@@ -364,7 +364,7 @@
 
         // get problem after getting languages list to avoid find undefined value in `watch problem.languages`
         if (this.mode === 'edit') {
-          this.title = this.$i18n.t('m.Edit_Problem')
+          this.title = this.$t('m.Edit_Problem')
           let funcName = {'edit-problem': 'getProblem', 'edit-contest-problem': 'getContestProblem'}[this.routeName]
           api[funcName](this.$route.params.problemId).then(problemRes => {
             let data = problemRes.data.data
@@ -376,7 +376,7 @@
             this.testCaseUploaded = true
           })
         } else {
-          this.title = this.$i18n.t('m.Add_Problem')
+          this.title = this.$t('m.Add_Problem')
           for (let item of allLanguage.languages) {
             this.problem.languages.push(item.name)
           }

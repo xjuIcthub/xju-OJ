@@ -110,7 +110,7 @@ export default {
       return this.contest.status === CONTEST_STATUS.ENDED
     }
   },
-  beforeDestroy () {
+  beforeUnmount () {
     clearInterval(this.refreshFunc)
   }
 }

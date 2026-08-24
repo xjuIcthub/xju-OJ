@@ -41,7 +41,7 @@
             }
           },
           {
-            title: this.$i18n.t('m.User_User'),
+            title: this.$t('m.User_User'),
             align: 'center',
             render: (h, params) => {
               return h('a', {
@@ -62,22 +62,22 @@
             }
           },
           {
-            title: this.$i18n.t('m.mood'),
+            title: this.$t('m.mood'),
             align: 'center',
             key: 'mood'
           },
           {
-            title: this.$i18n.t('m.AC'),
+            title: this.$t('m.AC'),
             align: 'center',
             key: 'accepted_number'
           },
           {
-            title: this.$i18n.t('m.Total'),
+            title: this.$t('m.Total'),
             align: 'center',
             key: 'submission_number'
           },
           {
-            title: this.$i18n.t('m.Rating'),
+            title: this.$t('m.Rating'),
             align: 'center',
             render: (h, params) => {
               return h('span', utils.getACRate(params.row.accepted_number, params.row.submission_number))
@@ -89,7 +89,7 @@
             trigger: 'axis'
           },
           legend: {
-            data: [this.$i18n.t('m.AC'), this.$i18n.t('m.Total')]
+            data: [this.$t('m.AC'), this.$t('m.Total')]
           },
           grid: {
             x: '3%',
@@ -127,7 +127,7 @@
           ],
           series: [
             {
-              name: this.$i18n.t('m.AC'),
+              name: this.$t('m.AC'),
               type: 'bar',
               data: [0],
               markPoint: {
@@ -137,7 +137,7 @@
               }
             },
             {
-              name: this.$i18n.t('m.Total'),
+              name: this.$t('m.Total'),
               type: 'bar',
               data: [0],
               markPoint: {

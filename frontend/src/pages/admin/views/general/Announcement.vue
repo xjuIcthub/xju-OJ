@@ -71,7 +71,7 @@
       </div>
     </Panel>
     <!--对话框-->
-    <el-dialog :title="announcementDialogTitle" :visible="showEditAnnouncementDialog" @update:visible="showEditAnnouncementDialog = $event"
+    <LegacyDialog :title="announcementDialogTitle" :visible="showEditAnnouncementDialog" @update:visible="showEditAnnouncementDialog = $event"
                @open="onOpenEditDialog" :close-on-click-modal="false">
       <el-form label-position="top">
         <el-form-item :label="$t('m.Announcement_Title')" required>
@@ -96,7 +96,7 @@
           <cancel @click="showEditAnnouncementDialog = false"></cancel>
           <save type="primary" @click="submitAnnouncement"></save>
         </span></template>
-    </el-dialog>
+    </LegacyDialog>
   </div>
 </template>
 <script>

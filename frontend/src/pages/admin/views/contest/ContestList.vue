@@ -92,14 +92,14 @@
         </el-pagination>
       </div>
     </Panel>
-    <el-dialog title="Download Contest Submissions"
+    <LegacyDialog title="Download Contest Submissions"
                width="30%"
                :visible="downloadDialogVisible" @update:visible="downloadDialogVisible = $event">
       <el-switch v-model="excludeAdmin" active-text="Exclude admin submissions"></el-switch>
       <template #footer><span  class="dialog-footer">
         <el-button type="primary" @click="downloadSubmissions">确 定</el-button>
       </span></template>
-    </el-dialog>
+    </LegacyDialog>
   </div>
 </template>
 <script>

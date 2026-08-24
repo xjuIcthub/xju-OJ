@@ -40,7 +40,7 @@
             }
           },
           {
-            title: this.$i18n.t('m.User_User'),
+            title: this.$t('m.User_User'),
             align: 'center',
             render: (h, params) => {
               return h('a', {
@@ -61,27 +61,27 @@
             }
           },
           {
-            title: this.$i18n.t('m.mood'),
+            title: this.$t('m.mood'),
             align: 'center',
             key: 'mood'
           },
           {
-            title: this.$i18n.t('m.Score'),
+            title: this.$t('m.Score'),
             align: 'center',
             key: 'total_score'
           },
           {
-            title: this.$i18n.t('m.AC'),
+            title: this.$t('m.AC'),
             align: 'center',
             key: 'accepted_number'
           },
           {
-            title: this.$i18n.t('m.Total'),
+            title: this.$t('m.Total'),
             align: 'center',
             key: 'submission_number'
           },
           {
-            title: this.$i18n.t('m.Rating'),
+            title: this.$t('m.Rating'),
             align: 'center',
             render: (h, params) => {
               return h('span', utils.getACRate(params.row.accepted_number, params.row.submission_number))
@@ -93,7 +93,7 @@
             trigger: 'axis'
           },
           legend: {
-            data: [this.$i18n.t('m.Score')]
+            data: [this.$t('m.Score')]
           },
           grid: {
             x: '3%',
@@ -135,7 +135,7 @@
           ],
           series: [
             {
-              name: this.$i18n.t('m.Score'),
+              name: this.$t('m.Score'),
               type: 'bar',
               data: [0],
               barMaxWidth: '80',

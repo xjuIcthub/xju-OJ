@@ -14,21 +14,23 @@
       </el-dropdown>
     </div>
     <div class="content-app">
-      <transition name="fadeInUp" mode="out-in">
-        <router-view></router-view>
-      </transition>
+      <router-view v-slot="{ Component }">
+        <transition name="fadeInUp" mode="out-in">
+          <component :is="Component"></component>
+        </transition>
+      </router-view>
       <div class="footer">
         Build Version: {{ version }}
       </div>
     </div>
 
-    <el-dialog :title="$t('m.Latex_Editor')" :visible="katexVisible" @update:visible="katexVisible = $event">
+    <LegacyDialog :title="$t('m.Latex_Editor')" :visible="katexVisible" @update:visible="katexVisible = $event">
       <KatexEditor></KatexEditor>
-    </el-dialog>
+    </LegacyDialog>
   </div>
 </template>
 <script>
-  import { types } from '@/store'
+  import store, { types } from '@/store'
   import { mapGetters } from '@/store/compat'
   import SideMenu from '../components/SideMenu.vue'
   import ScreenFull from '@admin/components/ScreenFull.vue'
@@ -48,17 +50,10 @@
       KatexEditor,
       ScreenFull
     },
-    beforeRouteEnter (to, from, next) {
-      api.getProfile().then(res => {
-        if (!res.data.data) {
-          // not login
-          next({name: 'login'})
-        } else {
-          next(vm => {
-            vm.$store.commit(types.CHANGE_PROFILE, {profile: res.data.data})
-          })
-        }
-      })
+    async beforeRouteEnter () {
+      const res = await api.getProfile()
+      if (!res.data.data) return {name: 'login'}
+      store.commit(types.CHANGE_PROFILE, {profile: res.data.data})
     },
     methods: {
       handleCommand (command) {

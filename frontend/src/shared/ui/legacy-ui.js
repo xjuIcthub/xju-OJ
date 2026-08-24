@@ -26,7 +26,33 @@ const forward = (component, name, map = {}) => ({
   }
 })
 
-const LegacyIcon = { name: 'Icon', props: { type: String, size: [String, Number], color: String }, template: '<i :class="[\'legacy-icon\', type]" :style="{fontSize: size ? size + \'px\' : undefined, color}"></i>' }
+const LegacyIcon = {
+  name: 'Icon',
+  props: { type: String, size: [String, Number], color: String },
+  setup (props) {
+    return () => h('i', {
+      class: ['legacy-icon', props.type],
+      style: { fontSize: props.size ? `${props.size}px` : undefined, color: props.color }
+    })
+  }
+}
+
+const LegacyButton = {
+  name: 'LegacyButton',
+  inheritAttrs: false,
+  props: { type: String, shape: String, long: Boolean },
+  setup (props, { attrs, slots }) {
+    const allowedTypes = new Set(['primary', 'success', 'warning', 'info', 'danger', 'text'])
+    return () => h(ElButton, {
+      ...attrs,
+      type: allowedTypes.has(props.type) ? props.type : '',
+      plain: props.type === 'ghost' || attrs.plain,
+      text: props.type === 'text' || attrs.text,
+      round: props.shape === 'circle' || attrs.round,
+      style: [attrs.style, props.long ? { width: '100%' } : null]
+    }, slots)
+  }
+}
 
 const LegacyAlert = {
   name: 'Alert',
@@ -179,7 +205,7 @@ const LegacyFormItem = forward(ElFormItem, 'FormItem')
 
 const legacyRenderComponents = {
   Alert: ElAlert,
-  Button: ElButton,
+  Button: LegacyButton,
   Card: ElCard,
   Col: ElCol,
   Form: LegacyForm,
@@ -277,13 +303,13 @@ const LegacyModal = {
 }
 
 const aliases = {
-  Alert: LegacyAlert, BackTop: ElBacktop, Button: ElButton, ButtonGroup: ElButtonGroup, Card: LegacyCard,
+  Alert: LegacyAlert, BackTop: ElBacktop, LegacyButton, ButtonGroup: ElButtonGroup, Card: LegacyCard,
   Carousel: LegacyCarousel, CarouselItem: ElCarouselItem, Col: ElCol, Dropdown: LegacyDropdown,
   DropdownItem: LegacyDropdownItem, 'Dropdown-item': LegacyDropdownItem, DropdownMenu: ElDropdownMenu, 'Dropdown-menu': ElDropdownMenu,
   Form: LegacyForm, FormItem: LegacyFormItem, 'Form-item': LegacyFormItem, Icon: LegacyIcon, Input: forward(ElInput, 'Input'),
   Menu: LegacyMenu, MenuItem: LegacyMenuItem, 'Menu-item': LegacyMenuItem,
-  Modal: LegacyModal, Option: ElOption, Page: LegacyPagination, Poptip: LegacyPoptip, Progress: ElProgress,
-  Row: ElRow, Select: forward(ElSelect, 'Select'), Spin: { template: '<div class="legacy-spin">Loading…</div>' },
+  Modal: LegacyModal, LegacyDialog: LegacyModal, Option: ElOption, Page: LegacyPagination, Poptip: LegacyPoptip, Progress: ElProgress,
+  Row: ElRow, Select: forward(ElSelect, 'Select'), Spin: { name: 'Spin', setup: () => () => h('div', { class: 'legacy-spin' }, 'Loading…') },
   Submenu: LegacySubmenu, Switch: LegacySwitch, 'i-switch': LegacySwitch,
   Table: LegacyTable, Tag: ElTag, Tooltip: ElTooltip, Upload: LegacyUpload
 }
@@ -304,7 +330,6 @@ export default {
   install (app, { i18n } = {}) {
     app.use(ElementPlus)
     Object.entries(aliases).forEach(([name, component]) => app.component(name, component))
-    app.component('ElDialog', LegacyModal)
     const globals = app.config.globalProperties
     globals.$Message = { config: () => {}, error: ElMessage.error, info: ElMessage.info, success: ElMessage.success, warning: ElMessage.warning }
     globals.$Modal = { confirm, success: options => ElMessageBox.alert(options.content || '', options.title || 'Success') }

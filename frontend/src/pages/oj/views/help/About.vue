@@ -45,12 +45,8 @@
         languages: []
       }
     },
-    beforeRouteEnter (to, from, next) {
-      utils.getLanguages().then(languages => {
-        next(vm => {
-          vm.languages = languages
-        })
-      })
+    async mounted () {
+      this.languages = await utils.getLanguages()
     }
   }
 </script>

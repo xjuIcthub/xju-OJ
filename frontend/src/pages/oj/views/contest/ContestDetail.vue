@@ -2,9 +2,11 @@
   <div class="flex-container">
     <div id="contest-main">
       <!--children-->
-      <transition name="fadeInUp">
-        <router-view></router-view>
-      </transition>
+      <router-view v-slot="{ Component }">
+        <transition name="fadeInUp">
+          <component :is="Component"></component>
+        </transition>
+      </router-view>
       <!--children end-->
       <div class="flex-container" v-if="route_name === 'contest-details'">
         <template>
@@ -23,7 +25,7 @@
                 <Input v-model="contestPassword" type="password"
                        placeholder="contest password" class="contest-password-input"
                        @on-enter="checkPassword"/>
-                <Button type="info" @click="checkPassword">Enter</Button>
+                <LegacyButton type="info" @click="checkPassword">Enter</LegacyButton>
               </div>
             </Panel>
             <Table :columns="columns" :data="contest_table" disabled-hover style="margin-bottom: 40px;"></Table>
@@ -94,31 +96,31 @@
         contestPassword: '',
         columns: [
           {
-            title: this.$i18n.t('m.StartAt'),
+            title: this.$t('m.StartAt'),
             render: (h, params) => {
               return h('span', time.utcToLocal(params.row.start_time))
             }
           },
           {
-            title: this.$i18n.t('m.EndAt'),
+            title: this.$t('m.EndAt'),
             render: (h, params) => {
               return h('span', time.utcToLocal(params.row.end_time))
             }
           },
           {
-            title: this.$i18n.t('m.ContestType'),
+            title: this.$t('m.ContestType'),
             render: (h, params) => {
-              return h('span', this.$i18n.t('m.' + params.row.contest_type ? params.row.contest_type.replace(' ', '_') : ''))
+              return h('span', this.$t('m.' + params.row.contest_type ? params.row.contest_type.replace(' ', '_') : ''))
             }
           },
           {
-            title: this.$i18n.t('m.Rule'),
+            title: this.$t('m.Rule'),
             render: (h, params) => {
-              return h('span', this.$i18n.t('m.' + params.row.rule_type))
+              return h('span', this.$t('m.' + params.row.rule_type))
             }
           },
           {
-            title: this.$i18n.t('m.Creator'),
+            title: this.$t('m.Creator'),
             render: (h, data) => {
               return h('span', data.row.created_by.username)
             }
@@ -187,7 +189,7 @@
         this.changeDomTitle({title: this.contest.title})
       }
     },
-    beforeDestroy () {
+    beforeUnmount () {
       clearInterval(this.timer)
       this.$store.commit(types.CLEAR_CONTEST)
     }

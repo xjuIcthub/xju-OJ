@@ -1,6 +1,6 @@
 <template>
   <div class="view">
-    <Panel :title="contestId ? this.$i18n.t('m.Contest_Problem_List') : this.$i18n.t('m.Problem_List')">
+    <Panel :title="contestId ? this.$t('m.Contest_Problem_List') : this.$t('m.Problem_List')">
       <template #header><div >
         <el-input
           v-model="keyword"
@@ -97,7 +97,7 @@
         </el-pagination>
       </div>
     </Panel>
-    <el-dialog title="Sure to update the problem? "
+    <LegacyDialog title="Sure to update the problem? "
                width="20%"
                :visible="InlineEditDialogVisible" @update:visible="InlineEditDialogVisible = $event"
                @close-on-click-modal="false">
@@ -109,14 +109,14 @@
         <cancel @click="InlineEditDialogVisible = false; getProblemList(currentPage)"></cancel>
         <save @click="updateProblem(currentRow)"></save>
       </span></template>
-    </el-dialog>
-    <el-dialog title="Add Contest Problem"
+    </LegacyDialog>
+    <LegacyDialog title="Add Contest Problem"
                v-if="contestId"
                width="80%"
                :visible="addProblemDialogVisible" @update:visible="addProblemDialogVisible = $event"
                @close-on-click-modal="false">
       <add-problem-component :contestID="contestId" @on-change="getProblemList"></add-problem-component>
-    </el-dialog>
+    </LegacyDialog>
   </div>
 </template>
 <script>

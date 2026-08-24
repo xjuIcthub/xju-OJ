@@ -15,7 +15,11 @@ const files = []
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).forEach(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : /\.(js|vue|mjs)$/.test(entry.name) && files.push(path.join(dir, entry.name)))
 walk(path.join(root, 'src'))
 const source = files.map(file => fs.readFileSync(file, 'utf8')).join('\n')
-for (const pattern of [/from ['"]vuex['"]/, /from ['"]element-ui/, /from ['"]iview/, /new Vue\s*\(/, /Vue\.prototype/, /Vue\.util/, /slot-scope=/, /\.native(?:[.="])/, /\.sync=/]) assert.ok(!pattern.test(source), `legacy source matched ${pattern}`)
+for (const pattern of [
+  /from ['"]vuex['"]/, /from ['"]element-ui/, /from ['"]iview/, /new Vue\s*\(/, /Vue\.prototype/, /Vue\.util/,
+  /\sslot(?:-scope)?\s*=/, /\.native(?:[.="])/, /\.sync=/, /\$i18n\.t/, /beforeDestroy\s*\(/,
+  /template:\s*['"]/, /<\/?Button\b/, /<\/?el-dialog\b/, /<transition[^>]*>\s*<router-view/
+]) assert.ok(!pattern.test(source), `legacy source matched ${pattern}`)
 const vite = fs.readFileSync(path.join(root, 'vite.config.mjs'), 'utf8')
 assert.ok(vite.includes("index: resolve('index.html')") && vite.includes("admin: resolve('admin/index.html')"))
 const nginx = fs.readFileSync(path.join(root, 'nginx/nginx.conf'), 'utf8')

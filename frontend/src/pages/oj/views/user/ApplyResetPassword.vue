@@ -23,11 +23,11 @@
           </div>
         </Form-item>
       </Form>
-      <Button type="primary"
+      <LegacyButton type="primary"
               @click="sendEmail"
               class="btn" long
               :loading="btnLoading">{{$t('m.Send_Password_Reset_Email')}}
-      </Button>
+      </LegacyButton>
     </template>
     <template v-else>
       <Alert type="success" show-icon>
@@ -48,7 +48,7 @@
         if (value !== '') {
           api.checkUsernameOrEmail(undefined, value).then(res => {
             if (res.data.data.email === false) {
-              callback(new Error(this.$i18n.t('m.The_email_doesnt_exist')))
+              callback(new Error(this.$t('m.The_email_doesnt_exist')))
             } else {
               callback()
             }

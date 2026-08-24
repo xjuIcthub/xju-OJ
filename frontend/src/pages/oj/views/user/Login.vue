@@ -18,13 +18,13 @@
       </FormItem>
     </Form>
     <div class="footer">
-      <Button
+      <LegacyButton
         type="primary"
         @click="handleLogin"
         class="btn" long
         :loading="btnLoginLoading">
         {{$t('m.UserLogin')}}
-      </Button>
+      </LegacyButton>
       <a v-if="website.allow_register" @click.stop="handleBtnClick('register')">{{$t('m.No_Account')}}</a>
       <a @click.stop="goResetPassword" style="float: right">{{$t('m.Forget_Password')}}</a>
     </div>
@@ -85,7 +85,7 @@
             this.btnLoginLoading = false
             this.changeModalStatus({visible: false})
             this.getProfile()
-            this.$success(this.$i18n.t('m.Welcome_back'))
+            this.$success(this.$t('m.Welcome_back'))
           }, _ => {
             this.btnLoginLoading = false
           })

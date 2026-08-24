@@ -2,12 +2,12 @@
   <Row type="flex">
     <Col :span="24">
     <Panel id="contest-card" shadow>
-      <template #title><div >{{query.rule_type === '' ? this.$i18n.t('m.All') : query.rule_type}} {{$t('m.Contests')}}</div></template>
+      <template #title><div >{{query.rule_type === '' ? this.$t('m.All') : query.rule_type}} {{$t('m.Contests')}}</div></template>
       <template #extra><div >
         <ul class="filter">
           <li>
             <Dropdown @on-click="onRuleChange">
-              <span>{{query.rule_type === '' ? this.$i18n.t('m.Rule') : this.$i18n.t('m.' + query.rule_type)}}
+              <span>{{query.rule_type === '' ? this.$t('m.Rule') : this.$t('m.' + query.rule_type)}}
                 <Icon type="arrow-down-b"></Icon>
               </span>
               <template #list><Dropdown-menu >
@@ -19,7 +19,7 @@
           </li>
           <li>
             <Dropdown @on-click="onStatusChange">
-              <span>{{query.status === '' ? this.$i18n.t('m.Status') : this.$i18n.t('m.' + CONTEST_STATUS_REVERSE[query.status].name.replace(/ /g,"_"))}}
+              <span>{{query.status === '' ? this.$t('m.Status') : this.$t('m.' + CONTEST_STATUS_REVERSE[query.status].name.replace(/ /g,"_"))}}
                 <Icon type="arrow-down-b"></Icon>
               </span>
               <template #list><Dropdown-menu >
@@ -60,9 +60,9 @@
                 {{getDuration(contest.start_time, contest.end_time)}}
               </li>
               <li>
-                <Button size="small" shape="circle" @click="onRuleChange(contest.rule_type)">
+                <LegacyButton size="small" shape="circle" @click="onRuleChange(contest.rule_type)">
                   {{contest.rule_type}}
-                </Button>
+                </LegacyButton>
               </li>
             </ul>
             </Col>
@@ -110,15 +110,8 @@
         cur_contest_id: ''
       }
     },
-    beforeRouteEnter (to, from, next) {
-      api.getContestList(0, limit).then((res) => {
-        next((vm) => {
-          vm.contests = res.data.data.results
-          vm.total = res.data.data.total
-        })
-      }, (res) => {
-        next()
-      })
+    mounted () {
+      this.init()
     },
     methods: {
       init () {
@@ -160,7 +153,7 @@
       goContest (contest) {
         this.cur_contest_id = contest.id
         if (contest.contest_type !== CONTEST_TYPE.PUBLIC && !this.isAuthenticated) {
-          this.$error(this.$i18n.t('m.Please_login_first'))
+          this.$error(this.$t('m.Please_login_first'))
           this.$store.dispatch('changeModalStatus', {visible: true})
         } else {
           this.$router.push({name: 'contest-details', params: {contestID: contest.id}})

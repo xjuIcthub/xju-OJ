@@ -27,14 +27,14 @@
     </Col>
     <Col v-if="submission.can_unshare" :span="20">
       <div id="share-btn">
-        <Button v-if="submission.shared"
+        <LegacyButton v-if="submission.shared"
                 type="warning" size="large" @click="shareSubmission(false)">
           {{$t('m.UnShare')}}
-        </Button>
-        <Button v-else
+        </LegacyButton>
+        <LegacyButton v-else
                 type="primary" size="large" @click="shareSubmission(true)">
           {{$t('m.Share')}}
-        </Button>
+        </LegacyButton>
       </div>
     </Col>
   </Row>
@@ -55,30 +55,30 @@
       return {
         columns: [
           {
-            title: this.$i18n.t('m.ID'),
+            title: this.$t('m.ID'),
             align: 'center',
             type: 'index'
           },
           {
-            title: this.$i18n.t('m.Status'),
+            title: this.$t('m.Status'),
             align: 'center',
             render: (h, params) => {
               return h('Tag', {
                 props: {
                   color: JUDGE_STATUS[params.row.result].color
                 }
-              }, this.$i18n.t('m.' + JUDGE_STATUS[params.row.result].name.replace(/ /g, '_')))
+              }, this.$t('m.' + JUDGE_STATUS[params.row.result].name.replace(/ /g, '_')))
             }
           },
           {
-            title: this.$i18n.t('m.Memory'),
+            title: this.$t('m.Memory'),
             align: 'center',
             render: (h, params) => {
               return h('span', utils.submissionMemoryFormat(params.row.memory))
             }
           },
           {
-            title: this.$i18n.t('m.Time'),
+            title: this.$t('m.Time'),
             align: 'center',
             render: (h, params) => {
               return h('span', utils.submissionTimeFormat(params.row.cpu_time))
@@ -114,7 +114,7 @@
             if (data.info.data[0].score !== undefined) {
               this.isConcat = true
               const scoreColumn = {
-                title: this.$i18n.t('m.Score'),
+                title: this.$t('m.Score'),
                 align: 'center',
                 key: 'score'
               }
@@ -125,14 +125,14 @@
               this.isConcat = true
               const adminColumn = [
                 {
-                  title: this.$i18n.t('m.Real_Time'),
+                  title: this.$t('m.Real_Time'),
                   align: 'center',
                   render: (h, params) => {
                     return h('span', utils.submissionTimeFormat(params.row.real_time))
                   }
                 },
                 {
-                  title: this.$i18n.t('m.Signal'),
+                  title: this.$t('m.Signal'),
                   align: 'center',
                   key: 'signal'
                 }
@@ -149,7 +149,7 @@
         let data = {id: this.submission.id, shared: shared}
         api.updateSubmission(data).then(res => {
           this.getSubmission()
-          this.$success(this.$i18n.t('m.Succeeded'))
+          this.$success(this.$t('m.Succeeded'))
         }, () => {
         })
       }

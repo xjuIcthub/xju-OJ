@@ -32,15 +32,15 @@
             width: 150
           },
           {
-            title: this.$i18n.t('m.Title'),
+            title: this.$t('m.Title'),
             key: 'title'
           },
           {
-            title: this.$i18n.t('m.Total'),
+            title: this.$t('m.Total'),
             key: 'submission_number'
           },
           {
-            title: this.$i18n.t('m.AC_Rate'),
+            title: this.$t('m.AC_Rate'),
             render: (h, params) => {
               return h('span', this.getACRate(params.row.accepted_number, params.row.submission_number))
             }
@@ -53,7 +53,7 @@
             width: 150
           },
           {
-            title: this.$i18n.t('m.Title'),
+            title: this.$t('m.Title'),
             key: 'title'
           }
         ]

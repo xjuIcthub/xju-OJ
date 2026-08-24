@@ -21,7 +21,7 @@
             <i-switch v-model="showRealName"></i-switch>
           </p>
           <p>
-            <Button type="primary" size="small" @click="downloadRankCSV">{{$t('m.download_csv')}}</Button>
+            <LegacyButton type="primary" size="small" @click="downloadRankCSV">{{$t('m.download_csv')}}</LegacyButton>
           </p>
         </div></template>
       </Poptip>
@@ -65,7 +65,7 @@
             }
           },
           {
-            title: this.$i18n.t('m.User_User'),
+            title: this.$t('m.User_User'),
             align: 'center',
             render: (h, params) => {
               return h('a', {
@@ -86,7 +86,7 @@
             }
           },
           {
-            title: this.$i18n.t('m.Total_Score'),
+            title: this.$t('m.Total_Score'),
             align: 'center',
             render: (h, params) => {
               return h('a', {
@@ -105,7 +105,7 @@
         dataRank: [],
         options: {
           title: {
-            text: this.$i18n.t('m.Top_10_Teams'),
+            text: this.$t('m.Top_10_Teams'),
             left: 'center'
           },
           tooltip: {
@@ -147,7 +147,7 @@
           ],
           series: [
             {
-              name: this.$i18n.t('m.Score'),
+              name: this.$t('m.Score'),
               type: 'bar',
               barMaxWidth: '80',
               data: [0],

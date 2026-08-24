@@ -7,7 +7,7 @@
         <ul class="filter">
           <li>
             <Dropdown @on-click="filterByDifficulty">
-              <span>{{query.difficulty === '' ? this.$i18n.t('m.Difficulty') : this.$i18n.t('m.' + query.difficulty)}}
+              <span>{{query.difficulty === '' ? this.$t('m.Difficulty') : this.$t('m.' + query.difficulty)}}
                 <Icon type="arrow-down-b"></Icon>
               </span>
               <template #list><Dropdown-menu >
@@ -32,10 +32,10 @@
                    icon="ios-search-strong"/>
           </li>
           <li>
-            <Button type="info" @click="onReset">
+            <LegacyButton type="info" @click="onReset">
               <Icon type="refresh"></Icon>
               {{$t('m.Reset')}}
-            </Button>
+            </LegacyButton>
           </li>
         </ul>
       </div></template>
@@ -53,19 +53,19 @@
     <Col :span="5">
     <Panel :padding="10">
       <template #title><div  class="taglist-title">{{$t('m.Tags')}}</div></template>
-      <Button v-for="tag in tagList"
+      <LegacyButton v-for="tag in tagList"
               :key="tag.name"
               @click="filterByTag(tag.name)"
               type="ghost"
               :disabled="query.tag === tag.name"
               shape="circle"
               class="tag-btn">{{tag.name}}
-      </Button>
+      </LegacyButton>
 
-      <Button long id="pick-one" @click="pickone">
+      <LegacyButton long id="pick-one" @click="pickone">
         <Icon type="shuffle"></Icon>
         {{$t('m.Pick_One')}}
-      </Button>
+      </LegacyButton>
     </Panel>
     <Spin v-if="loadings.tag" fix size="large"></Spin>
     </Col>
@@ -110,7 +110,7 @@
             }
           },
           {
-            title: this.$i18n.t('m.Title'),
+            title: this.$t('m.Title'),
             width: 400,
             render: (h, params) => {
               return h('Button', {
@@ -133,7 +133,7 @@
             }
           },
           {
-            title: this.$i18n.t('m.Level'),
+            title: this.$t('m.Level'),
             render: (h, params) => {
               let t = params.row.difficulty
               let color = 'blue'
@@ -143,15 +143,15 @@
                 props: {
                   color: color
                 }
-              }, this.$i18n.t('m.' + params.row.difficulty))
+              }, this.$t('m.' + params.row.difficulty))
             }
           },
           {
-            title: this.$i18n.t('m.Total'),
+            title: this.$t('m.Total'),
             key: 'submission_number'
           },
           {
-            title: this.$i18n.t('m.AC_Rate'),
+            title: this.$t('m.AC_Rate'),
             render: (h, params) => {
               return h('span', this.getACRate(params.row.accepted_number, params.row.submission_number))
             }
@@ -240,7 +240,7 @@
         if (value) {
           this.problemTableColumns.push(
             {
-              title: this.$i18n.t('m.Tags'),
+              title: this.$t('m.Tags'),
               align: 'center',
               render: (h, params) => {
                 let tags = []

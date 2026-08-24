@@ -34,14 +34,14 @@
               <Icon type="ios-help-outline"></Icon>
               <template #content><div >
                 <p>If you find the following problem id does not exist,<br> try to click the button.</p>
-                <Button type="info" @click="freshProblemDisplayID">regenerate</Button>
+                <LegacyButton type="info" @click="freshProblemDisplayID">regenerate</LegacyButton>
               </div></template>
             </Poptip>
           </div>
           <p v-else>{{$t('m.UserHomeIntro')}}</p>
           <div class="btns">
             <div class="problem-btn" v-for="problemID of problems" :key="problemID">
-              <Button type="ghost" @click="goProblem(problemID)">{{problemID}}</Button>
+              <LegacyButton type="ghost" @click="goProblem(problemID)">{{problemID}}</LegacyButton>
             </div>
           </div>
         </div>

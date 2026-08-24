@@ -90,12 +90,12 @@
                 <Input v-model="captchaCode" class="captcha-code"/>
               </div>
             </template>
-            <Button type="warning" icon="edit" :loading="submitting" @click="submitCode"
+            <LegacyButton type="warning" icon="edit" :loading="submitting" @click="submitCode"
                     :disabled="problemSubmitDisabled || submitted"
                     class="fl-right">
               <span v-if="submitting">{{$t('m.Submitting')}}</span>
               <span v-else>{{$t('m.Submit')}}</span>
-            </Button>
+            </LegacyButton>
           </Col>
         </Row>
       </Card>
@@ -179,7 +179,7 @@
         <template #title><div >
           <Icon type="ios-analytics"></Icon>
           <span class="card-title">{{$t('m.Statistic')}}</span>
-          <Button type="ghost" size="small" id="detail" @click="graphVisible = !graphVisible">Details</Button>
+          <LegacyButton type="ghost" size="small" id="detail" @click="graphVisible = !graphVisible">Details</LegacyButton>
         </div></template>
         <div class="echarts">
           <ECharts :options="pie"></ECharts>
@@ -192,7 +192,7 @@
         <ECharts :options="largePie" :initOptions="largePieInitOpts"></ECharts>
       </div>
       <template #footer><div >
-        <Button type="ghost" @click="graphVisible=false">{{$t('m.Close')}}</Button>
+        <LegacyButton type="ghost" @click="graphVisible=false">{{$t('m.Close')}}</LegacyButton>
       </div></template>
     </Modal>
   </div>
@@ -257,19 +257,13 @@
         }
       }
     },
-    beforeRouteEnter (to, from, next) {
-      let problemCode = storage.get(buildProblemCodeKey(to.params.problemID, to.params.contestID))
-      if (problemCode) {
-        next(vm => {
-          vm.language = problemCode.language
-          vm.code = problemCode.code
-          vm.theme = problemCode.theme
-        })
-      } else {
-        next()
-      }
-    },
     mounted () {
+      const problemCode = storage.get(buildProblemCodeKey(this.$route.params.problemID, this.$route.params.contestID))
+      if (problemCode) {
+        this.language = problemCode.language
+        this.code = problemCode.code
+        this.theme = problemCode.theme
+      }
       this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {menu: false})
       this.init()
     },
@@ -359,7 +353,7 @@
       },
       onResetToTemplate () {
         this.$Modal.confirm({
-          content: this.$i18n.t('m.Are_you_sure_you_want_to_reset_your_code'),
+          content: this.$t('m.Are_you_sure_you_want_to_reset_your_code'),
           onOk: () => {
             let template = this.problem.template
             if (template && template[this.language]) {
@@ -397,7 +391,7 @@
       },
       submitCode () {
         if (this.code.trim() === '') {
-          this.$error(this.$i18n.t('m.Code_can_not_be_empty'))
+          this.$error(this.$t('m.Code_can_not_be_empty'))
           return
         }
         this.submissionId = ''
@@ -421,8 +415,8 @@
             this.submissionExists = true
             if (!detailsVisible) {
               this.$Modal.success({
-                title: this.$i18n.t('m.Success'),
-                content: this.$i18n.t('m.Submit_code_successfully')
+                title: this.$t('m.Success'),
+                content: this.$t('m.Submit_code_successfully')
               })
               return
             }
@@ -442,7 +436,7 @@
           if (this.submissionExists) {
             this.$Modal.confirm({
               title: '',
-              content: '<h3>' + this.$i18n.t('m.You_have_submission_in_this_problem_sure_to_cover_it') + '<h3>',
+              content: '<h3>' + this.$t('m.You_have_submission_in_this_problem_sure_to_cover_it') + '<h3>',
               onOk: () => {
                 // 暂时解决对话框与后面提示对话框冲突的问题(否则一闪而过）
                 setTimeout(() => {
@@ -489,7 +483,7 @@
         }
       }
     },
-    beforeRouteLeave (to, from, next) {
+    beforeRouteLeave (to, from) {
       // 防止切换组件后仍然不断请求
       clearInterval(this.refreshStatus)
 
@@ -499,7 +493,6 @@
         language: this.language,
         theme: this.theme
       })
-      next()
     },
     watch: {
       '$route' () {

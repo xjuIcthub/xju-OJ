@@ -4,11 +4,11 @@
       {{title}}
     </div></template>
     <template #extra><div >
-      <Button v-if="listVisible" type="info" @click="init" :loading="btnLoading">{{$t('m.Refresh')}}</Button>
-      <Button v-else type="ghost" icon="ios-undo" @click="goBack">{{$t('m.Back')}}</Button>
+      <LegacyButton v-if="listVisible" type="info" @click="init" :loading="btnLoading">{{$t('m.Refresh')}}</LegacyButton>
+      <LegacyButton v-else type="ghost" icon="ios-undo" @click="goBack">{{$t('m.Back')}}</LegacyButton>
     </div></template>
 
-    <transition-group name="announcement-animate" mode="in-out">
+    <transition-group name="announcement-animate">
       <div class="no-announcement" v-if="!announcements.length" key="no-announcement">
         <p>{{$t('m.No_Announcements')}}</p>
       </div>
@@ -98,7 +98,7 @@
     computed: {
       title () {
         if (this.listVisible) {
-          return this.isContest ? this.$i18n.t('m.Contest_Announcements') : this.$i18n.t('m.Announcements')
+          return this.isContest ? this.$t('m.Contest_Announcements') : this.$t('m.Announcements')
         } else {
           return this.announcement.title
         }

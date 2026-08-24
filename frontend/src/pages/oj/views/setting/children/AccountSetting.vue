@@ -19,7 +19,7 @@
           <FormItem v-if="visible.passwordAlert">
             <Alert type="success">You will need to login again after 5 seconds..</Alert>
           </FormItem>
-          <Button type="primary" @click="changePassword">{{$t('m.Update_Password')}}</Button>
+          <LegacyButton type="primary" @click="changePassword">{{$t('m.Update_Password')}}</LegacyButton>
         </Form>
       </div>
 
@@ -40,7 +40,7 @@
           <FormItem v-if="visible.tfaRequired" label="Two Factor Auth" prop="tfa_code">
             <Input v-model="formEmail.tfa_code"/>
           </FormItem>
-          <Button type="primary" @click="changeEmail">{{$t('m.ChangeEmail')}}</Button>
+          <LegacyButton type="primary" @click="changeEmail">{{$t('m.ChangeEmail')}}</LegacyButton>
         </Form>
       </div>
     </div>

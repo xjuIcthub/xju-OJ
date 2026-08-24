@@ -8,7 +8,7 @@
           <i-switch style="margin-left: 5px;" @on-change="handleAutoRefresh"></i-switch>
         </li>
         <li>
-          <Button type="info" @click="getACInfo">{{$t('m.Refresh')}}</Button>
+          <LegacyButton type="info" @click="getACInfo">{{$t('m.Refresh')}}</LegacyButton>
         </li>
       </ul>
     </div></template>
@@ -40,16 +40,16 @@
         loadingTable: false,
         columns: [
           {
-            title: this.$i18n.t('m.AC_Time'),
+            title: this.$t('m.AC_Time'),
             key: 'ac_time'
           },
           {
-            title: this.$i18n.t('m.ProblemID'),
+            title: this.$t('m.ProblemID'),
             align: 'center',
             key: 'problem_display_id'
           },
           {
-            title: this.$i18n.t('m.First_Blood'),
+            title: this.$t('m.First_Blood'),
             align: 'center',
             render: (h, {row}) => {
               if (row.ac_info.is_first_ac) {
@@ -57,14 +57,14 @@
                   props: {
                     color: 'red'
                   }
-                }, this.$i18n.t('m.First_Blood'))
+                }, this.$t('m.First_Blood'))
               } else {
                 return h('span', '----')
               }
             }
           },
           {
-            title: this.$i18n.t('m.Username'),
+            title: this.$t('m.Username'),
             align: 'center',
             render: (h, {row}) => {
               return h('a', {
@@ -84,7 +84,7 @@
             }
           },
           {
-            title: this.$i18n.t('m.RealName'),
+            title: this.$t('m.RealName'),
             align: 'center',
             render: (h, {row}) => {
               return h('span', {
@@ -96,18 +96,18 @@
             }
           },
           {
-            title: this.$i18n.t('m.Status'),
+            title: this.$t('m.Status'),
             align: 'center',
             render: (h, {row}) => {
               return h('Tag', {
                 props: {
                   color: row.checked ? 'green' : 'yellow'
                 }
-              }, row.checked ? this.$i18n.t('m.Checked') : this.$i18n.t('m.Not_Checked'))
+              }, row.checked ? this.$t('m.Checked') : this.$t('m.Not_Checked'))
             }
           },
           {
-            title: this.$i18n.t('m.Option'),
+            title: this.$t('m.Option'),
             fixed: 'right',
             align: 'center',
             width: 100,
@@ -124,7 +124,7 @@
                     this.updateCheckedStatus(row)
                   }
                 }
-              }, this.$i18n.t('m.Check_It'))
+              }, this.$t('m.Check_It'))
             }
           }
         ],
@@ -224,7 +224,7 @@
         }
       }
     },
-    beforeDestroy () {
+    beforeUnmount () {
       clearInterval(this.refreshFunc)
     }
   }

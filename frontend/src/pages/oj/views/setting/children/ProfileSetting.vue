@@ -31,18 +31,18 @@
           </vueCropper>
         </div>
         <ButtonGroup vertical class="cropper-btn">
-          <Button @click="rotate('left')">
+          <LegacyButton @click="rotate('left')">
             <Icon type="arrow-return-left" size="20"></Icon>
-          </Button>
-          <Button @click="rotate('right')">
+          </LegacyButton>
+          <LegacyButton @click="rotate('right')">
             <Icon type="arrow-return-right" size="20"></Icon>
-          </Button>
-          <Button @click="reselect">
+          </LegacyButton>
+          <LegacyButton @click="reselect">
             <Icon type="refresh" size="20"></Icon>
-          </Button>
-          <Button @click="finishCrop">
+          </LegacyButton>
+          <LegacyButton @click="finishCrop">
             <Icon type="checkmark-round" size="20"></Icon>
-          </Button>
+          </LegacyButton>
         </ButtonGroup>
         <div class="cropper-preview" :style="previewStyle">
           <div :style=" preview.div">
@@ -58,7 +58,7 @@
         <img :src="uploadImgSrc"/>
       </div>
       <template #footer><div >
-        <Button @click="uploadAvatar" :loading="loadingUploadBtn">upload</Button>
+        <LegacyButton @click="uploadAvatar" :loading="loadingUploadBtn">upload</LegacyButton>
       </div></template>
     </Modal>
 
@@ -81,7 +81,7 @@
             </Select>
           </FormItem>
           <Form-item>
-            <Button type="primary" @click="updateProfile" :loading="loadingSaveBtn">Save All</Button>
+            <LegacyButton type="primary" @click="updateProfile" :loading="loadingSaveBtn">Save All</LegacyButton>
           </Form-item>
         </Col>
 

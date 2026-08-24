@@ -9,12 +9,12 @@
           </Option>
         </Select>
 
-        <Tooltip :content="this.$i18n.t('m.Reset_to_default_code_definition')" placement="top" style="margin-left: 10px">
-          <Button icon="refresh" @click="onResetClick"></Button>
+        <Tooltip :content="this.$t('m.Reset_to_default_code_definition')" placement="top" style="margin-left: 10px">
+          <LegacyButton icon="refresh" @click="onResetClick"></LegacyButton>
         </Tooltip>
 
-        <Tooltip :content="this.$i18n.t('m.Upload_file')" placement="top" style="margin-left: 10px">
-          <Button icon="upload" @click="onUploadFile"></Button>
+        <Tooltip :content="this.$t('m.Upload_file')" placement="top" style="margin-left: 10px">
+          <LegacyButton icon="upload" @click="onUploadFile"></LegacyButton>
         </Tooltip>
 
         <input type="file" id="file-uploader" style="display: none" @change="onUploadFileDone">
@@ -45,8 +45,8 @@
     },
     emits: ['update:value', 'input', 'changeLang', 'changeTheme', 'resetCode'],
     data () { return { mode: { 'C++': 'text/x-csrc' }, themes: [
-      {label: this.$i18n.t('m.Monokai'), value: 'monokai'}, {label: this.$i18n.t('m.Solarized_Light'), value: 'solarized'},
-      {label: this.$i18n.t('m.Material'), value: 'material'} ] } },
+      {label: this.$t('m.Monokai'), value: 'monokai'}, {label: this.$t('m.Solarized_Light'), value: 'solarized'},
+      {label: this.$t('m.Material'), value: 'material'} ] } },
     mounted () { utils.getLanguages().then(languages => { const mode = {}; languages.forEach(lang => { mode[lang.name] = lang.content_type }); this.mode = mode; this.$refs.myEditor.focus() }) },
     methods: {
       onEditorCodeChange (value) { this.$emit('update:value', value); this.$emit('input', value) },

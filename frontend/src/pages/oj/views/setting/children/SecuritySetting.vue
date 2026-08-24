@@ -7,11 +7,11 @@
           <template #title><span  style="line-height: 20px">{{session.ip}}</span></template>
           <template #extra><div >
             <Tag v-if="session.current_session" color="green">Current</Tag>
-            <Button v-else
+            <LegacyButton v-else
                     type="warning"
                     size="small"
                     @click="deleteSession(session.session_key)">Revoke
-            </Button>
+            </LegacyButton>
           </div></template>
           <Form :label-width="100">
             <FormItem label="OS :" class="item">
@@ -46,16 +46,16 @@
           <FormItem style="width: 250px">
             <Input v-model="formTwoFactor.code" placeholder="Enter the code from your application"/>
           </FormItem>
-          <Button type="primary"
+          <LegacyButton type="primary"
                   :loading="loadingBtn"
                   @click="updateTFA(false)"
                   v-if="!TFAOpened">Open TFA
-          </Button>
-          <Button type="error"
+          </LegacyButton>
+          <LegacyButton type="error"
                   :loading="loadingBtn"
                   @click="closeTFA"
                   v-else>Close TFA
-          </Button>
+          </LegacyButton>
         </template>
       </Form>
     </div>

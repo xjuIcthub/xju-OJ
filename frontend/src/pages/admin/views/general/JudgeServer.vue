@@ -114,9 +114,8 @@
         api.updateJudgeServer(data).catch(() => {})
       }
     },
-    beforeRouteLeave (to, from, next) {
+    beforeRouteLeave () {
       clearInterval(this.intervalId)
-      next()
     }
   }
 </script>

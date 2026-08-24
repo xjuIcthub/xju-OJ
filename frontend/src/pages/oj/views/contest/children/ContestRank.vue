@@ -12,7 +12,7 @@
 
   const NullComponent = {
     name: 'null-component',
-    template: '<div></div>'
+    render: () => null
   }
 
   export default {
@@ -31,9 +31,8 @@
         return this.contestRuleType === 'ACM' ? 'ACMContestRank' : 'OIContestRank'
       }
     },
-    beforeRouteLeave (to, from, next) {
+    beforeRouteLeave () {
       this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {menu: true})
-      next()
     }
   }
 </script>

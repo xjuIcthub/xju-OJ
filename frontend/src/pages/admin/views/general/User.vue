@@ -173,7 +173,7 @@
       </el-form>
     </Panel>
     <!--对话框-->
-    <el-dialog :title="$t('m.User_Info')" :visible="showUserDialog" @update:visible="showUserDialog = $event" :close-on-click-modal="false">
+    <LegacyDialog :title="$t('m.User_Info')" :visible="showUserDialog" @update:visible="showUserDialog = $event" :close-on-click-modal="false">
       <el-form :model="user" label-width="120px" label-position="left">
         <el-row :gutter="20">
           <el-col :span="12">
@@ -246,7 +246,7 @@
         <cancel @click="showUserDialog = false">Cancel</cancel>
         <save @click="saveUser()"></save>
       </span></template>
-    </el-dialog>
+    </LegacyDialog>
   </div>
 </template>
 <script>

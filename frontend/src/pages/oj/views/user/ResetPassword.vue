@@ -28,11 +28,11 @@
         </div>
       </Form-item>
     </Form>
-    <Button type="primary"
+    <LegacyButton type="primary"
             @click="resetPassword"
             class="btn" long
             :loading="btnLoading">{{$t('m.Reset_Password')}}
-    </Button>
+    </LegacyButton>
     </template>
 
     <template v-else>
@@ -58,7 +58,7 @@
 
       const CheckAgainPassword = (rule, value, callback) => {
         if (value !== this.formResetPassword.password) {
-          callback(new Error(this.$i18n.t('m.password_does_not_match')))
+          callback(new Error(this.$t('m.password_does_not_match')))
         }
         callback()
       }

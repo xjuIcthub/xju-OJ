@@ -31,7 +31,7 @@
             </li>
 
             <li>
-              <Button type="info" icon="refresh" @click="getSubmissions">{{$t('m.Refresh')}}</Button>
+              <LegacyButton type="info" icon="refresh" @click="getSubmissions">{{$t('m.Refresh')}}</LegacyButton>
             </li>
           </ul>
         </div></template>
@@ -63,14 +63,14 @@
         },
         columns: [
           {
-            title: this.$i18n.t('m.When'),
+            title: this.$t('m.When'),
             align: 'center',
             render: (h, params) => {
               return h('span', time.utcToLocal(params.row.create_time))
             }
           },
           {
-            title: this.$i18n.t('m.ID'),
+            title: this.$t('m.ID'),
             align: 'center',
             render: (h, params) => {
               if (params.row.show_link) {
@@ -91,18 +91,18 @@
             }
           },
           {
-            title: this.$i18n.t('m.Status'),
+            title: this.$t('m.Status'),
             align: 'center',
             render: (h, params) => {
               return h('Tag', {
                 props: {
                   color: JUDGE_STATUS[params.row.result].color
                 }
-              }, this.$i18n.t('m.' + JUDGE_STATUS[params.row.result].name.replace(/ /g, '_')))
+              }, this.$t('m.' + JUDGE_STATUS[params.row.result].name.replace(/ /g, '_')))
             }
           },
           {
-            title: this.$i18n.t('m.Problem'),
+            title: this.$t('m.Problem'),
             align: 'center',
             render: (h, params) => {
               return h('span',
@@ -129,26 +129,26 @@
             }
           },
           {
-            title: this.$i18n.t('m.Time'),
+            title: this.$t('m.Time'),
             align: 'center',
             render: (h, params) => {
               return h('span', utils.submissionTimeFormat(params.row.statistic_info.time_cost))
             }
           },
           {
-            title: this.$i18n.t('m.Memory'),
+            title: this.$t('m.Memory'),
             align: 'center',
             render: (h, params) => {
               return h('span', utils.submissionMemoryFormat(params.row.statistic_info.memory_cost))
             }
           },
           {
-            title: this.$i18n.t('m.Language'),
+            title: this.$t('m.Language'),
             align: 'center',
             key: 'language'
           },
           {
-            title: this.$i18n.t('m.Author'),
+            title: this.$t('m.Author'),
             align: 'center',
             render: (h, params) => {
               return h('a', {
@@ -250,7 +250,7 @@
           return
         }
         const judgeColumn = {
-          title: this.$i18n.t('m.Option'),
+          title: this.$t('m.Option'),
           fixed: 'right',
           align: 'center',
           width: 90,
@@ -266,7 +266,7 @@
                   this.handleRejudge(params.row.id, params.index)
                 }
               }
-            }, this.$i18n.t('m.Rejudge'))
+            }, this.$t('m.Rejudge'))
           }
         }
         this.columns.push(judgeColumn)
@@ -296,15 +296,15 @@
       ...mapGetters(['isAuthenticated', 'user']),
       title () {
         if (!this.contestID) {
-          return this.$i18n.t('m.Status')
+          return this.$t('m.Status')
         } else if (this.problemID) {
-          return this.$i18n.t('m.Problem_Submissions')
+          return this.$t('m.Problem_Submissions')
         } else {
-          return this.$i18n.t('m.Submissions')
+          return this.$t('m.Submissions')
         }
       },
       status () {
-        return this.formFilter.result === '' ? this.$i18n.t('m.Status') : this.$i18n.t('m.' + JUDGE_STATUS[this.formFilter.result].name.replace(/ /g, '_'))
+        return this.formFilter.result === '' ? this.$t('m.Status') : this.$t('m.' + JUDGE_STATUS[this.formFilter.result].name.replace(/ /g, '_'))
       },
       rejudgeColumnVisible () {
         return !this.contestID && this.user.admin_type === USER_TYPE.SUPER_ADMIN

@@ -27,7 +27,7 @@
             </p>
           </template>
           <template>
-            <Button type="primary" size="small" @click="downloadRankCSV">{{$t('m.download_csv')}}</Button>
+            <LegacyButton type="primary" size="small" @click="downloadRankCSV">{{$t('m.download_csv')}}</LegacyButton>
           </template>
         </div></template>
       </Poptip>
@@ -74,7 +74,7 @@
             }
           },
           {
-            title: this.$i18n.t('m.User_User'),
+            title: this.$t('m.User_User'),
             align: 'center',
             fixed: 'left',
             width: 150,
@@ -97,7 +97,7 @@
             }
           },
           {
-            title: 'AC / ' + this.$i18n.t('m.Total'),
+            title: 'AC / ' + this.$t('m.Total'),
             align: 'center',
             width: 100,
             render: (h, params) => {
@@ -117,7 +117,7 @@
             }
           },
           {
-            title: this.$i18n.t('m.TotalTime'),
+            title: this.$t('m.TotalTime'),
             align: 'center',
             width: 100,
             render: (h, params) => {
@@ -128,7 +128,7 @@
         dataRank: [],
         options: {
           title: {
-            text: this.$i18n.t('m.Top_10_Teams'),
+            text: this.$t('m.Top_10_Teams'),
             left: 'center'
           },
           dataZoom: [
@@ -143,7 +143,7 @@
           toolbox: {
             show: true,
             feature: {
-              saveAsImage: {show: true, title: this.$i18n.t('m.save_as_image')}
+              saveAsImage: {show: true, title: this.$t('m.save_as_image')}
             },
             right: '5%'
           },

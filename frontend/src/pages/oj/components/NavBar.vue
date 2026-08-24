@@ -44,24 +44,24 @@
       </Submenu>
       <template v-if="!isAuthenticated">
         <div class="btn-menu">
-          <Button type="ghost"
+          <LegacyButton type="ghost"
                   ref="loginBtn"
                   shape="circle"
                   @click="handleBtnClick('login')">{{$t('m.Login')}}
-          </Button>
-          <Button v-if="website.allow_register"
+          </LegacyButton>
+          <LegacyButton v-if="website.allow_register"
                   type="ghost"
                   shape="circle"
                   @click="handleBtnClick('register')"
                   style="margin-left: 5px;">{{$t('m.Register')}}
-          </Button>
+          </LegacyButton>
         </div>
       </template>
       <template v-else>
         <Dropdown class="drop-menu" @on-click="handleRoute" placement="bottom" trigger="click">
-          <Button type="text" class="drop-menu-title">{{ user.username }}
+          <LegacyButton type="text" class="drop-menu-title">{{ user.username }}
             <Icon type="arrow-down-b"></Icon>
-          </Button>
+          </LegacyButton>
           <template #list><Dropdown-menu >
             <Dropdown-item name="/user-home">{{$t('m.MyHome')}}</Dropdown-item>
             <Dropdown-item name="/status?myself=1">{{$t('m.MySubmissions')}}</Dropdown-item>
