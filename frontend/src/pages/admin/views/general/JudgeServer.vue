@@ -10,21 +10,21 @@
         border>
         <el-table-column
           type="expand">
-          <template slot-scope="props">
+          <template #default="props">
             <p>{{$t('m.IP')}}:
               <el-tag type="success">{{ props.row.ip }}</el-tag>&nbsp;&nbsp;
               {{$t('m.Judger_Version')}}:
               <el-tag type="success">{{ props.row.judger_version }}</el-tag>
             </p>
             <p>{{$t('m.Service_URL')}}: <code>{{ props.row.service_url }}</code></p>
-            <p>{{$t('m.Last_Heartbeat')}}: {{ props.row.last_heartbeat | localtime}}</p>
-            <p>{{$t('m.Create_Time')}}: {{ props.row.create_time | localtime }}</p>
+            <p>{{$t('m.Last_Heartbeat')}}: {{ $filters.localtime(props.row.last_heartbeat) }}</p>
+            <p>{{$t('m.Create_Time')}}: {{ $filters.localtime(props.row.create_time) }}</p>
           </template>
         </el-table-column>
         <el-table-column
           prop="status"
           label="Status">
-          <template slot-scope="scope">
+          <template #default="scope">
             <el-tag
               :type="scope.row.status === 'normal' ? 'success' : 'danger'">
               {{ scope.row.status === 'normal' ? 'Normal' : 'Abnormal' }}
@@ -46,30 +46,29 @@
         <el-table-column
           prop="cpu_usage"
           label="CPU Usage">
-          <template slot-scope="scope">{{ scope.row.cpu_usage }}%</template>
+          <template #default="scope">{{ scope.row.cpu_usage }}%</template>
         </el-table-column>
         <el-table-column
           prop="memory_usage"
           label="Memory Usage">
-          <template slot-scope="scope">{{ scope.row.memory_usage }}%</template>
+          <template #default="scope">{{ scope.row.memory_usage }}%</template>
         </el-table-column>
         <el-table-column label="Disabled">
-          <template slot-scope="{row}">
+          <template #default="{row}">
             <el-switch v-model="row.is_disabled" @change="handleDisabledSwitch(row.id, row.is_disabled)"></el-switch>
           </template>
         </el-table-column>
         <el-table-column
           fixed="right"
           label="Options">
-          <template slot-scope="scope">
-            <icon-btn name="Delete" icon="trash" @click.native="deleteJudgeServer(scope.row.hostname)"></icon-btn>
+          <template #default="scope">
+            <icon-btn name="Delete" icon="trash" @click="deleteJudgeServer(scope.row.hostname)"></icon-btn>
           </template>
         </el-table-column>
       </el-table>
     </Panel>
   </div>
 </template>
-
 <script>
   import api from '../../api.js'
 

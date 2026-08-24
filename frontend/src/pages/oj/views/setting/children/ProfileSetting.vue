@@ -57,9 +57,9 @@
         <p class="notice">Your avatar will be set to:</p>
         <img :src="uploadImgSrc"/>
       </div>
-      <div slot="footer">
+      <template #footer><div >
         <Button @click="uploadAvatar" :loading="loadingUploadBtn">upload</Button>
-      </div>
+      </div></template>
     </Modal>
 
     <div class="section-title">{{$t('m.Profile_Setting')}}</div>
@@ -100,7 +100,6 @@
     </Form>
   </div>
 </template>
-
 <script>
   import api from '@oj/api'
   import utils from '@/utils/utils'

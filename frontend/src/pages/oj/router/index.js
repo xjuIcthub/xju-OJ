@@ -1,47 +1,21 @@
-import Vue from 'vue'
-import VueRouter from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import routes from './routes'
 import storage from '@/utils/storage'
-import {STORAGE_KEY} from '@/utils/constants'
-import {sync} from 'vuex-router-sync'
-import {types, default as store} from '../../../store'
+import { STORAGE_KEY } from '@/utils/constants'
+import store, { types, setStoreRouter } from '@/store'
 
-Vue.use(VueRouter)
-
-const router = new VueRouter({
-  mode: 'history',
-  scrollBehavior (to, from, savedPosition) {
-    if (savedPosition) {
-      return savedPosition
-    } else {
-      return {x: 0, y: 0}
-    }
-  },
+const router = createRouter({
+  history: createWebHistory('/'),
+  scrollBehavior (to, from, savedPosition) { return savedPosition || { left: 0, top: 0 } },
   routes
 })
+setStoreRouter(router)
 
-// 全局身份确认
-router.beforeEach((to, from, next) => {
-  Vue.prototype.$Loading.start()
-  if (to.matched.some(record => record.meta.requiresAuth)) {
-    if (!storage.get(STORAGE_KEY.AUTHED)) {
-      Vue.prototype.$error('Please login first')
-      store.commit(types.CHANGE_MODAL_STATUS, {mode: 'login', visible: true})
-      next({
-        name: 'home'
-      })
-    } else {
-      next()
-    }
-  } else {
-    next()
+router.beforeEach(to => {
+  if (to.matched.some(record => record.meta.requiresAuth) && !storage.get(STORAGE_KEY.AUTHED)) {
+    store.commit(types.CHANGE_MODAL_STATUS, { mode: 'login', visible: true })
+    return { name: 'home' }
   }
 })
-
-router.afterEach((to, from, next) => {
-  Vue.prototype.$Loading.finish()
-})
-
-sync(store, router)
 
 export default router

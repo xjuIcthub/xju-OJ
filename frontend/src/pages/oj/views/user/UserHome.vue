@@ -32,10 +32,10 @@
           <div v-if="problems.length">{{$t('m.List_Solved_Problems')}}
             <Poptip v-if="refreshVisible" trigger="hover" placement="right-start">
               <Icon type="ios-help-outline"></Icon>
-              <div slot="content">
+              <template #content><div >
                 <p>If you find the following problem id does not exist,<br> try to click the button.</p>
                 <Button type="info" @click="freshProblemDisplayID">regenerate</Button>
-              </div>
+              </div></template>
             </Poptip>
           </div>
           <p v-else>{{$t('m.UserHomeIntro')}}</p>
@@ -61,7 +61,7 @@
   </div>
 </template>
 <script>
-  import { mapActions } from 'vuex'
+  import { mapActions } from '@/store/compat'
   import time from '@/utils/time'
   import api from '@oj/api'
 

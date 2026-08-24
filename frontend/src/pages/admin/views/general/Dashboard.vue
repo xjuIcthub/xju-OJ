@@ -16,7 +16,7 @@
           <p class="last-info-title">{{$t('m.Last_Login')}}</p>
           <el-form label-width="80px" class="last-info-body">
             <el-form-item label="Time:">
-              <span>{{session.last_activity | localtime}}</span>
+              <span>{{ $filters.localtime(session.last_activity) }}</span>
             </el-form-item>
             <el-form-item label="IP:">
               <span>{{session.ip}}</span>
@@ -60,19 +60,19 @@
                    :value="infoData.recent_contest_count"></info-card>
       </div>
       <panel style="margin-top: 5px">
-        <span slot="title" v-loading="loadingReleases">Release Notes
+        <template #title><span  v-loading="loadingReleases">Release Notes
         <el-popover placement="right" trigger="hover">
-          <i slot="reference" class="el-icon-fa-question-circle import-user-icon"></i>
+          <template #reference><i  class="el-icon-fa-question-circle import-user-icon"></i></template>
           <p>Please upgrade to the latest version to enjoy the new features. </p>
           <p>Reference: <a href="http://docs.onlinejudge.me/#/onlinejudge/guide/upgrade" target="_blank">
           http://docs.onlinejudge.me/#/onlinejudge/guide/upgrade</a>
           </p>
         </el-popover>
-        </span>
+        </span></template>
 
         <el-collapse v-model="activeNames" v-for="(release, index) of releases" :key="'release' + index">
           <el-collapse-item :name="index+1">
-            <template slot="title">
+            <template #title>
               <div v-if="release.new_version">{{release.title}}
                 <el-tag size="mini" type="success">New Version</el-tag>
               </div>
@@ -91,10 +91,8 @@
     </el-col>
   </el-row>
 </template>
-
-
 <script>
-  import { mapGetters } from 'vuex'
+  import { mapGetters } from '@/store/compat'
   import browserDetector from 'browser-detect'
   import InfoCard from '@admin/components/infoCard.vue'
   import api from '@admin/api'

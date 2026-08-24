@@ -3,29 +3,29 @@
     <Form ref="formRegister" :model="formRegister" :rules="ruleRegister">
       <FormItem prop="username">
         <Input type="text" v-model="formRegister.username" :placeholder="$t('m.RegisterUsername')" size="large" @on-enter="handleRegister">
-        <Icon type="ios-person-outline" slot="prepend"></Icon>
+        <template #prepend><Icon type="ios-person-outline" ></Icon></template>
         </Input>
       </FormItem>
       <FormItem prop="email">
         <Input v-model="formRegister.email" :placeholder="$t('m.Email_Address')" size="large" @on-enter="handleRegister">
-        <Icon type="ios-email-outline" slot="prepend"></Icon>
+        <template #prepend><Icon type="ios-email-outline" ></Icon></template>
         </Input>
       </FormItem>
       <FormItem prop="password">
         <Input type="password" v-model="formRegister.password" :placeholder="$t('m.RegisterPassword')" size="large" @on-enter="handleRegister">
-        <Icon type="ios-locked-outline" slot="prepend"></Icon>
+        <template #prepend><Icon type="ios-locked-outline" ></Icon></template>
         </Input>
       </FormItem>
       <FormItem prop="passwordAgain">
         <Input type="password" v-model="formRegister.passwordAgain" :placeholder="$t('m.Password_Again')" size="large" @on-enter="handleRegister">
-        <Icon type="ios-locked-outline" slot="prepend"></Icon>
+        <template #prepend><Icon type="ios-locked-outline" ></Icon></template>
         </Input>
       </FormItem>
       <FormItem prop="captcha" style="margin-bottom:10px">
         <div class="oj-captcha">
           <div class="oj-captcha-code">
             <Input v-model="formRegister.captcha" :placeholder="$t('m.Captcha')" size="large" @on-enter="handleRegister">
-            <Icon type="ios-lightbulb-outline" slot="prepend"></Icon>
+            <template #prepend><Icon type="ios-lightbulb-outline" ></Icon></template>
             </Input>
           </div>
           <div class="oj-captcha-img">
@@ -53,9 +53,8 @@
     </div>
   </div>
 </template>
-
 <script>
-  import { mapGetters, mapActions } from 'vuex'
+  import { mapGetters, mapActions } from '@/store/compat'
   import api from '@oj/api'
   import { FormMixin } from '@oj/components/mixins'
 

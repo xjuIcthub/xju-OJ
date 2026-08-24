@@ -10,14 +10,14 @@
         <template>
           <div id="contest-desc">
             <Panel :padding="20" shadow>
-              <div slot="title">
+              <template #title><div >
                 {{contest.title}}
-              </div>
-              <div slot="extra">
+              </div></template>
+              <template #extra><div >
                 <Tag type="dot" :color="countdownColor">
                   <span id="countdown">{{countdown}}</span>
                 </Tag>
-              </div>
+              </div></template>
               <div v-html="contest.description" class="markdown-body"></div>
               <div v-if="passwordFormVisible" class="contest-password">
                 <Input v-model="contestPassword" type="password"
@@ -74,11 +74,10 @@
     </div>
   </div>
 </template>
-
 <script>
   import moment from 'moment'
   import api from '@oj/api'
-  import { mapState, mapGetters, mapActions } from 'vuex'
+  import { mapState, mapGetters, mapActions } from '@/store/compat'
   import { types } from '@/store'
   import { CONTEST_STATUS_REVERSE, CONTEST_STATUS } from '@/utils/constants'
   import time from '@/utils/time'

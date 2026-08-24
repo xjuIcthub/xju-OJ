@@ -1,8 +1,7 @@
-import Vue from 'vue'
+import { ElMessage } from 'element-plus'
 import store from '@/store'
 import axios from 'axios'
 
-Vue.prototype.$http = axios
 axios.defaults.baseURL = '/api'
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'
 axios.defaults.xsrfCookieName = 'csrftoken'
@@ -293,7 +292,7 @@ function ajax (url, method, options) {
     }).then(res => {
       // API正常返回(status=20x), 是否错误通过有无error判断
       if (res.data.error !== null) {
-        Vue.prototype.$error(res.data.data)
+        ElMessage.error(res.data.data)
         reject(res)
         // 若后端返回为登录，则为session失效，应退出当前登录用户
         if (res.data.data.startsWith('Please login')) {
@@ -302,13 +301,13 @@ function ajax (url, method, options) {
       } else {
         resolve(res)
         // if (method !== 'get') {
-        //   Vue.prototype.$success('Succeeded')
+        //   ElMessage.success('Succeeded')
         // }
       }
     }, res => {
       // API请求异常，一般为Server error 或 network error
       reject(res)
-      Vue.prototype.$error(res.data.data)
+      ElMessage.error(res.data.data)
     })
   })
 }

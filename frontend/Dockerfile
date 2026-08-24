@@ -16,7 +16,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends ca-certificates git; \
     rm -rf /var/lib/apt/lists/*
 RUN corepack enable
-COPY package.json pnpm-lock.yaml .npmrc pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-${TARGETOS:-linux}-${TARGETARCH:-amd64},target=/pnpm/store,sharing=locked \
     pnpm config set store-dir /pnpm/store && pnpm fetch --frozen-lockfile
 

@@ -1,17 +1,16 @@
 <template>
   <Card :padding="padding" :shadow="shadow" :dis-hover="disHover" :bordered="bordered">
-    <div slot="title" class="panel-title">
+    <template #title><div  class="panel-title">
       <slot name="title"></slot>
-    </div>
-    <div slot="extra" class="panel-extra">
+    </div></template>
+    <template #extra><div  class="panel-extra">
       <slot name="extra"></slot>
-    </div>
+    </div></template>
     <div class="panel-body">
       <slot></slot>
     </div>
   </Card>
 </template>
-
 <script>
   export default {
     name: 'Panel',

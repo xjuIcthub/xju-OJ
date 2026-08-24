@@ -1,6 +1,6 @@
 <template>
   <panel>
-    <div slot="title">{{$t('m.Frequently_Asked_Questions')}}</div>
+    <template #title><div >{{$t('m.Frequently_Asked_Questions')}}</div></template>
     <div class="content markdown-body">
       <ul>
         <li>{{$t('m.Where_is_the_input_and_the_output')}} 
@@ -31,7 +31,6 @@
     </div>
   </panel>
 </template>
-
 <script>
 </script>
 

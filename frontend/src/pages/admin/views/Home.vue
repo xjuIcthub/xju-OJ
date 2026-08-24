@@ -8,9 +8,9 @@
       <screen-full :width="14" :height="14" class="screen-full"></screen-full>
       <el-dropdown @command="handleCommand">
         <span>{{user.username}}<i class="el-icon-caret-bottom el-icon--right"></i></span>
-        <el-dropdown-menu slot="dropdown">
+        <template #dropdown><el-dropdown-menu >
           <el-dropdown-item command="logout">Logout</el-dropdown-item>
-        </el-dropdown-menu>
+        </el-dropdown-menu></template>
       </el-dropdown>
     </div>
     <div class="content-app">
@@ -22,15 +22,14 @@
       </div>
     </div>
 
-    <el-dialog :title="$t('m.Latex_Editor')" :visible.sync="katexVisible">
+    <el-dialog :title="$t('m.Latex_Editor')" :visible="katexVisible" @update:visible="katexVisible = $event">
       <KatexEditor></KatexEditor>
     </el-dialog>
   </div>
 </template>
-
 <script>
   import { types } from '@/store'
-  import { mapGetters } from 'vuex'
+  import { mapGetters } from '@/store/compat'
   import SideMenu from '../components/SideMenu.vue'
   import ScreenFull from '@admin/components/ScreenFull.vue'
   import KatexEditor from '@admin/components/KatexEditor.vue'

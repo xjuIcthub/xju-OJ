@@ -1,13 +1,13 @@
 <template>
   <div class="view">
     <Panel :title="contestId ? this.$i18n.t('m.Contest_Problem_List') : this.$i18n.t('m.Problem_List')">
-      <div slot="header">
+      <template #header><div >
         <el-input
           v-model="keyword"
           prefix-icon="el-icon-search"
           placeholder="Keywords">
         </el-input>
-      </div>
+      </div></template>
       <el-table
         v-loading="loading"
         element-loading-text="loading"
@@ -23,10 +23,10 @@
         <el-table-column
           width="150"
           label="Display ID">
-          <template slot-scope="{row}">
+          <template #default="{row}">
             <span v-show="!row.isEditing">{{row._id}}</span>
             <el-input v-show="row.isEditing" v-model="row._id"
-                      @keyup.enter.native="handleInlineEdit(row)">
+                      @keyup.enter="handleInlineEdit(row)">
 
             </el-input>
           </template>
@@ -34,10 +34,10 @@
         <el-table-column
           prop="title"
           label="Title">
-          <template slot-scope="{row}">
+          <template #default="{row}">
             <span v-show="!row.isEditing">{{row.title}}</span>
             <el-input v-show="row.isEditing" v-model="row.title"
-                      @keyup.enter.native="handleInlineEdit(row)">
+                      @keyup.enter="handleInlineEdit(row)">
             </el-input>
           </template>
         </el-table-column>
@@ -49,15 +49,15 @@
           width="200"
           prop="create_time"
           label="Create Time">
-          <template slot-scope="scope">
-            {{scope.row.create_time | localtime }}
+          <template #default="scope">
+            {{ $filters.localtime(scope.row.create_time) }}
           </template>
         </el-table-column>
         <el-table-column
           width="100"
           prop="visible"
           label="Visible">
-          <template slot-scope="scope">
+          <template #default="scope">
             <el-switch v-model="scope.row.visible"
                        active-text=""
                        inactive-text=""
@@ -69,15 +69,15 @@
           fixed="right"
           label="Operation"
           width="250">
-          <div slot-scope="scope">
-            <icon-btn name="Edit" icon="edit" @click.native="goEdit(scope.row.id)"></icon-btn>
+          <template #default="scope"><div >
+            <icon-btn name="Edit" icon="edit" @click="goEdit(scope.row.id)"></icon-btn>
             <icon-btn v-if="contestId" name="Make Public" icon="clone"
-                      @click.native="makeContestProblemPublic(scope.row.id)"></icon-btn>
+                      @click="makeContestProblemPublic(scope.row.id)"></icon-btn>
             <icon-btn icon="download" name="Download TestCase"
-                      @click.native="downloadTestCase(scope.row.id)"></icon-btn>
+                      @click="downloadTestCase(scope.row.id)"></icon-btn>
             <icon-btn icon="trash" name="Delete Problem"
-                      @click.native="deleteProblem(scope.row.id)"></icon-btn>
-          </div>
+                      @click="deleteProblem(scope.row.id)"></icon-btn>
+          </div></template>
         </el-table-column>
       </el-table>
       <div class="panel-options">
@@ -99,27 +99,26 @@
     </Panel>
     <el-dialog title="Sure to update the problem? "
                width="20%"
-               :visible.sync="InlineEditDialogVisible"
+               :visible="InlineEditDialogVisible" @update:visible="InlineEditDialogVisible = $event"
                @close-on-click-modal="false">
       <div>
         <p>DisplayID: {{currentRow._id}}</p>
         <p>Title: {{currentRow.title}}</p>
       </div>
-      <span slot="footer">
-        <cancel @click.native="InlineEditDialogVisible = false; getProblemList(currentPage)"></cancel>
-        <save @click.native="updateProblem(currentRow)"></save>
-      </span>
+      <template #footer><span >
+        <cancel @click="InlineEditDialogVisible = false; getProblemList(currentPage)"></cancel>
+        <save @click="updateProblem(currentRow)"></save>
+      </span></template>
     </el-dialog>
     <el-dialog title="Add Contest Problem"
                v-if="contestId"
                width="80%"
-               :visible.sync="addProblemDialogVisible"
+               :visible="addProblemDialogVisible" @update:visible="addProblemDialogVisible = $event"
                @close-on-click-modal="false">
       <add-problem-component :contestID="contestId" @on-change="getProblemList"></add-problem-component>
     </el-dialog>
   </div>
 </template>
-
 <script>
   import api from '../../api.js'
   import utils from '@/utils/utils'

@@ -77,7 +77,7 @@
           </el-col>
         </el-row>
       </el-form>
-      <save @click.native="saveContest"></save>
+      <save @click="saveContest"></save>
     </Panel>
   </div>
 </template>

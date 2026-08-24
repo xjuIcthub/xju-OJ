@@ -17,7 +17,7 @@ const nginx = fs.readFileSync(path.join(__dirname, '../../nginx/nginx.conf'), 'u
 assert.ok(nginx.includes('location = /admin'))
 assert.ok(nginx.includes('return 301 /admin/'))
 assert.ok(nginx.includes('location ^~ /api/'))
-assert.ok(nginx.includes('location /public/'))
+assert.ok(/location(?:\s+\^~)?\s+\/public\//.test(nginx))
 assert.ok(nginx.includes('try_files $uri =404'))
 
 console.log('frontend route contract manifest passed')

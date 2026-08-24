@@ -8,16 +8,16 @@ import Home from './general/Home.vue'
 import Announcements from './general/Announcements.vue'
 
 // Grouping Components in the Same Chunk
-const SubmissionList = () => import(/* webpackChunkName: "submission" */ '@oj/views/submission/SubmissionList.vue')
-const SubmissionDetails = () => import(/* webpackChunkName: "submission" */ '@oj/views/submission/SubmissionDetails.vue')
+const SubmissionList = () => import('@oj/views/submission/SubmissionList.vue')
+const SubmissionDetails = () => import('@oj/views/submission/SubmissionDetails.vue')
 
-const ACMRank = () => import(/* webpackChunkName: "userRank" */ '@oj/views/rank/ACMRank.vue')
-const OIRank = () => import(/* webpackChunkName: "userRank" */ '@oj/views/rank/OIRank.vue')
+const ACMRank = () => import('@oj/views/rank/ACMRank.vue')
+const OIRank = () => import('@oj/views/rank/OIRank.vue')
 
-const ApplyResetPassword = () => import(/* webpackChunkName: "password" */ '@oj/views/user/ApplyResetPassword.vue')
-const ResetPassword = () => import(/* webpackChunkName: "password" */ '@oj/views/user/ResetPassword.vue')
+const ApplyResetPassword = () => import('@oj/views/user/ApplyResetPassword.vue')
+const ResetPassword = () => import('@oj/views/user/ResetPassword.vue')
 
-const Problem = () => import(/* webpackChunkName: "Problem" */ '@oj/views/problem/Problem.vue')
+const Problem = () => import('@oj/views/problem/Problem.vue')
 
 export {
   Home, NotFound, Announcements,

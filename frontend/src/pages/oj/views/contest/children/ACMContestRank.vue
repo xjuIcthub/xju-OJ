@@ -1,11 +1,11 @@
 <template>
   <Panel shadow>
-    <div slot="title">{{ contest.title }}</div>
-    <div slot="extra">
+    <template #title><div >{{ contest.title }}</div></template>
+    <template #extra><div >
       <screen-full :height="18" :width="18" class="screen-full"></screen-full>
       <Poptip trigger="hover" placement="left-start">
         <Icon type="android-settings" size="20"></Icon>
-        <div slot="content" id="switches">
+        <template #content><div  id="switches">
           <p>
             <span>{{$t('m.Menu')}}</span>
             <i-switch v-model="showMenu"></i-switch>
@@ -29,16 +29,16 @@
           <template>
             <Button type="primary" size="small" @click="downloadRankCSV">{{$t('m.download_csv')}}</Button>
           </template>
-        </div>
+        </div></template>
       </Poptip>
-    </div>
+    </div></template>
     <div v-show="showChart" class="echarts">
       <ECharts :options="options" ref="chart" auto-resize></ECharts>
     </div>
     <Table ref="tableRank" :columns="columns" :data="dataRank" disabled-hover height="600"></Table>
     <Pagination :total="total"
-                :page-size.sync="limit"
-                :current.sync="page"
+                :page-size="limit" @update:page-size="limit = $event"
+                :current="page" @update:current="page = $event"
                 @on-change="getContestRankData"
                 @on-page-size-change="getContestRankData(1)"
                 show-sizer></Pagination>
@@ -46,7 +46,7 @@
 </template>
 <script>
   import moment from 'moment'
-  import { mapActions } from 'vuex'
+  import { mapActions } from '@/store/compat'
 
   import Pagination from '@oj/components/Pagination'
   import ContestRankMixin from './contestRankMixin'

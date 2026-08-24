@@ -31,137 +31,28 @@
       </div>
       </Col>
     </Row>
-    <codemirror :value="value" :options="options" @change="onEditorCodeChange" ref="myEditor">
-    </codemirror>
+    <CodeMirrorAdapter :value="value" :mode="mode[language]" @change="onEditorCodeChange" ref="myEditor" />
   </div>
 </template>
 <script>
   import utils from '@/utils/utils'
-  import { codemirror } from 'vue-codemirror-lite'
-
-  // theme
-  import 'codemirror/theme/monokai.css'
-  import 'codemirror/theme/solarized.css'
-  import 'codemirror/theme/material.css'
-
-  // mode
-  import 'codemirror/mode/clike/clike.js'
-  import 'codemirror/mode/python/python.js'
-  import 'codemirror/mode/go/go.js'
-  import 'codemirror/mode/javascript/javascript.js'
-
-  // active-line.js
-  import 'codemirror/addon/selection/active-line.js'
-
-  // foldGutter
-  import 'codemirror/addon/fold/foldgutter.css'
-  import 'codemirror/addon/fold/foldgutter.js'
-  import 'codemirror/addon/fold/brace-fold.js'
-  import 'codemirror/addon/fold/indent-fold.js'
-
+  import CodeMirrorAdapter from '@/shared/editors/CodeMirrorAdapter.vue'
   export default {
-    name: 'CodeMirror',
-    components: {
-      codemirror
-    },
+    name: 'CodeMirror', components: { CodeMirrorAdapter },
     props: {
-      value: {
-        type: String,
-        default: ''
-      },
-      languages: {
-        type: Array,
-        default: () => {
-          return ['C', 'C++', 'Java', 'Python2']
-        }
-      },
-      language: {
-        type: String,
-        default: 'C++'
-      },
-      theme: {
-        type: String,
-        default: 'solarized'
-      }
+      value: { type: String, default: '' }, languages: { type: Array, default: () => ['C', 'C++', 'Java', 'Python2'] },
+      language: { type: String, default: 'C++' }, theme: { type: String, default: 'solarized' }
     },
-    data () {
-      return {
-        options: {
-          // codemirror options
-          tabSize: 4,
-          mode: 'text/x-csrc',
-          theme: 'solarized',
-          lineNumbers: true,
-          line: true,
-          // 代码折叠
-          foldGutter: true,
-          gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
-          // 选中文本自动高亮，及高亮方式
-          styleSelectedText: true,
-          lineWrapping: true,
-          highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
-        },
-        mode: {
-          'C++': 'text/x-csrc'
-        },
-        themes: [
-          {label: this.$i18n.t('m.Monokai'), value: 'monokai'},
-          {label: this.$i18n.t('m.Solarized_Light'), value: 'solarized'},
-          {label: this.$i18n.t('m.Material'), value: 'material'}
-        ]
-      }
-    },
-    mounted () {
-      utils.getLanguages().then(languages => {
-        let mode = {}
-        languages.forEach(lang => {
-          mode[lang.name] = lang.content_type
-        })
-        this.mode = mode
-        this.editor.setOption('mode', this.mode[this.language])
-      })
-      this.editor.focus()
-    },
+    emits: ['update:value', 'input', 'changeLang', 'changeTheme', 'resetCode'],
+    data () { return { mode: { 'C++': 'text/x-csrc' }, themes: [
+      {label: this.$i18n.t('m.Monokai'), value: 'monokai'}, {label: this.$i18n.t('m.Solarized_Light'), value: 'solarized'},
+      {label: this.$i18n.t('m.Material'), value: 'material'} ] } },
+    mounted () { utils.getLanguages().then(languages => { const mode = {}; languages.forEach(lang => { mode[lang.name] = lang.content_type }); this.mode = mode; this.$refs.myEditor.focus() }) },
     methods: {
-      onEditorCodeChange (newCode) {
-        this.$emit('update:value', newCode)
-      },
-      onLangChange (newVal) {
-        this.editor.setOption('mode', this.mode[newVal])
-        this.$emit('changeLang', newVal)
-      },
-      onThemeChange (newTheme) {
-        this.editor.setOption('theme', newTheme)
-        this.$emit('changeTheme', newTheme)
-      },
-      onResetClick () {
-        this.$emit('resetCode')
-      },
-      onUploadFile () {
-        document.getElementById('file-uploader').click()
-      },
-      onUploadFileDone () {
-        let f = document.getElementById('file-uploader').files[0]
-        let fileReader = new window.FileReader()
-        let self = this
-        fileReader.onload = function (e) {
-          var text = e.target.result
-          self.editor.setValue(text)
-          document.getElementById('file-uploader').value = ''
-        }
-        fileReader.readAsText(f, 'UTF-8')
-      }
-    },
-    computed: {
-      editor () {
-        // get current editor object
-        return this.$refs.myEditor.editor
-      }
-    },
-    watch: {
-      'theme' (newVal, oldVal) {
-        this.editor.setOption('theme', newVal)
-      }
+      onEditorCodeChange (value) { this.$emit('update:value', value); this.$emit('input', value) },
+      onLangChange (value) { this.$emit('changeLang', value) }, onThemeChange (value) { this.$emit('changeTheme', value) },
+      onResetClick () { this.$emit('resetCode') }, onUploadFile () { document.getElementById('file-uploader').click() },
+      onUploadFileDone (event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { this.$refs.myEditor.setValue(e.target.result); event.target.value = '' }; reader.readAsText(file, 'UTF-8') }
     }
   }
 </script>

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
-import vue2 from '@vitejs/plugin-vue2'
+import vue from '@vitejs/plugin-vue'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 const resolve = (entry) => path.resolve(root, entry)
@@ -21,12 +21,11 @@ export default defineConfig(({ mode }) => {
   const target = process.env.TARGET || 'http://127.0.0.1:8000'
 
   return {
-    plugins: [vue2(), copyStaticAssets()],
+    plugins: [vue(), copyStaticAssets()],
     base: '/',
     publicDir: false,
     resolve: {
       alias: {
-        'vue$': 'vue/dist/vue.esm.js',
         '@': resolve('src'),
         '@oj': resolve('src/pages/oj'),
         '@admin': resolve('src/pages/admin'),

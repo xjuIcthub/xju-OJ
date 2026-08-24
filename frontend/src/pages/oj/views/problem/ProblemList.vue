@@ -2,26 +2,26 @@
   <Row type="flex" :gutter="18">
     <Col :span=19>
     <Panel shadow>
-      <div slot="title">{{$t('m.Problem_List')}}</div>
-      <div slot="extra">
+      <template #title><div >{{$t('m.Problem_List')}}</div></template>
+      <template #extra><div >
         <ul class="filter">
           <li>
             <Dropdown @on-click="filterByDifficulty">
               <span>{{query.difficulty === '' ? this.$i18n.t('m.Difficulty') : this.$i18n.t('m.' + query.difficulty)}}
                 <Icon type="arrow-down-b"></Icon>
               </span>
-              <Dropdown-menu slot="list">
+              <template #list><Dropdown-menu >
                 <Dropdown-item name="">{{$t('m.All')}}</Dropdown-item>
                 <Dropdown-item name="Low">{{$t('m.Low')}}</Dropdown-item>
                 <Dropdown-item name="Mid" >{{$t('m.Mid')}}</Dropdown-item>
                 <Dropdown-item name="High">{{$t('m.High')}}</Dropdown-item>
-              </Dropdown-menu>
+              </Dropdown-menu></template>
             </Dropdown>
           </li>
           <li>
             <i-switch size="large" @on-change="handleTagsVisible">
-              <span slot="open">{{$t('m.Tags')}}</span>
-              <span slot="close">{{$t('m.Tags')}}</span>
+              <template #open><span >{{$t('m.Tags')}}</span></template>
+              <template #close><span >{{$t('m.Tags')}}</span></template>
             </i-switch>
           </li>
           <li>
@@ -38,7 +38,7 @@
             </Button>
           </li>
         </ul>
-      </div>
+      </div></template>
       <Table style="width: 100%; font-size: 16px;"
              :columns="problemTableColumns"
              :data="problemList"
@@ -46,13 +46,13 @@
              disabled-hover></Table>
     </Panel>
     <Pagination
-      :total="total" :page-size.sync="query.limit" @on-change="pushRouter" @on-page-size-change="pushRouter" :current.sync="query.page" :show-sizer="true"></Pagination>
+      :total="total" :page-size="query.limit" @update:page-size="query.limit = $event" @on-change="pushRouter" @on-page-size-change="pushRouter" :current="query.page" @update:current="query.page = $event" :show-sizer="true"></Pagination>
 
     </Col>
 
     <Col :span="5">
     <Panel :padding="10">
-      <div slot="title" class="taglist-title">{{$t('m.Tags')}}</div>
+      <template #title><div  class="taglist-title">{{$t('m.Tags')}}</div></template>
       <Button v-for="tag in tagList"
               :key="tag.name"
               @click="filterByTag(tag.name)"
@@ -71,9 +71,8 @@
     </Col>
   </Row>
 </template>
-
 <script>
-  import { mapGetters } from 'vuex'
+  import { mapGetters } from '@/store/compat'
   import api from '@oj/api'
   import utils from '@/utils/utils'
   import { ProblemMixin } from '@oj/components/mixins'

@@ -25,9 +25,9 @@
         align="center"
         width="100"
         fixed="right">
-        <template slot-scope="{row}">
+        <template #default="{row}">
           <icon-btn icon="plus" name="Add the problem"
-                    @click.native="handleAddProblem(row.id)"></icon-btn>
+                    @click="handleAddProblem(row.id)"></icon-btn>
         </template>
       </el-table-column>
     </el-table>

@@ -3,7 +3,7 @@
     <div id="problem-main">
       <!--problem main-->
       <Panel :padding="40" shadow>
-        <div slot="title">{{problem.title}}</div>
+        <template #title><div >{{problem.title}}</div></template>
         <div id="problem-content" class="markdown-body" v-katex>
           <p class="title">{{$t('m.Description')}}</p>
           <p class="content" v-html=problem.description></p>
@@ -50,7 +50,7 @@
       </Panel>
       <!--problem main end-->
       <Card :padding="20" id="submit-code" dis-hover>
-        <CodeMirror :value.sync="code"
+        <CodeMirror :value="code" @update:value="code = $event"
                     :languages="problem.languages"
                     :language="language"
                     :theme="theme"
@@ -62,7 +62,7 @@
             <div class="status" v-if="statusVisible">
               <template v-if="!this.contestID || (this.contestID && OIContestRealTimePermission)">
                 <span>{{$t('m.Status')}}</span>
-                <Tag type="dot" :color="submissionStatus.color" @click.native="handleRoute('/status/'+submissionId)">
+                <Tag type="dot" :color="submissionStatus.color" @click="handleRoute('/status/'+submissionId)">
                   {{$t('m.' + submissionStatus.text.replace(/ /g, "_"))}}
                 </Tag>
               </template>
@@ -134,10 +134,10 @@
       </VerticalMenu>
 
       <Card id="info">
-        <div slot="title" class="header">
+        <template #title><div  class="header">
           <Icon type="information-circled"></Icon>
           <span class="card-title">{{$t('m.Information')}}</span>
-        </div>
+        </div></template>
         <ul>
           <li><p>ID</p>
             <p>{{problem._id}}</p></li>
@@ -147,7 +147,6 @@
           <li>
             <p>{{$t('m.Memory_Limit')}}</p>
             <p>{{problem.memory_limit}}MB</p></li>
-          <li>
           <li>
             <p>{{$t('m.IOMode')}}</p>
             <p>{{problem.io_mode.io_mode}}</p>
@@ -167,9 +166,9 @@
             <p>
               <Poptip trigger="hover" placement="left-end">
                 <a>{{$t('m.Show')}}</a>
-                <div slot="content">
+                <template #content><div >
                   <Tag v-for="tag in problem.tags" :key="tag">{{tag}}</Tag>
-                </div>
+                </div></template>
               </Poptip>
             </p>
           </li>
@@ -177,11 +176,11 @@
       </Card>
 
       <Card id="pieChart" :padding="0" v-if="!this.contestID || OIContestRealTimePermission">
-        <div slot="title">
+        <template #title><div >
           <Icon type="ios-analytics"></Icon>
           <span class="card-title">{{$t('m.Statistic')}}</span>
           <Button type="ghost" size="small" id="detail" @click="graphVisible = !graphVisible">Details</Button>
-        </div>
+        </div></template>
         <div class="echarts">
           <ECharts :options="pie"></ECharts>
         </div>
@@ -192,15 +191,14 @@
       <div id="pieChart-detail">
         <ECharts :options="largePie" :initOptions="largePieInitOpts"></ECharts>
       </div>
-      <div slot="footer">
+      <template #footer><div >
         <Button type="ghost" @click="graphVisible=false">{{$t('m.Close')}}</Button>
-      </div>
+      </div></template>
     </Modal>
   </div>
 </template>
-
 <script>
-  import {mapGetters, mapActions} from 'vuex'
+  import {mapGetters, mapActions} from '@/store/compat'
   import {types} from '../../../../store'
   import CodeMirror from '@oj/components/CodeMirror.vue'
   import storage from '@/utils/storage'

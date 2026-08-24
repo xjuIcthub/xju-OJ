@@ -1,7 +1,7 @@
 <template>
   <panel shadow>
-    <div slot="title">{{$t('m.ACM_Helper')}}</div>
-    <div slot="extra">
+    <template #title><div >{{$t('m.ACM_Helper')}}</div></template>
+    <template #extra><div >
       <ul class="filter">
         <li>
           {{$t('m.Auto_Refresh')}} (10s)
@@ -11,18 +11,18 @@
           <Button type="info" @click="getACInfo">{{$t('m.Refresh')}}</Button>
         </li>
       </ul>
-    </div>
+    </div></template>
     <Table :data="pagedAcInfo" :columns="columns" :loading="loadingTable" disabled-hover></Table>
     <pagination :total="total"
-                :page-size.sync="limit"
-                :current.sync="page"
+                :page-size="limit" @update:page-size="limit = $event"
+                :current="page" @update:current="page = $event"
                 @on-change="handlePage"
                 @on-page-size-change="handlePage(1)"
                 show-sizer></pagination>
   </panel>
 </template>
 <script>
-  import { mapState, mapActions } from 'vuex'
+  import { mapState, mapActions } from '@/store/compat'
   import { types } from '../../../../../store'
   import moment from 'moment'
   import Pagination from '@oj/components/Pagination.vue'

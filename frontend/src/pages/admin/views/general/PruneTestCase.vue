@@ -1,17 +1,17 @@
 <template>
   <div>
     <panel>
-      <span slot="title">{{$t('m.Test_Case_Prune_Test_Case')}}
+      <template #title><span >{{$t('m.Test_Case_Prune_Test_Case')}}
         <el-popover placement="right" trigger="hover">
           These test cases are not owned by any problem, you can clean them safely.
-          <i slot="reference" class="el-icon-fa-question-circle import-user-icon"></i>
+          <template #reference><i  class="el-icon-fa-question-circle import-user-icon"></i></template>
         </el-popover>
-      </span>
+      </span></template>
       <el-table :data="data">
         <el-table-column
           label="Last Modified">
-          <template slot-scope="{row}">
-            {{row.create_time | timestampFormat }}
+          <template #default="{row}">
+            {{ $filters.timestampFormat(row.create_time) }}
           </template>
         </el-table-column>
         <el-table-column
@@ -22,8 +22,8 @@
           label="Option"
           fixed="right"
           width="200">
-          <template slot-scope="{row}">
-            <icon-btn name="Delete" icon="trash" @click.native="deleteTestCase(row.id)"></icon-btn>
+          <template #default="{row}">
+            <icon-btn name="Delete" icon="trash" @click="deleteTestCase(row.id)"></icon-btn>
           </template>
         </el-table-column>
       </el-table>
@@ -37,7 +37,6 @@
     </panel>
   </div>
 </template>
-
 <script>
   import api from '@admin/api'
   import moment from 'moment'

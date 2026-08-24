@@ -2,28 +2,28 @@
   <div class="flex-container">
     <div id="main">
       <Panel shadow>
-        <div slot="title">{{title}}</div>
-        <div slot="extra">
+        <template #title><div >{{title}}</div></template>
+        <template #extra><div >
           <ul class="filter">
             <li>
               <Dropdown @on-click="handleResultChange">
                 <span>{{status}}
                   <Icon type="arrow-down-b"></Icon>
                 </span>
-                <Dropdown-menu slot="list">
+                <template #list><Dropdown-menu >
                   <Dropdown-item name="">{{$t('m.All')}}</Dropdown-item>
                   <Dropdown-item v-for="status in Object.keys(JUDGE_STATUS)" :key="status" :name="status">
                     {{$t('m.' + JUDGE_STATUS[status].name.replace(/ /g, "_"))}}
                   </Dropdown-item>
-                </Dropdown-menu>
+                </Dropdown-menu></template>
               </Dropdown>
             </li>
 
 
             <li>
               <i-switch size="large" v-model="formFilter.myself" @on-change="handleQueryChange">
-                <span slot="open">{{$t('m.Mine')}}</span>
-                <span slot="close">{{$t('m.All')}}</span>
+                <template #open><span >{{$t('m.Mine')}}</span></template>
+                <template #close><span >{{$t('m.All')}}</span></template>
               </i-switch>
             </li>
             <li>
@@ -34,16 +34,15 @@
               <Button type="info" icon="refresh" @click="getSubmissions">{{$t('m.Refresh')}}</Button>
             </li>
           </ul>
-        </div>
+        </div></template>
         <Table stripe :disabled-hover="true" :columns="columns" :data="submissions" :loading="loadingTable"></Table>
-        <Pagination :total="total" :page-size="limit" @on-change="changeRoute" :current.sync="page"></Pagination>
+        <Pagination :total="total" :page-size="limit" @on-change="changeRoute" :current="page" @update:current="page = $event"></Pagination>
       </Panel>
     </div>
   </div>
 </template>
-
 <script>
-  import { mapGetters } from 'vuex'
+  import { mapGetters } from '@/store/compat'
   import api from '@oj/api'
   import { JUDGE_STATUS, USER_TYPE } from '@/utils/constants'
   import utils from '@/utils/utils'

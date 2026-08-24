@@ -2,19 +2,19 @@
   <Row type="flex">
     <Col :span="24">
     <Panel id="contest-card" shadow>
-      <div slot="title">{{query.rule_type === '' ? this.$i18n.t('m.All') : query.rule_type}} {{$t('m.Contests')}}</div>
-      <div slot="extra">
+      <template #title><div >{{query.rule_type === '' ? this.$i18n.t('m.All') : query.rule_type}} {{$t('m.Contests')}}</div></template>
+      <template #extra><div >
         <ul class="filter">
           <li>
             <Dropdown @on-click="onRuleChange">
               <span>{{query.rule_type === '' ? this.$i18n.t('m.Rule') : this.$i18n.t('m.' + query.rule_type)}}
                 <Icon type="arrow-down-b"></Icon>
               </span>
-              <Dropdown-menu slot="list">
+              <template #list><Dropdown-menu >
                 <Dropdown-item name="">{{$t('m.All')}}</Dropdown-item>
                 <Dropdown-item name="OI">{{$t('m.OI')}}</Dropdown-item>
                 <Dropdown-item name="ACM">{{$t('m.ACM')}}</Dropdown-item>
-              </Dropdown-menu>
+              </Dropdown-menu></template>
             </Dropdown>
           </li>
           <li>
@@ -22,12 +22,12 @@
               <span>{{query.status === '' ? this.$i18n.t('m.Status') : this.$i18n.t('m.' + CONTEST_STATUS_REVERSE[query.status].name.replace(/ /g,"_"))}}
                 <Icon type="arrow-down-b"></Icon>
               </span>
-              <Dropdown-menu slot="list">
+              <template #list><Dropdown-menu >
                 <Dropdown-item name="">{{$t('m.All')}}</Dropdown-item>
                 <Dropdown-item name="0">{{$t('m.Underway')}}</Dropdown-item>
                 <Dropdown-item name="1">{{$t('m.Not_Started')}}</Dropdown-item>
                 <Dropdown-item name="-1">{{$t('m.Ended')}}</Dropdown-item>
-              </Dropdown-menu>
+              </Dropdown-menu></template>
             </Dropdown>
           </li>
           <li>
@@ -35,7 +35,7 @@
                    icon="ios-search-strong" placeholder="Keyword"/>
           </li>
         </ul>
-      </div>
+      </div></template>
       <p id="no-contest" v-if="contests.length == 0">{{$t('m.No_contest')}}</p>
       <ol id="contest-list">
         <li v-for="contest in contests" :key="contest.title">
@@ -53,7 +53,7 @@
             <ul class="detail">
               <li>
                 <Icon type="calendar" color="#3091f2"></Icon>
-                {{contest.start_time | localtime('YYYY-M-D HH:mm') }}
+                {{ $filters.localtime(contest.start_time, 'YYYY-M-D HH:mm') }}
               </li>
               <li>
                 <Icon type="android-time" color="#3091f2"></Icon>
@@ -73,15 +73,14 @@
         </li>
       </ol>
     </Panel>
-    <Pagination :total="total" :page-size.sync="limit" @on-change="changeRoute" :current.sync="page" :show-sizer="true" @on-page-size-change="changeRoute"></Pagination>
+    <Pagination :total="total" :page-size="limit" @update:page-size="limit = $event" @on-change="changeRoute" :current="page" @update:current="page = $event" :show-sizer="true" @on-page-size-change="changeRoute"></Pagination>
     </Col>
   </Row>
 
 </template>
-
 <script>
   import api from '@oj/api'
-  import { mapGetters } from 'vuex'
+  import { mapGetters } from '@/store/compat'
   import utils from '@/utils/utils'
   import Pagination from '@/pages/oj/components/Pagination'
   import time from '@/utils/time'

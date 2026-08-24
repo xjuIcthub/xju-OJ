@@ -1,23 +1,23 @@
 <template>
   <Panel :padding="30" class="container">
-    <div slot="title" class="center">{{$t('m.Reset_Password')}}</div>
+    <template #title><div  class="center">{{$t('m.Reset_Password')}}</div></template>
     <template v-if="!resetSuccess">
     <Form :model=formResetPassword ref="formResetPassword" :rules="ruleResetPassword">
       <Form-item prop="password">
         <Input type="password" v-model="formResetPassword.password" :placeholder="$t('m.RPassword')" size="large">
-        <Icon type="ios-locked-outline" slot="prepend"></Icon>
+        <template #prepend><Icon type="ios-locked-outline" ></Icon></template>
         </Input>
       </Form-item>
       <Form-item prop="passwordAgain">
         <Input type="password" v-model="formResetPassword.passwordAgain" :placeholder="$t('m.RPassword_Again')" size="large">
-        <Icon type="ios-locked-outline" slot="prepend"></Icon>
+        <template #prepend><Icon type="ios-locked-outline" ></Icon></template>
         </Input>
       </Form-item>
       <Form-item prop="captcha" style="margin-bottom:10px">
         <div id="captcha">
           <div id="captchaCode">
             <Input v-model="formResetPassword.captcha" :placeholder="$t('m.RCaptcha')" size="large">
-            <Icon type="ios-lightbulb-outline" slot="prepend"></Icon>
+            <template #prepend><Icon type="ios-lightbulb-outline" ></Icon></template>
             </Input>
           </div>
           <div id="captchaImg">
@@ -40,7 +40,6 @@
     </template>
   </Panel>
 </template>
-
 <script>
   import {FormMixin} from '@oj/components/mixins'
   import api from '@oj/api'

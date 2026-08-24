@@ -2,15 +2,15 @@
   <Row type="flex" justify="space-around">
     <Col :span="22">
     <panel shadow v-if="contests.length" class="contest">
-      <div slot="title">
+      <template #title><div >
         <Button type="text"  class="contest-title" @click="goContest">{{contests[index].title}}</Button>
-      </div>
+      </div></template>
       <Carousel v-model="index" trigger="hover" autoplay :autoplay-speed="6000" class="contest">
         <CarouselItem v-for="(contest, index) of contests" :key="index">
           <div class="contest-content">
             <div class="contest-content-tags">
               <Button type="info" shape="circle" size="small" icon="calendar">
-                {{contest.start_time | localtime('YYYY-M-D HH:mm') }}
+                {{ $filters.localtime(contest.start_time, 'YYYY-M-D HH:mm') }}
               </Button>
               <Button type="success" shape="circle" size="small" icon="android-time">
                 {{getDuration(contest.start_time, contest.end_time)}}
@@ -30,7 +30,6 @@
     </Col>
   </Row>
 </template>
-
 <script>
   import Announcements from './Announcements.vue'
   import api from '@oj/api'

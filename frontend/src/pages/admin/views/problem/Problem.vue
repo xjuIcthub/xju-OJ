@@ -94,7 +94,7 @@
                 popper-class="problem-tag-poper"
                 v-model="tagInput"
                 :trigger-on-focus="false"
-                @keyup.enter.native="addTag"
+                @keyup.enter="addTag"
                 @select="addTag"
                 :fetch-suggestions="querySearch">
               </el-autocomplete>
@@ -115,9 +115,9 @@
         <div>
           <el-form-item v-for="(sample, index) in problem.samples" :key="'sample'+index">
             <Accordion :title="'Sample' + (index + 1)">
-              <el-button type="warning" size="small" icon="el-icon-delete" slot="header" @click="deleteSample(index)">
+              <template #header><el-button type="warning" size="small" icon="el-icon-delete"  @click="deleteSample(index)">
                 Delete
-              </el-button>
+              </el-button></template>
               <el-row :gutter="20">
                 <el-col :span="12">
                   <el-form-item :label="$t('m.Input_Samples')" required>
@@ -164,12 +164,12 @@
         </el-form-item>
         <el-form-item :label="$t('m.Special_Judge')" :error="error.spj">
           <el-col :span="24">
-            <el-checkbox v-model="problem.spj" @click.native.prevent="switchSpj()">{{$t('m.Use_Special_Judge')}}</el-checkbox>
+            <el-checkbox v-model="problem.spj" @click.prevent="switchSpj()">{{$t('m.Use_Special_Judge')}}</el-checkbox>
           </el-col>
         </el-form-item>
         <el-form-item v-if="problem.spj">
           <Accordion :title="$t('m.Special_Judge_Code')">
-            <template slot="header">
+            <template #header>
               <span>{{$t('m.SPJ_language')}}</span>
               <el-radio-group v-model="problem.spj_language">
                 <el-tooltip class="spj-radio" v-for="lang in allLanguage.spj_languages" :key="lang.name" effect="dark"
@@ -243,7 +243,7 @@
               <el-table-column
                 prop="score"
                 :label="$t('m.Score')">
-                <template slot-scope="scope">
+                <template #default="scope">
                   <el-input
                     size="small"
                     :placeholder="$t('m.Score')"
@@ -259,12 +259,11 @@
         <el-form-item :label="$t('m.Source')">
           <el-input :placeholder="$t('m.Source')" v-model="problem.source"></el-input>
         </el-form-item>
-        <save @click.native="submit()">Save</save>
+        <save @click="submit()">Save</save>
       </el-form>
     </Panel>
   </div>
 </template>
-
 <script>
   import Simditor from '../../components/Simditor'
   import Accordion from '../../components/Accordion'

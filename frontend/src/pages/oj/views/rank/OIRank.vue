@@ -2,19 +2,18 @@
   <Row type="flex" justify="space-around">
     <Col :span="22">
     <Panel :padding="10">
-      <div slot="title">{{$t('m.OI_Ranklist')}}</div>
+      <template #title><div >{{$t('m.OI_Ranklist')}}</div></template>
       <div class="echarts">
         <ECharts :options="options" ref="chart" auto-resize></ECharts>
       </div>
     </Panel>
     <Table :data="dataRank" :columns="columns" size="large"></Table>
-    <Pagination :total="total" :page-size.sync="limit" :current.sync="page"
+    <Pagination :total="total" :page-size="limit" @update:page-size="limit = $event" :current="page" @update:current="page = $event"
                 @on-change="getRankData"
                 show-sizer @on-page-size-change="getRankData(1)"></Pagination>
     </Col>
   </Row>
 </template>
-
 <script>
   import api from '@oj/api'
   import Pagination from '@oj/components/Pagination'

@@ -4,24 +4,24 @@
     <div class="flex-container setting-content">
       <template v-for="session in sessions">
         <Card :padding="20" class="flex-child">
-          <span slot="title" style="line-height: 20px">{{session.ip}}</span>
-          <div slot="extra">
+          <template #title><span  style="line-height: 20px">{{session.ip}}</span></template>
+          <template #extra><div >
             <Tag v-if="session.current_session" color="green">Current</Tag>
             <Button v-else
                     type="warning"
                     size="small"
                     @click="deleteSession(session.session_key)">Revoke
             </Button>
-          </div>
+          </div></template>
           <Form :label-width="100">
             <FormItem label="OS :" class="item">
-              {{session.user_agent | platform}}
+              {{ $filters.platform(session.user_agent) }}
             </FormItem>
             <FormItem label="Browser :" class="item">
-              {{session.user_agent | browser}}
+              {{ $filters.browser(session.user_agent) }}
             </FormItem>
             <FormItem label="Last Activity :" class="item">
-              {{session.last_activity | localtime }}
+              {{ $filters.localtime(session.last_activity) }}
             </FormItem>
           </Form>
         </Card>
@@ -61,10 +61,9 @@
     </div>
   </div>
 </template>
-
 <script>
   import api from '@oj/api'
-  import {mapGetters, mapActions} from 'vuex'
+  import {mapGetters, mapActions} from '@/store/compat'
   import browserDetector from 'browser-detect'
 
   const browsers = {}

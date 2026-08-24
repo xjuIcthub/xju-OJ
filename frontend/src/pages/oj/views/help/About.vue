@@ -1,7 +1,7 @@
 <template>
   <div>
     <panel class="container">
-      <div slot="title">{{$t('m.Compiler')}} & {{$t('m.Judger')}}</div>
+      <template #title><div >{{$t('m.Compiler')}} & {{$t('m.Judger')}}</div></template>
       <div class="content markdown-body">
         <ul>
           <li v-for="lang in languages">{{lang.name}} ( {{lang.description}} )
@@ -12,7 +12,7 @@
     </panel>
 
     <panel :padding="15" class="container">
-      <div slot="title">{{$t('m.Result_Explanation')}}</div>
+      <template #title><div >{{$t('m.Result_Explanation')}}</div></template>
       <div class="content">
         <ul>
           <li><b>{{$t('m.Pending')}} & {{$t('m.Judging')}}</b> : {{$t('m.Pending_Judging_Description')}}</li>
@@ -36,7 +36,6 @@
 
   </div>
 </template>
-
 <script>
   import utils from '@/utils/utils'
 

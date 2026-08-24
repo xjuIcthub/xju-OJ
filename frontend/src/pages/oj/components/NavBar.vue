@@ -19,7 +19,7 @@
         {{$t('m.NavStatus')}}
       </Menu-item>
       <Submenu name="rank">
-        <template slot="title">
+        <template #title>
           <Icon type="podium"></Icon>
           {{$t('m.Rank')}}
         </template>
@@ -31,7 +31,7 @@
         </Menu-item>
       </Submenu>
       <Submenu name="about">
-        <template slot="title">
+        <template #title>
           <Icon type="information-circled"></Icon>
           {{$t('m.About')}}
         </template>
@@ -62,26 +62,25 @@
           <Button type="text" class="drop-menu-title">{{ user.username }}
             <Icon type="arrow-down-b"></Icon>
           </Button>
-          <Dropdown-menu slot="list">
+          <template #list><Dropdown-menu >
             <Dropdown-item name="/user-home">{{$t('m.MyHome')}}</Dropdown-item>
             <Dropdown-item name="/status?myself=1">{{$t('m.MySubmissions')}}</Dropdown-item>
             <Dropdown-item name="/setting/profile">{{$t('m.Settings')}}</Dropdown-item>
             <Dropdown-item v-if="isAdminRole" name="/admin">{{$t('m.Management')}}</Dropdown-item>
             <Dropdown-item divided name="/logout">{{$t('m.Logout')}}</Dropdown-item>
-          </Dropdown-menu>
+          </Dropdown-menu></template>
         </Dropdown>
       </template>
     </Menu>
     <Modal v-model="modalVisible" :width="400">
-      <div slot="header" class="modal-title">{{$t('m.Welcome_to')}} {{website.website_name_shortcut}}</div>
+      <template #header><div  class="modal-title">{{$t('m.Welcome_to')}} {{website.website_name_shortcut}}</div></template>
       <component :is="modalStatus.mode" v-if="modalVisible"></component>
-      <div slot="footer" style="display: none"></div>
+      <template #footer><div  style="display: none"></div></template>
     </Modal>
   </div>
 </template>
-
 <script>
-  import { mapGetters, mapActions } from 'vuex'
+  import { mapGetters, mapActions } from '@/store/compat'
   import login from '@oj/views/user/Login'
   import register from '@oj/views/user/Register'
 

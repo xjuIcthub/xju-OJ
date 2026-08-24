@@ -17,7 +17,7 @@
 </template>
 
 <script>
-  import { mapActions, mapState } from 'vuex'
+  import { mapActions, mapState } from '@/store/compat'
   import NavBar from '@oj/components/NavBar.vue'
 
   export default {

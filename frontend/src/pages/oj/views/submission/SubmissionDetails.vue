@@ -3,17 +3,17 @@
     <Col :span="20" id="status">
       <Alert :type="status.type" showIcon>
         <span class="title">{{$t('m.' + status.statusName.replace(/ /g, "_"))}}</span>
-        <div slot="desc" class="content">
+        <template #desc><div  class="content">
           <template v-if="isCE">
             <pre>{{submission.statistic_info.err_info}}</pre>
           </template>
           <template v-else>
-            <span>{{$t('m.Time')}}: {{submission.statistic_info.time_cost | submissionTime}}</span>
-            <span>{{$t('m.Memory')}}: {{submission.statistic_info.memory_cost | submissionMemory}}</span>
+            <span>{{$t('m.Time')}}: {{ $filters.submissionTime(submission.statistic_info.time_cost) }}</span>
+            <span>{{$t('m.Memory')}}: {{ $filters.submissionMemory(submission.statistic_info.memory_cost) }}</span>
             <span>{{$t('m.Lang')}}: {{submission.language}}</span>
             <span>{{$t('m.Author')}}: {{submission.username}}</span>
           </template>
-        </div>
+        </div></template>
       </Alert>
     </Col>
 
@@ -40,7 +40,6 @@
   </Row>
 
 </template>
-
 <script>
   import api from '@oj/api'
   import {JUDGE_STATUS} from '@/utils/constants'

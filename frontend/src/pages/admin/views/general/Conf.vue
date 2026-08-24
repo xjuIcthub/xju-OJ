@@ -83,7 +83,7 @@
           </el-col>
         </el-row>
       </el-form>
-      <save @click.native="saveWebsiteConfig"></save>
+      <save @click="saveWebsiteConfig"></save>
     </Panel>
   </div>
 </template>

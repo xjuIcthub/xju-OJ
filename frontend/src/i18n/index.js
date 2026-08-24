@@ -1,35 +1,21 @@
-import Vue from 'vue'
-import VueI18n from 'vue-i18n'
-// ivew UI
-import ivenUS from 'iview/dist/locale/en-US'
-import ivzhCN from 'iview/dist/locale/zh-CN'
-import ivzhTW from 'iview/dist/locale/zh-TW'
-// element UI
-import elenUS from 'element-ui/lib/locale/lang/en'
-import elzhCN from 'element-ui/lib/locale/lang/zh-CN'
-import elzhTW from 'element-ui/lib/locale/lang/zh-TW'
-
-Vue.use(VueI18n)
+import { createI18n } from 'vue-i18n'
+import { m as enOJ } from './oj/en-US'
+import { m as zhCNOJ } from './oj/zh-CN'
+import { m as zhTWOJ } from './oj/zh-TW'
+import { m as enAdmin } from './admin/en-US'
+import { m as zhCNAdmin } from './admin/zh-CN'
+import { m as zhTWAdmin } from './admin/zh-TW'
 
 const languages = [
-  {value: 'en-US', label: 'English', iv: ivenUS, el: elenUS},
-  {value: 'zh-CN', label: '简体中文', iv: ivzhCN, el: elzhCN},
-  {value: 'zh-TW', label: '繁體中文', iv: ivzhTW, el: elzhTW}
+  { value: 'en-US', label: 'English' },
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'zh-TW', label: '繁體中文' }
 ]
-const messages = {}
-
-// combine admin and oj
-for (let lang of languages) {
-  let locale = lang.value
-  let m = require(`./oj/${locale}`).m
-  Object.assign(m, require(`./admin/${locale}`).m)
-  let ui = Object.assign(lang.iv, lang.el)
-  messages[locale] = Object.assign({m: m}, ui)
+const messages = {
+  'en-US': { m: { ...enOJ, ...enAdmin } },
+  'zh-CN': { m: { ...zhCNOJ, ...zhCNAdmin } },
+  'zh-TW': { m: { ...zhTWOJ, ...zhTWAdmin } }
 }
-// load language packages
-export default new VueI18n({
-  locale: 'en-US',
-  messages: messages
-})
 
-export {languages}
+export default createI18n({ legacy: false, globalInjection: true, locale: 'en-US', fallbackLocale: 'en-US', messages })
+export { languages }
