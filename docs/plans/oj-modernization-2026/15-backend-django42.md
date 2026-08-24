@@ -2,12 +2,13 @@
 
 ## 目标
 
-用 Django 4.2.30 在 Python3.10、已升级 PostgreSQL 集群的 staging 中消化 deprecation，作为可回滚的中间点；不把 4.2 作为长期生产版本。
+用 Django 4.2.30 在 Python3.10、Step21 fresh target/restore staging 中消化 deprecation，作为可回滚的中间点；不把 4.2 作为长期生产版本，也不要求先切换生产 PostgreSQL。
 
 ## 依赖与前置
 
 - Step 14 的 URL/JSONField/legacy blocker 清理通过。
-- Step 21 的 PostgreSQL restore rehearsal 已通过；Step 22 的生产切换在实施本 Step 前已批准或已完成。
+- WSL/huawei1 隔离演练：Step 21 的 fresh target/restore 已通过即可，Step 22 不是开发前置。
+- Phase 5 生产 promotion：Step 22 必须按生产窗口完成并观察稳定，或本 Step 只停留在 staging image。
 - 旧 Django3.2 + psycopg2 image 仍保留。
 - Redis DB1/DB4 职责不变。
 

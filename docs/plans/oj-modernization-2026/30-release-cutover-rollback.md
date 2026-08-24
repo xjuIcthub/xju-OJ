@@ -75,7 +75,7 @@
 
 ## 发布原则
 
-- 每个 Step 一个提交/标签；发布单记录 commit、镜像 digest、配置 hash、数据库状态、Redis manifest、回滚点。
+- Phase 是验收与必需提交单位；Phase 内按 frontend/backend/server/data checkpoint 提交。Redis、PostgreSQL、框架/driver/Worker 和 Judge toolchain major 必须保持独立回滚单元；发布单记录 commit、镜像 digest、配置 hash、数据库状态、Redis manifest、回滚点。
 - 观察窗口内不删除旧 PG/Redis 卷、旧镜像和旧 runtime。
 - 数据 major、框架 major、工具链 major 不能在一个回滚单元内合并。
 - 完成后把 `docs/plans/oj-modernization-2026/execution-log.md` 更新为实际证据，而不是把计划文本当完成事实。

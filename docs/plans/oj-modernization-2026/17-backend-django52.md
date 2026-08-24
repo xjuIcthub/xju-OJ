@@ -9,7 +9,8 @@
 - Step 14 blocker 已清理。
 - Step 15 Django4.2 deprecation gate 通过。
 - Step 16 Psycopg3 全量回归通过。
-- Step 20 Redis ladder、Step 21 PostgreSQL restore rehearsal 和 Step 22 PostgreSQL 生产切换已完成或获得明确的 staging/生产批准。
+- WSL/huawei1 隔离演练：Step 20 的隔离 Redis target 和 Step 21 fresh restore 已通过；不要求 Step 22 生产切换。
+- Phase 5 生产 promotion：生产 Redis ladder 与 Step 22 已完成并观察稳定，且数据/queue manifest 可核账。
 - `jsonfield` historical loader、fresh DB 和生产克隆均通过。
 
 ## 目标组合

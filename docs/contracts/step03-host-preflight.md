@@ -39,4 +39,4 @@ The target exposes the required command capabilities:
 
 ## Gate result
 
-The Ubuntu, cgroup, Docker/Compose/BuildKit, capacity, and firewall-observation gates passed for a non-production preflight. Production release remains closed until the external Secret-file gate in `step03-runtime-preflight.md` is satisfied; no Step 04 or image release is claimed by this record.
+The Ubuntu, cgroup, Docker/Compose/BuildKit, capacity, and firewall-observation gates passed for a non-production preflight. This is sufficient for Phase 1–4 builds and isolated WSL/huawei1 smoke using disposable test Secrets. Production release remains closed until the external Secret-file gate in `step03-runtime-preflight.md` is satisfied in Phase 5.

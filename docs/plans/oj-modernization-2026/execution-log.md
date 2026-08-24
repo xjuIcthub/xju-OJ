@@ -8,25 +8,27 @@
 - Python：3.10.x，Step 00 锁定官方 amd64 基础镜像解释器 `3.10.21` 与 manifest digest
 - 当前分支：`main`
 - 计划入口：[README.md](README.md)
-- 当前 Step：Step 00 已完成，准备 Step 01
-- 最近完成 Step：Step 00
+- 当前执行模型：Phase 0–5；Step 文档作为 Phase 内技术清单
+- 当前 Phase：Phase 0 已完成，准备 Phase 1
+- 最近完成：Phase 0（Step 00–03）
 
 ## 记录格式
 
-每完成一个 Step，追加一条：
+每完成一个 Phase 或重要 checkpoint，追加一条：
 
 ```text
-### YYYY-MM-DD — Step NN
+### YYYY-MM-DD — Phase N / checkpoint
 
 - Commit:
-- 变更摘要:
+- 完成的 Step 清单:
 - 实际命令:
 - 测试/验收结果:
 - 镜像与 digest:
 - 数据/Redis/queue 证据:
-- 已知风险:
+- Soft failures / deferred:
+- Hard-stop 核验:
 - 回滚点:
-- 下一步:
+- 下一 Phase:
 ```
 
 ## 禁止记录
@@ -73,7 +75,7 @@
 
 ### 2026-08-24 — Step 03
 
-- 状态: **阻塞（非破坏性宿主/运行时预检已完成；生产 Secret 门未满足）**。
+- 状态: 非破坏性宿主/运行时预检已完成；旧 Step 模型曾因生产 Secret 缺失标记阻塞，后续 Phase 模型已把该门限定到 Phase 5。
 - Commit: 本条记录随 `step 03: record Ubuntu runtime preflight` 独立提交
 - 目标机: `huawei1` / `XJU-ICTHubS1`；Ubuntu 22.04.5 LTS、x86_64、kernel 5.15.0-186-generic、cgroup v2。
 - 工具门: Docker Engine 29.7.1、containerd 2.2.6、runc 1.3.6、Compose v5.4.0、Buildx 0.36.0、BuildKit v0.32.0；default builder healthy，amd64 可用，未声称 arm64 生产就绪。
@@ -81,7 +83,17 @@
 - 目录/权限: 创建并核验 `/srv/xju-oj/runtime`、PG10/PG18、Redis4/6.2/7.4/8.2 独立根、`deployments`、`secrets` 和 `/var/backups/xju-oj`；运行/卷/部署目录为 `0750 root:root`，secrets/backup 为 `0700 root:root`。
 - 权限测试: Judge root container 对 `runtime/judger`/`runtime/log` 写删 probe 成功；`runtime/public` 与 `runtime/test_case` 以 `:ro` 挂载时可读且写入被拒绝；probe 已删除。
 - 网络门: UFW inactive；IPv4 Docker FORWARD DROP；IPv6 FORWARD ACCEPT 已记录为后续安全复核项；当前 host 仅监听 SSH/HTTP/HTTPS 与 loopback 服务，未监听 8000/8080/5432/6379；未修改防火墙。
-- Secret 门: `/srv/xju-oj/secrets` 为空。没有生成、打印、请求或提交 PostgreSQL password、Django SECRET_KEY、Judge token、管理员密码或 TLS 私钥；因此生产发布门保持 fail-closed，不能声称 Step 03 完成，也不能进入 Step 04。
+- Secret 门: `/srv/xju-oj/secrets` 为空。没有生成、打印、请求或提交 PostgreSQL password、Django SECRET_KEY、Judge token、管理员密码或 TLS 私钥；生产发布门保持 fail-closed。Phase 1–4 可使用隔离测试 Secret，不再因此阻塞 WSL/huawei1 smoke。
 - 证据: 详见 `docs/contracts/step03-host-preflight.md`、`docs/contracts/step03-runtime-preflight.md`、`docs/contracts/step03-known-findings.md`。
 - 回滚点: `6aead8a81cc708d861263baf0bfcabe1a913db35`；仅可删除本 Step 创建的空目录，不执行 volume prune、`down -v` 或删除 Secret。
-- 下一步: 由外部 Secret 管理流程提供并核验文件路径/权限/非空内容后，重新验收 Step 03；在此之前停止现代化顺序。
+- 下一步: Phase 1 — 在 WSL 并行构建 frontend/backend/server 组件桥接和可重复镜像；生产 Secret 延后到 Phase 5。
+
+### 2026-08-24 — Phase 执行模型收束
+
+- 变更性质: 仅更新执行计划，不修改应用、镜像、数据、服务或 Secret。
+- 新模型: 31 个 Step 收束为 Phase 0–5；Phase 是推进/验收/必需提交单位，Step 是内部技术清单。
+- 环境顺序: WSL 组件与全栈 → WSL 最终应用 → huawei1 同 digest 隔离演练 → 生产数据与发布。
+- 失败策略: 构建、依赖、代理、测试、候选版本和环境差异按 soft failure 在 Phase 内修复/重试/defer；只让破坏性数据、合同破坏、安全边界和不可恢复回滚四类 hard stop 停止。
+- 依赖修正: Step21 fresh target 足以支持 WSL/huawei1 framework 开发；Step20 隔离 rehearsal 与生产 cutover 分开；Step22/生产 Secret 只在 Phase5 成为前置。
+- 详细入口: [README.md](README.md) 与 `phases/00-foundation.md`–`phases/05-production-release.md`。
+- 下一步: 新对话从 [Phase 1](phases/01-component-bridge.md) 开始。

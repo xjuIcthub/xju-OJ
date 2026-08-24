@@ -9,6 +9,7 @@
 - Step 28 Compose `config --quiet` 和隔离全栈启动通过。
 - Step 27 有可消费的 image digest/cache 方案。
 - 迁移命令和初始化命令已有明确 owner/幂等语义。
+- Phase 2/4 可使用隔离数据和测试 Secret，不要求 Step22 或生产 Secret；Phase 5 生产调用才要求 final backup、生产 Secret 和切换批准。
 
 ## deploy.sh 固定行为
 
@@ -71,7 +72,7 @@ git diff --check
 ./deploy.sh --dry-run
 ```
 
-`--dry-run` 只校验，不读取/打印 Secret 内容。真实首次部署和升级只在隔离 staging 运行。
+`--dry-run` 只校验，不读取/打印 Secret 内容。脚本开发和首次验收只在 WSL/huawei1 隔离 staging 运行；通过 Phase 4 后，同一已验收脚本才可在 Phase 5 批准的生产窗口执行。
 
 ## 验收
 

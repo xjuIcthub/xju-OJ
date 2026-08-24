@@ -46,7 +46,7 @@ No production service was started and no host volume was pruned or replaced.
 
 ## Secret gate
 
-Expected external files are PostgreSQL password, Django `SECRET_KEY`, Judge token, initial administrator password, and optional TLS material. The directory is currently empty. This satisfies the safety requirement not to create secrets, but it does **not** satisfy the production release completion gate. A later deployment script must check absolute paths, mode `0600`, and non-empty content without printing values; missing files must abort before migrations, workers, or public service startup.
+Expected production files are PostgreSQL password, Django `SECRET_KEY`, Judge token, initial administrator password, and optional TLS material. The directory is currently empty. This satisfies the safety requirement not to create production secrets, but it does **not** satisfy the Phase 5 production release gate. Phase 1–4 may use isolated, disposable, Git-ignored test Secret files outside the production secret root; a test helper may create them, while `deploy.sh` only validates/consumes them. Production deployment must check absolute paths, mode `0600`, and non-empty content without printing values; missing files must abort before production migrations, workers, or public service startup.
 
 ## Rollback
 

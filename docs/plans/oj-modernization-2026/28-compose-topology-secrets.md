@@ -7,8 +7,9 @@
 ## 进入条件
 
 - Step 06、12、23、26、27 的镜像/安全边界通过。
-- Step 19–22 数据卷/备份路径已明确。
-- 所有生产镜像已有 immutable digest；不要把本 Step 与数据库 major 切换同批发布。
+- Phase 2 WSL/隔离模式：Step 19/21 的 fixture 或脱敏 target、隔离卷和测试 Secret 路径已明确；不要求 Step 22。
+- Phase 5 生产模式：Step 19–22 的 final 数据卷/备份/切换路径已明确，生产 Secret 已由外部系统提供。
+- 正式发布镜像已有 immutable digest；不要把 Compose 结构变更与数据库 major 放入同一生产回滚单元。
 
 ## 服务
 

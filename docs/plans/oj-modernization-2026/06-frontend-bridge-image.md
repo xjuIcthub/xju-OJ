@@ -100,4 +100,4 @@ curl -fsSI http://127.0.0.1:18080/admin/
 build(frontend): containerize Vite bridge with same-origin nginx
 ```
 
-完成后才允许删除旧 frontend 部署路径，进入 Step 07。
+完成后进入 Phase 3/Step 07；旧 frontend 部署路径和 Vue2 bridge immutable image 必须保留到 Step 10 验收，并在 Phase 5 观察窗口内继续作为 N-1 回滚资产，不能在本 Step 提前删除。

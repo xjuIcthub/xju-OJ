@@ -54,6 +54,8 @@ PG/Redis 每代使用独立目录；不覆盖旧卷。`RUNTIME_ROOT` 必须是�
 
 ## Secret 前置
 
+本节只约束 Phase 5 生产发布。Phase 1–4 的 WSL/huawei1 隔离演练可使用专用、Git ignored、可销毁的测试 Secret 文件；测试 helper 可以创建这些文件，但 `deploy.sh` 不生成 Secret，且测试 Secret 不得复用为生产 Secret。
+
 生产必须预先提供文件：
 
 - PostgreSQL password
@@ -117,4 +119,4 @@ install -d -m 0700 "$RUNTIME_ROOT/secrets" "$BACKUP_ROOT"
 ops: establish Ubuntu 22+ deployment preflight
 ```
 
-通过后才能构建新镜像或创建新数据库/Redis 卷。
+Ubuntu/Docker/BuildKit 和隔离目录预检通过后即可进入 Phase 1–4，生产 Secret 缺失只阻塞 Phase 5。创建生产数据库/Redis 卷和发布仍需完整 Secret、备份与切换门。

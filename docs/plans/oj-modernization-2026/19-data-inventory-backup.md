@@ -4,9 +4,15 @@
 
 在任何 PostgreSQL/Redis major 操作前建立脱敏 inventory、可恢复备份、业务 manifest 和容量/停机证据。
 
+## Phase 执行模式
+
+- Phase 2：先实现工具并对 fixture、空 fresh DB 或脱敏 clone 验证；真实生产 clone 暂不可用时记录 `release-gate pending`，不阻塞 WSL 全栈。
+- Phase 4：在 huawei1 隔离项目重复 protected clone/restore 能力。
+- Phase 5：必须对真实生产数据生成 final backup、hash、manifest 和 restore 证据，缺失时 hard stop。
+
 ## 进入条件
 
-- Step 03 Ubuntu `>=22.04` 目录、权限和备份路径通过。
+- Step 03 Ubuntu `>=22.04` 目录、权限和备份路径通过；非生产模式不要求生产 Secret。
 - Step 01 已定义 schema/Redis/Judge 合同。
 - 运维已批准 staging clone；生产读取命令必须只读或按 runbook 执行。
 

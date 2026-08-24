@@ -4,9 +4,14 @@
 
 在保持 DB1/DB4 业务职责和 RESP2 的前提下，逐代迁移 Redis；不切 Valkey，不直接声称 Redis4 RDB 可无损加载 Redis8。
 
+## Phase 执行模式
+
+- Phase 2：在隔离 volume 上用 fixture/脱敏 snapshot 完整演练 ladder，供 WSL 应用兼容开发；不取得生产消费权。
+- Phase 5：使用 Step19 final snapshot/manifest、producer freeze、queue drain 和独立维护窗口执行生产 ladder。
+
 ## 进入条件
 
-- Step 19 的 Redis snapshot、manifest、restore rehearsal 通过。
+- 当前环境对应的 Step 19 Redis snapshot、manifest、restore rehearsal 通过；Phase 2 可使用 fixture/脱敏 clone，Phase 5 必须使用 final production evidence。
 - 已实现 producer freeze、queue drain 和只有一套 Worker 消费权的 runbook。
 - 旧 Redis4 volume 只读保留。
 

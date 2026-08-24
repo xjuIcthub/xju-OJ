@@ -4,9 +4,14 @@
 
 在不切生产写入的前提下，用 PG18 fresh cluster 和真实脱敏 dump 完成至少两次恢复演练；PG17.11 只作为 PG18 blocker 的批准备选。
 
+## Phase 执行模式
+
+- Phase 2：先对 fixture/脱敏 clone 建立 fresh restore、校验脚本和兼容 target，供 backend/Compose 开发。
+- Phase 4/5：使用 protected/production clone 至少两次恢复并记录容量、时长和业务核账；这才构成生产 Step22 的批准证据。
+
 ## 进入条件
 
-- Step 19 PG dump、globals、runtime snapshot 可恢复。
+- 当前环境对应的 Step 19 PG dump、globals、runtime snapshot 可恢复；Phase 2 不要求生产 dump。
 - Redis/Worker 不需要在本 Step 同时切换。
 - 旧 PG10 数据目录和服务仍可独立启动。
 
