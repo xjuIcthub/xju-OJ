@@ -37,7 +37,16 @@ docker cp "$redis_id:/tmp/xju-oj-redis.rdb" "$out/redis/redis.rdb"
 docker exec "$redis_id" rm -f /tmp/xju-oj-redis.rdb
 
 # Only public/test_case runtime data is copied; config/secret and logs stay outside the artifact.
-tar -C "$RUNTIME_ROOT" --numeric-owner -cf "$out/runtime/public-test-case.tar" backend/public backend/test_case
+# WSL rootless bind mounts can make test_case unreadable from the host; use the
+# already-running backend container as a read-only copy path in that case.
+if [ -r "$RUNTIME_ROOT/backend/public" ] && [ -x "$RUNTIME_ROOT/backend/public" ] \
+    && [ -r "$RUNTIME_ROOT/backend/test_case" ] && [ -x "$RUNTIME_ROOT/backend/test_case" ]; then
+    tar -C "$RUNTIME_ROOT" --numeric-owner -cf "$out/runtime/public-test-case.tar" backend/public backend/test_case
+else
+    backend_id=$(compose ps -q backend-api)
+    [ -n "$backend_id" ] || { printf '%s\n' "backup: backend-api container is required for unreadable runtime paths" >&2; exit 1; }
+    docker exec "$backend_id" tar -C /data --numeric-owner -cf - public test_case > "$out/runtime/public-test-case.tar"
+fi
 
 {
     printf '%s\n' "format=xju-oj-phase2-fixture-backup-v1"
@@ -48,5 +57,5 @@ tar -C "$RUNTIME_ROOT" --numeric-owner -cf "$out/runtime/public-test-case.tar" b
     printf '%s\n' "runtime_scope=backend/public backend/test_case"
 } > "$out/manifest.txt"
 
-find "$out" -type f -print0 | sort -z | xargs -0 sha256sum > "$out/sha256sums"
+find "$out" -type f ! -path "$out/sha256sums" -print0 | sort -z | xargs -0 sha256sum > "$out/sha256sums"
 printf '%s\n' "fixture backup written: $out"

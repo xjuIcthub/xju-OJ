@@ -118,7 +118,7 @@ class IntegrationTest(base.BaseTestCase):
                     max_process_number=200, max_output_size=10000, exe_path="/bin/ls",
                     input_path="/dev/null", output_path="/dev/null", error_path="/dev/null",
                     args=["12344"], env=["a=b"], log_path="/dev/null",
-                    seccomp_rule_name="c_cpp", uid=0, gid=0)
+                    seccomp_rule_name="c_cpp", uid=65534, gid=65534)
 
         _judger.run(max_cpu_time=1000, max_real_time=2000,
                     max_memory=1024 * 1024 * 128, max_stack=32 * 1024 * 1024,
@@ -143,6 +143,15 @@ class IntegrationTest(base.BaseTestCase):
         result = _judger.run(**config)
         self.assertEqual(result["result"], _judger.RESULT_SUCCESS)
         self.assertEqual("abs 1024", self.output_content(config["output_path"]))
+
+    def test_cwd(self):
+        config = self.base_config
+        config["exe_path"] = self._compile_c("cwd.c")
+        config["cwd"] = self.workspace
+        config["output_path"] = config["error_path"] = self.output_path()
+        result = _judger.run(**config)
+        self.assertEqual(result["result"], _judger.RESULT_SUCCESS)
+        self.assertEqual(self.workspace + "\n", self.output_content(config["output_path"]))
 
     def test_args(self):
         config = self.base_config
@@ -201,6 +210,9 @@ class IntegrationTest(base.BaseTestCase):
 
     def test_memory3(self):
         config = self.base_config
+        # This case validates resident-memory accounting, not a 1-second CPU
+        # boundary; touching 400 MiB varies across container hosts.
+        config["max_cpu_time"] = 3000
         config["max_memory"] = 512 * 1024 * 1024
         config["exe_path"] = self._compile_c("memory3.c")
         result = _judger.run(**config)
@@ -322,6 +334,8 @@ class IntegrationTest(base.BaseTestCase):
         config = self.base_config
         config["exe_path"] = self._compile_cpp("writev.cpp")
         config["seccomp_rule_name"] = "c_cpp"
+        config["uid"] = 65534
+        config["gid"] = 65534
         config["input_path"] = self.make_input("111" * 10000 + "\n")
         config["output_path"] = config["error_path"] = self.output_path()
 
@@ -332,6 +346,8 @@ class IntegrationTest(base.BaseTestCase):
         config = self.base_config
         config["exe_path"] = self._compile_c("time.c")
         config["seccomp_rule_name"] = "c_cpp"
+        config["uid"] = 65534
+        config["gid"] = 65534
 
         result = _judger.run(**config)
         self.assertEqual(result["result"], _judger.RESULT_SUCCESS)

@@ -3,6 +3,7 @@ import hashlib
 import logging
 import os
 import socket
+import stat
 
 import psutil
 
@@ -24,6 +25,17 @@ def server_info():
             "cpu_core": psutil.cpu_count(),
             "memory": psutil.virtual_memory().percent,
             "judger_version": ".".join([str((ver >> 16) & 0xff), str((ver >> 8) & 0xff), str(ver & 0xff)])}
+
+
+def open_root_lock(path):
+    fd = os.open(path, os.O_RDWR | os.O_CLOEXEC | os.O_NOFOLLOW)
+    file_stat = os.fstat(fd)
+    if (not stat.S_ISREG(file_stat.st_mode) or file_stat.st_uid != 0 or
+            file_stat.st_gid != 0 or file_stat.st_nlink != 1 or
+            stat.S_IMODE(file_stat.st_mode) != 0o600):
+        os.close(fd)
+        raise JudgeClientError("invalid judge lock file")
+    return os.fdopen(fd, "r+")
 
 
 def get_token():

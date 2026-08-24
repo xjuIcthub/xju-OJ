@@ -2,7 +2,7 @@ import json
 import subprocess
 
 UNLIMITED = -1
-VERSION = 0x020101
+VERSION = 0x020104
 
 RESULT_SUCCESS = 0
 RESULT_WRONG_ANSWER = -1
@@ -23,6 +23,9 @@ ERROR_DUP2_FAILED = -8
 ERROR_SETUID_FAILED = -9
 ERROR_EXECVE_FAILED = -10
 ERROR_SPJ_ERROR = -11
+ERROR_PIPE_FAILED = -12
+ERROR_PROCESS_GROUP_FAILED = -13
+ERROR_CHDIR_FAILED = -14
 
 
 def run(max_cpu_time,
@@ -41,7 +44,8 @@ def run(max_cpu_time,
         seccomp_rule_name,
         uid,
         gid,
-        memory_limit_check_only=0):
+        memory_limit_check_only=0,
+        cwd=None):
     str_list_vars = ["args", "env"]
     int_vars = ["max_cpu_time", "max_real_time",
                 "max_memory", "max_stack", "max_output_size",
@@ -72,13 +76,20 @@ def run(max_cpu_time,
             raise ValueError("{} must be a string".format(var))
         proc_args.append("--{}={}".format(var, value))
 
+    if cwd is not None:
+        if not isinstance(cwd, str):
+            raise ValueError("cwd must be a string or None")
+        proc_args.append("--cwd={}".format(cwd))
+
     if not isinstance(seccomp_rule_name, str) and seccomp_rule_name is not None:
         raise ValueError("seccomp_rule_name must be a string or None")
     if seccomp_rule_name:
-        proc_args.append("--seccomp_rule={}".format(seccomp_rule_name))
+        proc_args.append("--seccomp_rule_name={}".format(seccomp_rule_name))
 
     proc = subprocess.Popen(proc_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = proc.communicate()
-    if err:
-        raise ValueError("Error occurred while calling judger: {}".format(err))
+    if proc.returncode != 0 or err:
+        raise ValueError("Error occurred while calling judger: {}".format(
+            err.decode("utf-8", errors="backslashreplace") or
+            out.decode("utf-8", errors="backslashreplace")))
     return json.loads(out.decode("utf-8"))

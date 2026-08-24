@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 // (ver >> 16) & 0xff, (ver >> 8) & 0xff, ver & 0xff  -> real version
-#define VERSION 0x020101
+#define VERSION 0x020104
 
 #define UNLIMITED -1
 
@@ -14,6 +14,7 @@
 #define ERROR_EXIT(error_code)\
     {\
         LOG_ERROR(error_code);  \
+        _result->result = SYSTEM_ERROR; \
         _result->error = error_code; \
         log_close(log_fp);  \
         return; \
@@ -35,7 +36,10 @@ enum {
     DUP2_FAILED = -8,
     SETUID_FAILED = -9,
     EXECVE_FAILED = -10,
-    SPJ_ERROR = -11
+    SPJ_ERROR = -11,
+    PIPE_FAILED = -12,
+    PROCESS_GROUP_FAILED = -13,
+    CHDIR_FAILED = -14
 };
 
 
@@ -51,6 +55,7 @@ struct config {
     char *input_path;
     char *output_path;
     char *error_path;
+    char *cwd;
     char *args[ARGS_MAX_NUMBER];
     char *env[ENV_MAX_NUMBER];
     char *log_path;
@@ -78,6 +83,12 @@ struct result {
     int exit_code;
     int error;
     int result;
+};
+
+
+struct child_error {
+    int error;
+    int system_errno;
 };
 
 

@@ -47,7 +47,10 @@ static ConfItem conf_item[] = {
     {"_ERROR_DUP2_FAILED", DUP2_FAILED},
     {"_ERROR_SETUID_FAILED", SETUID_FAILED},
     {"_ERROR_EXECVE_FAILED", EXECVE_FAILED},
-    {"_ERROR_SPJ_ERROR", SPJ_ERROR}
+    {"_ERROR_SPJ_ERROR", SPJ_ERROR},
+    {"_ERROR_PIPE_FAILED", PIPE_FAILED},
+    {"_ERROR_PROCESS_GROUP_FAILED", PROCESS_GROUP_FAILED},
+    {"_ERROR_CHDIR_FAILED", CHDIR_FAILED}
 };
 static const int conf_item_size = sizeof(conf_item) / sizeof(ConfItem);
 

@@ -182,6 +182,10 @@ services:
       BACKEND_URL: http://backend-api:8000/api/judge_server_heartbeat/
       SERVICE_URL: http://judge-server:8080
       HEARTBEAT_INTERVAL: "5"
+      JUDGER_HTTP_WORKERS: "${JUDGER_HTTP_WORKERS:-4}"
+      JUDGER_HTTP_THREADS: "${JUDGER_HTTP_THREADS:-2}"
+      JUDGER_TESTCASE_WORKERS: "${JUDGER_TESTCASE_WORKERS:-4}"
+      TEST_CASE_GROUP_GID: "${TEST_CASE_GROUP_GID:-101}"
       NO_PROXY: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
       no_proxy: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
     read_only: true
@@ -194,11 +198,15 @@ services:
       - SETUID
       - SETGID
       - KILL
+    group_add:
+      - "${TEST_CASE_GROUP_GID:-101}"
+      - "902"
+      - "903"
     pids_limit: 512
     tmpfs:
-      - /tmp
-      - /judger
-      - /log
+      - /tmp:rw,nosuid,nodev,noexec,mode=1777,size=1g
+      - /judger:rw,nosuid,nodev,exec,mode=0770,size=1g
+      - /log:rw,nosuid,nodev,noexec,mode=0770,size=64m
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend/test_case:/test_case:ro"
       - judge_server_token:/run/judge-token:ro

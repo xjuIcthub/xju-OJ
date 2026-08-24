@@ -1,25 +1,37 @@
-import _judger
 import json
 import os
-
-from config import COMPILER_LOG_PATH, COMPILER_USER_UID, COMPILER_GROUP_GID
-from exception import CompileError
 import shlex
+
+import _judger
+
+from config import COMPILER_GROUP_GID, COMPILER_LOG_PATH, COMPILER_USER_UID
+from exception import CompileError
 
 
 class Compiler(object):
-    def compile(self, compile_config, src_path, output_dir):
+    def compile(self, compile_config, src_path, output_dir, compiler_group_gid=COMPILER_GROUP_GID):
         command = compile_config["compile_command"]
         exe_path = os.path.join(output_dir, compile_config["exe_name"])
         command = command.format(src_path=src_path, exe_dir=output_dir, exe_path=exe_path)
         compiler_out = os.path.join(output_dir, "compiler.out")
         _command = shlex.split(command)
 
-        os.chdir(output_dir)
-        env = compile_config.get("env", [])
-        env.append("PATH=" + os.getenv("PATH"))
-        result = _judger.run(max_cpu_time=compile_config["max_cpu_time"],
-                             max_real_time=compile_config["max_real_time"],
+        # Commands use absolute source/output paths. Avoid process-global
+        # chdir(), which races between Gunicorn threads and can leave the
+        # service cwd inside a deleted submission directory.
+        env = list(compile_config.get("env", []))
+        env.append("PATH=" + os.getenv("PATH", ""))
+        max_cpu_time = compile_config["max_cpu_time"]
+        max_real_time = compile_config["max_real_time"]
+        # A cold Go 1.26 build compiles standard-library cache entries in the
+        # ephemeral /tmp lane and legitimately exceeds legacy Go 1.22 limits.
+        # Normalize execution limits without rewriting customized DB metadata.
+        if os.path.basename(_command[0]) == "go":
+            max_cpu_time = max(max_cpu_time, 15000)
+            max_real_time = max(max_real_time, 30000)
+
+        result = _judger.run(max_cpu_time=max_cpu_time,
+                             max_real_time=max_real_time,
                              max_memory=compile_config["max_memory"],
                              max_stack=128 * 1024 * 1024,
                              max_output_size=20 * 1024 * 1024,
@@ -34,16 +46,19 @@ class Compiler(object):
                              log_path=COMPILER_LOG_PATH,
                              seccomp_rule_name=None,
                              uid=COMPILER_USER_UID,
-                             gid=COMPILER_GROUP_GID)
+                             gid=compiler_group_gid)
 
         if result["result"] != _judger.RESULT_SUCCESS:
             if os.path.exists(compiler_out):
                 with open(compiler_out, encoding="utf-8") as f:
                     error = f.read().strip()
-                    os.remove(compiler_out)
-                    if error:
-                        raise CompileError(error)
+                os.remove(compiler_out)
+                if error:
+                    raise CompileError(error)
             raise CompileError("Compiler runtime error, info: %s" % json.dumps(result))
-        else:
+
+        try:
             os.remove(compiler_out)
-            return exe_path
+        except FileNotFoundError:
+            pass
+        return exe_path

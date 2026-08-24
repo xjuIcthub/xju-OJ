@@ -206,7 +206,7 @@ namespace demo {
         v8::Isolate* isolate = v8::Isolate::GetCurrent();
         NODE_SET_METHOD(exports, "run", Method);
         exports->Set( String::NewFromUtf8(isolate,"UNLIMITED"),Integer::New(isolate, -1));
-        exports->Set(String::NewFromUtf8(isolate,"VERSION"),Integer::New(isolate, 0x020101));
+        exports->Set(String::NewFromUtf8(isolate,"VERSION"),Integer::New(isolate, 0x020104));
 
         exports->Set(String::NewFromUtf8(isolate,"RESULT_SUCCESS"),Integer::New(isolate, 0));
         exports->Set(String::NewFromUtf8(isolate,"RESULT_WRONG_ANSWER"),Integer::New(isolate, -1));
@@ -227,6 +227,9 @@ namespace demo {
         exports->Set(String::NewFromUtf8(isolate,"ERROR_SETUID_FAILED"),Integer::New(isolate, -9));
         exports->Set(String::NewFromUtf8(isolate,"ERROR_EXECVE_FAILED"),Integer::New(isolate, -10));
         exports->Set(String::NewFromUtf8(isolate,"ERROR_SPJ_ERROR"),Integer::New(isolate, -11));
+        exports->Set(String::NewFromUtf8(isolate,"ERROR_PIPE_FAILED"),Integer::New(isolate, -12));
+        exports->Set(String::NewFromUtf8(isolate,"ERROR_PROCESS_GROUP_FAILED"),Integer::New(isolate, -13));
+        exports->Set(String::NewFromUtf8(isolate,"ERROR_CHDIR_FAILED"),Integer::New(isolate, -14));
     }
 
     NODE_MODULE(addon, init)

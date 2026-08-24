@@ -7,7 +7,7 @@
 struct arg_lit *verb, *help, *version;
 struct arg_int *max_cpu_time, *max_real_time, *max_memory, *max_stack, *memory_limit_check_only,
         *max_process_number, *max_output_size, *uid, *gid;
-struct arg_str *exe_path, *input_path, *output_path, *error_path, *args, *env, *log_path, *seccomp_rule_name;
+struct arg_str *exe_path, *input_path, *output_path, *error_path, *cwd, *args, *env, *log_path, *seccomp_rule_name;
 struct arg_end *end;
 
 int main(int argc, char *argv[]) {
@@ -26,6 +26,7 @@ int main(int argc, char *argv[]) {
             input_path = arg_strn(NULL, "input_path", STR_PLACE_HOLDER, 0, 1, "Input Path"),
             output_path = arg_strn(NULL, "output_path", STR_PLACE_HOLDER, 0, 1, "Output Path"),
             error_path = arg_strn(NULL, "error_path", STR_PLACE_HOLDER, 0, 1, "Error Path"),
+            cwd = arg_strn(NULL, "cwd", STR_PLACE_HOLDER, 0, 1, "Working Directory"),
 
             args = arg_strn(NULL, "args", STR_PLACE_HOLDER, 0, 255, "Arg"),
             env = arg_strn(NULL, "env", STR_PLACE_HOLDER, 0, 255, "Env"),
@@ -124,6 +125,11 @@ int main(int argc, char *argv[]) {
         _config.error_path = (char *)error_path->sval[0];
     } else {
         _config.error_path = "/dev/stderr";
+    }
+    if (cwd->count > 0) {
+        _config.cwd = (char *)cwd->sval[0];
+    } else {
+        _config.cwd = NULL;
     }
 
     _config.args[0] = _config.exe_path;

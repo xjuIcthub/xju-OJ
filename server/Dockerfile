@@ -39,6 +39,14 @@ RUN set -eux; \
         libseccomp2 \
         strace \
         zlib1g; \
+    ln -sf /usr/local/bin/gcc /usr/bin/gcc; \
+    ln -sf /usr/local/bin/g++ /usr/bin/g++; \
+    ln -sf /usr/local/bin/python3 /usr/bin/python; \
+    ln -sf /usr/local/bin/python3 /usr/bin/python3; \
+    ln -sf /usr/local/bin/node /usr/bin/node; \
+    ln -sf /usr/local/go/bin/go /usr/bin/go; \
+    ln -sf /opt/java/openjdk/bin/java /usr/bin/java; \
+    ln -sf /opt/java/openjdk/bin/javac /usr/bin/javac; \
     rm -rf /var/lib/apt/lists/*; \
     useradd --uid 901 --system --home-dir /nonexistent --shell /usr/sbin/nologin compiler; \
     useradd --uid 902 --system --home-dir /nonexistent --shell /usr/sbin/nologin code; \
@@ -67,7 +75,7 @@ RUN --mount=type=cache,target=/root/.cache/cmake,id=judger-cmake-${TARGETARCH},s
     cmake --build /src/judger/build --parallel "$(nproc)"
 RUN set -eux; \
     cd /src/judger/bindings/Python; \
-    uv build --wheel --out-dir /src/judger-wheel
+    uv build --wheel --no-build-isolation --out-dir /src/judger-wheel
 
 FROM judge-toolchain AS judge-server-deps
 ARG TARGETARCH

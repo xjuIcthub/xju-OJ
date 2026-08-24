@@ -1,51 +1,20 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
-#include <stdbool.h>
+#include <sched.h>
 #include <seccomp.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
+#include <unistd.h>
 #include <sys/types.h>
 
 #include "../runner.h"
 
 
-static int add_write_open_rules(scmp_filter_ctx ctx, int syscall_number, unsigned int flags_argument) {
-    if (seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, syscall_number, 1,
-                         SCMP_CMP(flags_argument, SCMP_CMP_MASKED_EQ, O_ACCMODE, O_WRONLY)) != 0 ||
-        seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, syscall_number, 1,
-                         SCMP_CMP(flags_argument, SCMP_CMP_MASKED_EQ, O_ACCMODE, O_RDWR)) != 0 ||
-        seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, syscall_number, 1,
-                         SCMP_CMP(flags_argument, SCMP_CMP_MASKED_EQ, O_CREAT, O_CREAT)) != 0 ||
-        seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, syscall_number, 1,
-                         SCMP_CMP(flags_argument, SCMP_CMP_MASKED_EQ, O_TRUNC, O_TRUNC)) != 0 ||
-        seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, syscall_number, 1,
-                         SCMP_CMP(flags_argument, SCMP_CMP_MASKED_EQ, O_APPEND, O_APPEND)) != 0) {
-        return LOAD_SECCOMP_FAILED;
-    }
-#ifdef O_TMPFILE
-    if (seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, syscall_number, 1,
-                         SCMP_CMP(flags_argument, SCMP_CMP_MASKED_EQ,
-                                  O_TMPFILE & ~O_DIRECTORY, O_TMPFILE & ~O_DIRECTORY)) != 0) {
-        return LOAD_SECCOMP_FAILED;
-    }
-#endif
-    return SUCCESS;
-}
-
-
-int general_seccomp_rules(struct config *_config) {
-    bool allow_write_file = strcmp(_config->seccomp_rule_name, "general_file_io") == 0;
+int java_seccomp_rules(struct config *_config) {
     int syscalls_blacklist[] = {
-        SCMP_SYS(clone),
         SCMP_SYS(fork),
         SCMP_SYS(vfork),
         SCMP_SYS(kill),
         SCMP_SYS(tkill),
-        SCMP_SYS(tgkill),
-        SCMP_SYS(rt_sigqueueinfo),
-        SCMP_SYS(rt_tgsigqueueinfo),
         SCMP_SYS(setsid),
         SCMP_SYS(setpgid),
         SCMP_SYS(unshare),
@@ -89,14 +58,8 @@ int general_seccomp_rules(struct config *_config) {
         SCMP_SYS(fallocate),
         SCMP_SYS(memfd_create),
 
-#ifdef __NR_clone3
-        SCMP_SYS(clone3),
-#endif
 #ifdef __NR_execveat
         SCMP_SYS(execveat),
-#endif
-#ifdef __NR_openat2
-        SCMP_SYS(openat2),
 #endif
 #ifdef __NR_renameat2
         SCMP_SYS(renameat2),
@@ -111,39 +74,48 @@ int general_seccomp_rules(struct config *_config) {
         SCMP_SYS(pidfd_getfd),
 #endif
     };
-    int syscalls_blacklist_length = sizeof(syscalls_blacklist) / sizeof(int);
+
     scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW);
     if (!ctx) {
         return LOAD_SECCOMP_FAILED;
     }
 
-    for (int i = 0; i < syscalls_blacklist_length; i++) {
+    int blacklist_length = sizeof(syscalls_blacklist) / sizeof(int);
+    for (int i = 0; i < blacklist_length; i++) {
         if (seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, syscalls_blacklist[i], 0) != 0) {
             seccomp_release(ctx);
             return LOAD_SECCOMP_FAILED;
         }
     }
 
+    pid_t self_pid = getpid();
     if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EACCES), SCMP_SYS(socket), 0) != 0 ||
-        seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EACCES), SCMP_SYS(socketpair), 0) != 0) {
+        seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EACCES), SCMP_SYS(socketpair), 0) != 0 ||
+        seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, SCMP_SYS(clone), 1,
+                         SCMP_CMP(0, SCMP_CMP_MASKED_EQ, CLONE_THREAD, 0)) != 0 ||
+        seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, SCMP_SYS(execve), 1,
+                         SCMP_A0(SCMP_CMP_NE, (scmp_datum_t) _config->exe_path)) != 0 ||
+        seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, SCMP_SYS(tgkill), 1,
+                         SCMP_A0(SCMP_CMP_NE, (scmp_datum_t) self_pid)) != 0 ||
+        seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, SCMP_SYS(rt_sigqueueinfo), 1,
+                         SCMP_A0(SCMP_CMP_NE, (scmp_datum_t) self_pid)) != 0 ||
+        seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, SCMP_SYS(rt_tgsigqueueinfo), 1,
+                         SCMP_A0(SCMP_CMP_NE, (scmp_datum_t) self_pid)) != 0) {
         seccomp_release(ctx);
         return LOAD_SECCOMP_FAILED;
     }
-
-    // The initial execve uses this exact pointer. Any later execve constructed
-    // by the judged program has a different pointer and is killed.
-    if (seccomp_rule_add(ctx, SCMP_ACT_KILL_PROCESS, SCMP_SYS(execve), 1,
-                         SCMP_A0(SCMP_CMP_NE, (scmp_datum_t) (_config->exe_path))) != 0) {
+#ifdef __NR_clone3
+    if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOSYS), SCMP_SYS(clone3), 0) != 0) {
         seccomp_release(ctx);
         return LOAD_SECCOMP_FAILED;
     }
-
-    if (!allow_write_file &&
-        (add_write_open_rules(ctx, SCMP_SYS(open), 1) != SUCCESS ||
-         add_write_open_rules(ctx, SCMP_SYS(openat), 2) != SUCCESS)) {
+#endif
+#ifdef __NR_openat2
+    if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOSYS), SCMP_SYS(openat2), 0) != 0) {
         seccomp_release(ctx);
         return LOAD_SECCOMP_FAILED;
     }
+#endif
 #ifdef __NR_io_uring_setup
     if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOSYS), SCMP_SYS(io_uring_setup), 0) != 0 ||
         seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOSYS), SCMP_SYS(io_uring_enter), 0) != 0 ||
@@ -152,6 +124,7 @@ int general_seccomp_rules(struct config *_config) {
         return LOAD_SECCOMP_FAILED;
     }
 #endif
+
     if (seccomp_load(ctx) != 0) {
         seccomp_release(ctx);
         return LOAD_SECCOMP_FAILED;
