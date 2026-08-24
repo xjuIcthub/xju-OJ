@@ -15,9 +15,40 @@ export OJ_DATA_DIR=$DATA_DIR
 
 backend_user=backend
 
+load_secret_file() {
+    file_path=$1
+    value_var=$2
+    [ -n "$file_path" ] || return 0
+    case "$value_var" in
+        POSTGRES_PASSWORD) [ -n "${POSTGRES_PASSWORD:-}" ] && return 0 ;;
+        JUDGE_SERVER_TOKEN) [ -n "${JUDGE_SERVER_TOKEN:-}" ] && return 0 ;;
+        INITIAL_ADMIN_PASSWORD) [ -n "${INITIAL_ADMIN_PASSWORD:-}" ] && return 0 ;;
+        *) return 1 ;;
+    esac
+    [ -r "$file_path" ] && [ -s "$file_path" ] || {
+        printf '%s\n' "backend secret file is unreadable" >&2
+        return 1
+    }
+    value=$(cat "$file_path")
+    [ -n "$value" ] || {
+        printf '%s\n' "backend secret file is empty" >&2
+        return 1
+    }
+    export "$value_var=$value"
+}
+
+prepare_backend_secrets() {
+    load_secret_file "${POSTGRES_PASSWORD_FILE:-}" POSTGRES_PASSWORD
+    load_secret_file "${JUDGE_SERVER_TOKEN_FILE:-}" JUDGE_SERVER_TOKEN
+    load_secret_file "${INITIAL_ADMIN_PASSWORD_FILE:-}" INITIAL_ADMIN_PASSWORD
+}
+
 run_backend() {
-    if [ "$(id -u)" -eq 0 ] && command -v gosu >/dev/null 2>&1; then
-        exec gosu "$backend_user" "$@"
+    if [ "$(id -u)" -eq 0 ]; then
+        prepare_backend_secrets
+        if command -v gosu >/dev/null 2>&1; then
+            exec gosu "$backend_user" "$@"
+        fi
     fi
     if [ "$(id -u)" -eq 0 ] && command -v su-exec >/dev/null 2>&1; then
         exec su-exec "$backend_user" "$@"
@@ -26,8 +57,11 @@ run_backend() {
 }
 
 run_backend_shell() {
-    if [ "$(id -u)" -eq 0 ] && command -v gosu >/dev/null 2>&1; then
-        exec gosu "$backend_user" /bin/sh -c "$1"
+    if [ "$(id -u)" -eq 0 ]; then
+        prepare_backend_secrets
+        if command -v gosu >/dev/null 2>&1; then
+            exec gosu "$backend_user" /bin/sh -c "$1"
+        fi
     fi
     if [ "$(id -u)" -eq 0 ] && command -v su-exec >/dev/null 2>&1; then
         exec su-exec "$backend_user" /bin/sh -c "$1"
@@ -39,6 +73,10 @@ bootstrap_runtime() {
     if [ "${1:-}" = "--dry-run" ]; then
         test -d "$APP_ROOT/resources/bootstrap/public/avatar"
         test -d "$APP_ROOT/resources/bootstrap/public/website"
+        if [ "${OJ_ENV:-dev}" = "production" ] && [ ! -s "$DATA_DIR/config/secret.key" ] && [ ! -s "${DJANGO_SECRET_KEY_FILE:-}" ]; then
+            printf '%s\n' "production Django secret is missing" >&2
+            return 1
+        fi
         printf '%s\n' "runtime bootstrap check passed for $DATA_DIR"
         return
     fi
@@ -49,11 +87,22 @@ bootstrap_runtime() {
 
     if [ ! -f "$DATA_DIR/config/secret.key" ]; then
         secret_tmp="$DATA_DIR/config/.secret.key.$$"
-        head -c 32 /dev/urandom | base64 | tr -d '\n' > "$secret_tmp"
-        printf '\n' >> "$secret_tmp"
+        if [ -n "${DJANGO_SECRET_KEY_FILE:-}" ]; then
+            test -r "$DJANGO_SECRET_KEY_FILE"
+            test -s "$DJANGO_SECRET_KEY_FILE"
+            cat "$DJANGO_SECRET_KEY_FILE" > "$secret_tmp"
+        elif [ "${OJ_ENV:-dev}" = "production" ]; then
+            printf '%s\n' "production Django secret is missing" >&2
+            return 1
+        else
+            head -c 32 /dev/urandom | base64 | tr -d '\n' > "$secret_tmp"
+            printf '\n' >> "$secret_tmp"
+        fi
+        test -s "$secret_tmp"
         chmod 600 "$secret_tmp"
         mv "$secret_tmp" "$DATA_DIR/config/secret.key"
     fi
+    test -s "$DATA_DIR/config/secret.key"
 
     if [ ! -f "$DATA_DIR/public/avatar/default.png" ]; then
         install -m 0644 "$APP_ROOT/resources/bootstrap/public/avatar/default.png" \

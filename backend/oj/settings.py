@@ -20,8 +20,11 @@ if production_env:
 else:
     from .dev_settings import *
 
-with open(os.path.join(DATA_DIR, "config", "secret.key"), "r") as f:
-    SECRET_KEY = f.read()
+secret_key_path = os.path.join(DATA_DIR, "config", "secret.key")
+with open(secret_key_path, "r", encoding="utf-8") as f:
+    SECRET_KEY = f.read().strip()
+if not SECRET_KEY:
+    raise RuntimeError("Django secret key file is empty")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

@@ -11,14 +11,13 @@ class Command(BaseCommand):
     help = "Create the JudgeServer token once from an external secret source."
 
     def handle(self, *args, **options):
+        token = os.environ.get("JUDGE_SERVER_TOKEN", "").strip()
         token_file = os.environ.get("JUDGE_SERVER_TOKEN_FILE")
-        if token_file:
+        if not token and token_file:
             try:
                 token = Path(token_file).read_text().strip()
             except OSError as exc:
                 raise CommandError("JUDGE_SERVER_TOKEN_FILE cannot be read") from exc
-        else:
-            token = os.environ.get("JUDGE_SERVER_TOKEN", "").strip()
 
         if not token:
             raise CommandError("JUDGE_SERVER_TOKEN or JUDGE_SERVER_TOKEN_FILE is required")

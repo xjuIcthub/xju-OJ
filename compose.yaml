@@ -1,0 +1,251 @@
+name: "${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}"
+
+x-backend-secrets: &backend-secrets
+  - postgres_password
+  - django_secret_key
+  - judge_server_token
+  - initial_admin_password
+
+services:
+  postgres:
+    image: "${POSTGRES_IMAGE_REF:?POSTGRES_IMAGE_REF is required}"
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:?POSTGRES_DB is required}"
+      POSTGRES_USER: "${POSTGRES_USER:?POSTGRES_USER is required}"
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/postgres:/var/lib/postgresql"
+    networks:
+      - core
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: "${REDIS_IMAGE_REF:?REDIS_IMAGE_REF is required}"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/redis:/data"
+    networks:
+      - core
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  backend-bootstrap:
+    image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
+    profiles: ["init"]
+    command: ["bootstrap-runtime"]
+    environment: &backend-environment
+      OJ_ENV: production
+      RUNTIME_ROOT: /runtime
+      OJ_DATA_DIR: /data
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "${POSTGRES_DB:?POSTGRES_DB is required}"
+      POSTGRES_USER: "${POSTGRES_USER:?POSTGRES_USER is required}"
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      NO_PROXY: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
+      no_proxy: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
+      DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
+      JUDGE_SERVER_TOKEN_FILE: /run/secrets/judge_server_token
+      INITIAL_ADMIN_USERNAME: "${INITIAL_ADMIN_USERNAME:-admin}"
+      INITIAL_ADMIN_PASSWORD_FILE: /run/secrets/initial_admin_password
+    secrets: *backend-secrets
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
+    networks:
+      - core
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  backend-migrate:
+    image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
+    profiles: ["init"]
+    command: ["migrate"]
+    environment: *backend-environment
+    secrets: *backend-secrets
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
+    networks:
+      - core
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  backend-configure-token:
+    image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
+    profiles: ["init"]
+    command: ["configure-judge-token"]
+    environment: *backend-environment
+    secrets: *backend-secrets
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
+    networks:
+      - core
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  judge-token-init:
+    image: "${JUDGE_IMAGE_REF:?JUDGE_IMAGE_REF is required}"
+    profiles: ["init"]
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["if [ -s /run/judge-token/token ]; then exit 0; fi; install -m 0444 /run/secrets/judge_server_token /run/judge-token/token"]
+    secrets:
+      - judge_server_token
+    volumes:
+      - judge_server_token:/run/judge-token
+    networks:
+      - core
+
+  backend-create-admin:
+    image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
+    profiles: ["init"]
+    command: ["create-initial-admin"]
+    environment: *backend-environment
+    secrets: *backend-secrets
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
+    networks:
+      - core
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  backend-api:
+    image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
+    command: ["api"]
+    environment: *backend-environment
+    secrets: *backend-secrets
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
+    networks:
+      - edge
+      - core
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "deploy/health_check.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  backend-worker:
+    image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
+    command: ["worker"]
+    environment: *backend-environment
+    secrets: *backend-secrets
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
+    networks:
+      - core
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "deploy/runtime_smoke.py", "--worker"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  judge-server:
+    image: "${JUDGE_IMAGE_REF:?JUDGE_IMAGE_REF is required}"
+    environment:
+      TOKEN_FILE: /run/judge-token/token
+      BACKEND_URL: http://backend-api:8000/api/judge_server_heartbeat/
+      SERVICE_URL: http://judge-server:8080
+      HEARTBEAT_INTERVAL: "5"
+      NO_PROXY: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
+      no_proxy: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - KILL
+    pids_limit: 512
+    tmpfs:
+      - /tmp
+      - /judger
+      - /log
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend/test_case:/test_case:ro"
+      - judge_server_token:/run/judge-token:ro
+    expose:
+      - "8080"
+    networks:
+      - core
+    depends_on:
+      backend-api:
+        condition: service_healthy
+
+  frontend:
+    image: "${FRONTEND_IMAGE_REF:?FRONTEND_IMAGE_REF is required}"
+    environment:
+      APP_DOMAIN: "${APP_DOMAIN:?APP_DOMAIN is required}"
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}"
+      GIT_COMMIT: "${GIT_COMMIT:-unknown}"
+    ports:
+      - "${HTTP_BIND_ADDRESS:?HTTP_BIND_ADDRESS is required}:${HTTP_PORT:?HTTP_PORT is required}:80"
+    volumes:
+      - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend/public:/data/public:ro"
+    networks:
+      - edge
+    depends_on:
+      backend-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -Y off -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+volumes:
+  judge_server_token:
+    name: "${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}_judge_server_token"
+
+networks:
+  edge:
+  core:
+
+secrets:
+  postgres_password:
+    file: "${POSTGRES_PASSWORD_FILE:?POSTGRES_PASSWORD_FILE is required}"
+  django_secret_key:
+    file: "${DJANGO_SECRET_KEY_FILE:?DJANGO_SECRET_KEY_FILE is required}"
+  judge_server_token:
+    file: "${JUDGE_SERVER_TOKEN_FILE:?JUDGE_SERVER_TOKEN_FILE is required}"
+  initial_admin_password:
+    file: "${INITIAL_ADMIN_PASSWORD_FILE:?INITIAL_ADMIN_PASSWORD_FILE is required}"

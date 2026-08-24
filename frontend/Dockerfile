@@ -3,6 +3,7 @@ ARG NODE_IMAGE=node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be9894382480
 ARG NGINX_IMAGE=nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
 
 FROM ${NODE_IMAGE} AS frontend-deps
+ARG TARGETOS TARGETARCH
 WORKDIR /src
 RUN set -eux; \
     sed -i \
@@ -20,6 +21,7 @@ RUN --mount=type=cache,id=pnpm-${TARGETOS:-linux}-${TARGETARCH:-amd64},target=/p
     pnpm config set store-dir /pnpm/store && pnpm fetch --frozen-lockfile
 
 FROM frontend-deps AS frontend-build
+ARG TARGETOS TARGETARCH
 ARG GIT_COMMIT=unknown
 ENV GIT_COMMIT=${GIT_COMMIT}
 COPY . ./

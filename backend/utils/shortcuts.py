@@ -83,6 +83,21 @@ def get_env(name, default=""):
     return os.environ.get(name, default)
 
 
+def get_env_file(name, file_name=None, default=""):
+    value = os.environ.get(name, "")
+    if value:
+        return value
+    file_name = file_name or name + "_FILE"
+    file_path = os.environ.get(file_name, "")
+    if not file_path:
+        return default
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            return handle.read().strip()
+    except OSError:
+        return default
+
+
 def DRAMATIQ_WORKER_ARGS(time_limit=3600_000, max_retries=0, max_age=7200_000):
     return {"max_retries": max_retries, "time_limit": time_limit, "max_age": max_age}
 

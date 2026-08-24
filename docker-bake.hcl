@@ -14,6 +14,10 @@ variable "BUILD_VERSION" {
   default = "phase1"
 }
 
+variable "BUILD_NETWORK" {
+  default = "default"
+}
+
 group "default" {
   targets = ["frontend", "backend", "judge-toolchain", "server"]
 }
@@ -30,6 +34,7 @@ target "_common" {
     "org.opencontainers.image.revision" = "${GIT_SHA}"
     "org.opencontainers.image.version"  = "${BUILD_VERSION}"
   }
+  network = "${BUILD_NETWORK}"
 }
 
 target "frontend" {
@@ -54,8 +59,8 @@ target "backend" {
 
 target "judge-toolchain" {
   inherits   = ["_common"]
-  context    = "./server"
-  dockerfile = "Dockerfile"
+  context    = "."
+  dockerfile = "server/Dockerfile"
   target     = "judge-toolchain"
   tags       = ["${IMAGE_REGISTRY}/judge-toolchain:tc-${GIT_SHA}"]
   cache-from = CACHE_REGISTRY != "" ? ["type=registry,ref=${CACHE_REGISTRY}/judge-toolchain:buildcache"] : []
@@ -64,8 +69,8 @@ target "judge-toolchain" {
 
 target "server" {
   inherits   = ["_common"]
-  context    = "./server"
-  dockerfile = "Dockerfile"
+  context    = "."
+  dockerfile = "server/Dockerfile"
   target     = "judge-server"
   tags       = ["${IMAGE_REGISTRY}/server:git-${GIT_SHA}"]
   cache-from = CACHE_REGISTRY != "" ? ["type=registry,ref=${CACHE_REGISTRY}/server:buildcache"] : []

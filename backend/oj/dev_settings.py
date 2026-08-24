@@ -1,6 +1,6 @@
 # coding=utf-8
 import os
-from utils.shortcuts import get_env
+from utils.shortcuts import get_env, get_env_file
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -11,7 +11,7 @@ DATABASES = {
         'PORT': get_env('POSTGRES_PORT', '5435'),
         'NAME': get_env('POSTGRES_DB', 'onlinejudge'),
         'USER': get_env('POSTGRES_USER', 'onlinejudge'),
-        'PASSWORD': get_env('POSTGRES_PASSWORD', 'onlinejudge')
+        'PASSWORD': get_env_file('POSTGRES_PASSWORD', 'POSTGRES_PASSWORD_FILE', 'onlinejudge')
     }
 }
 

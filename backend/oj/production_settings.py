@@ -1,6 +1,6 @@
 import os
 
-from utils.shortcuts import get_env
+from utils.shortcuts import get_env, get_env_file
 
 DATABASES = {
     'default': {
@@ -9,7 +9,7 @@ DATABASES = {
         'PORT': get_env("POSTGRES_PORT", "5432"),
         'NAME': get_env("POSTGRES_DB"),
         'USER': get_env("POSTGRES_USER"),
-        'PASSWORD': get_env("POSTGRES_PASSWORD")
+        'PASSWORD': get_env_file("POSTGRES_PASSWORD", "POSTGRES_PASSWORD_FILE")
     }
 }
 

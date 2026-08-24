@@ -60,7 +60,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends cmake libseccomp-dev make; \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /src
-COPY judger/ /src/judger/
+COPY server/judger/ /src/judger/
 RUN --mount=type=cache,target=/root/.cache/cmake,id=judger-cmake-${TARGETARCH},sharing=locked \
     set -eux; \
     cmake -S /src/judger -B /src/judger/build; \
@@ -72,7 +72,7 @@ RUN set -eux; \
 FROM judge-toolchain AS judge-server-deps
 ARG TARGETARCH
 WORKDIR /app
-COPY judge-server/pyproject.toml judge-server/uv.lock ./
+COPY server/judge-server/pyproject.toml server/judge-server/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv,id=judge-uv-${TARGETARCH}-py310,sharing=locked \
     uv sync --locked --no-dev --no-install-project
 
@@ -87,7 +87,7 @@ COPY --from=judger-build /src/judger-wheel/*.whl /tmp/
 RUN set -eux; \
     uv pip install --python /app/.venv/bin/python --no-deps /tmp/*.whl; \
     rm -f /tmp/*.whl
-COPY judge-server/server/ /app/
+COPY server/judge-server/server/ /app/
 RUN set -eux; \
     chmod -R u=rwX,go=rX /app; \
     chmod +x /app/entrypoint.sh; \

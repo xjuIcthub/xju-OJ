@@ -16,14 +16,16 @@ class Command(BaseCommand):
             return
 
         username = os.environ.get("INITIAL_ADMIN_USERNAME", "").strip()
+        password = os.environ.get("INITIAL_ADMIN_PASSWORD", "")
         password_file = os.environ.get("INITIAL_ADMIN_PASSWORD_FILE", "")
-        if not username or not password_file:
+        if not username or (not password and not password_file):
             raise CommandError("INITIAL_ADMIN_USERNAME and INITIAL_ADMIN_PASSWORD_FILE are required")
 
-        try:
-            password = Path(password_file).read_text().rstrip("\r\n")
-        except OSError as exc:
-            raise CommandError("INITIAL_ADMIN_PASSWORD_FILE cannot be read") from exc
+        if not password:
+            try:
+                password = Path(password_file).read_text().rstrip("\r\n")
+            except OSError as exc:
+                raise CommandError("INITIAL_ADMIN_PASSWORD_FILE cannot be read") from exc
 
         if len(password) < 12:
             raise CommandError("initial administrator password must be at least 12 characters")
