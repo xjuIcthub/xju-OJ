@@ -1,25 +1,35 @@
-version: "3"
 services:
-    judge_server:
-        image: registry.cn-hangzhou.aliyuncs.com/onlinejudge/judge_server
-        read_only: true
-        cap_drop:
-            - SETPCAP
-            - MKNOD
-            - NET_BIND_SERVICE
-            - SYS_CHROOT
-            - SETFCAP
-            - FSETID
-        tmpfs:
-            - /tmp
-        volumes:
-            - $PWD/tests/test_case:/test_case:ro
-            - $PWD/log:/log
-            # - $PWD/server:/code:ro
-            - $PWD/run:/judger
-        environment:
-            - BACKEND_URL=http://backend:80/api/judge_server_heartbeat
-            - SERVICE_URL=http://judge-server:12358
-            - TOKEN=YOUR_TOKEN_HERE
-        ports:
-            - "0.0.0.0:12358:8080"
+  judge-server:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - KILL
+    pids_limit: 512
+    tmpfs:
+      - /tmp
+      - /judger/run
+      - /judger/spj
+    volumes:
+      - $PWD/tests/test_case:/test_case:ro
+      - $PWD/log:/log
+    environment:
+      TOKEN_FILE: /run/secrets/judge_server_token
+      BACKEND_URL: http://backend-api:8000/api/judge_server_heartbeat/
+      SERVICE_URL: http://judge-server:8080
+    secrets:
+      - judge_server_token
+    expose:
+      - "8080"
+
+secrets:
+  judge_server_token:
+    file: ${JUDGE_SERVER_TOKEN_FILE:?JUDGE_SERVER_TOKEN_FILE is required}

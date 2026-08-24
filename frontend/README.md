@@ -5,8 +5,9 @@
 - 用户端和 `/admin/` 管理端仍是两个 history 入口。
 - Axios 的同源基址继续是 `/api`，CSRF Cookie/Header 继续使用 `csrftoken`/`X-CSRFToken`。
 - `/public` 由部署层发布后端运行时公开资源；前端不直接读取测试数据。
-- 当前阶段保留 Vue/Webpack 和业务依赖版本，不升级产品依赖。已验证的构建运行时为 Node `14.21.3`（见 `.nvmrc`）和 Yarn `1.22.x`；构建入口是 `yarn run build:ci`（DLL + production build），精确证据见 `docs/contracts/frontend-build.md`。
-- Node 24 在旧 UglifyJS 上触发 OpenSSL 兼容错误，因此不作为默认构建运行时；不要用升级依赖掩盖该基线差异。
+- Phase 1 bridge 使用 Node `24.19.0`、pnpm `11.22.0` 和 Vite `7.3.6`，保留 Vue 2/Router/Vuex/业务依赖；`yarn.lock` 与 Webpack 路径仍作为回滚资产。
+- `pnpm-lock.yaml` 是当前桥接构建真源；`pnpm run build` 生成用户端和管理端双入口，`pnpm run build:legacy` 保留旧 Webpack 构建。
+- 运行时域名和非秘密版本信息由 Nginx entrypoint 写入 `/runtime-config.js`，API 继续使用同源 `/api`，不把 Secret 编译进 bundle。
 
 ## 原始模块说明
 
@@ -32,18 +33,22 @@
 
 ## Get Started
 
-Use Node **14.21.3** and Yarn **1.22.x**. Do not replace the frozen-lockfile install with `npm install`.
+Use Node **24.19.0** and pnpm **11.22.0**. Do not replace the frozen-lockfile install with `npm install`.
 
 ```bash
-corepack yarn install --frozen-lockfile
-yarn run build:ci
+corepack pnpm@11.22.0 install --frozen-lockfile
+pnpm run lint
+pnpm run build
 
-# the dev-server requires a backend target and keeps /api + /public same-origin
+# the Vite dev-server requires a backend target and keeps /api + /public same-origin
 export TARGET=http://Your-backend
-yarn run dev
+pnpm run dev
+
+# legacy rollback build, retained until Phase 3
+pnpm run build:legacy
 ```
 
-On Windows, set `TARGET` with the shell's environment-variable syntax before running `yarn run dev`. The first build runs the DLL step automatically; `yarn run build:ci` is the reproducible CI entry point.
+The bridge keeps `yarn.lock` and the old Webpack configuration. The `tar-simditor` Git subdependencies are inherited pinned legacy inputs and are explicitly deferred to the Phase 3 editor migration.
 
 ## Screenshots
 

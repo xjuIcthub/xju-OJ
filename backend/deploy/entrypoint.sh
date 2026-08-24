@@ -16,6 +16,9 @@ export OJ_DATA_DIR=$DATA_DIR
 backend_user=backend
 
 run_backend() {
+    if [ "$(id -u)" -eq 0 ] && command -v gosu >/dev/null 2>&1; then
+        exec gosu "$backend_user" "$@"
+    fi
     if [ "$(id -u)" -eq 0 ] && command -v su-exec >/dev/null 2>&1; then
         exec su-exec "$backend_user" "$@"
     fi
@@ -23,6 +26,9 @@ run_backend() {
 }
 
 run_backend_shell() {
+    if [ "$(id -u)" -eq 0 ] && command -v gosu >/dev/null 2>&1; then
+        exec gosu "$backend_user" /bin/sh -c "$1"
+    fi
     if [ "$(id -u)" -eq 0 ] && command -v su-exec >/dev/null 2>&1; then
         exec su-exec "$backend_user" /bin/sh -c "$1"
     fi

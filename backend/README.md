@@ -43,6 +43,18 @@ Main modules are available below:
 + Judger Sandbox(Seccomp): [https://github.com/QingdaoU/Judger](https://github.com/QingdaoU/Judger)
 + JudgeServer(A wrapper for Judger): [https://github.com/QingdaoU/JudgeServer](https://github.com/QingdaoU/JudgeServer)
 
+## Locked development environment
+
+Phase 1 uses Python `>=3.10,<3.11` and keeps `pyproject.toml` + `uv.lock` as the dependency source of truth. The runtime image installs the locked environment with uv and does not resolve dependencies at startup.
+
+```bash
+uv sync --locked --group dev
+uv run --locked --no-sync python manage.py check
+uv run --locked --no-sync python manage.py makemigrations --check --dry-run
+```
+
+The current-model JSONField remains on the historical Django PostgreSQL field during the bridge because switching it produced unapproved `AlterField` migration output; that migration-sensitive cleanup is deferred to the Django compatibility phase.
+
 ## Backend commands
 
 在 runtime 目录已经准备好后，可分别执行：

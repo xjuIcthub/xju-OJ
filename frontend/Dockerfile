@@ -1,18 +1,40 @@
-FROM node:14.21.3-buster AS build
+# syntax=docker/dockerfile:1.7
+ARG NODE_IMAGE=node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03
+ARG NGINX_IMAGE=nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
 
+FROM ${NODE_IMAGE} AS frontend-deps
 WORKDIR /src
+RUN set -eux; \
+    sed -i \
+        -e 's|http://deb.debian.org/debian-security|http://mirrors.aliyun.com/debian-security|g' \
+        -e 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' \
+        -e 's|https://deb.debian.org/debian-security|http://mirrors.aliyun.com/debian-security|g' \
+        -e 's|https://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' \
+        /etc/apt/sources.list.d/debian.sources; \
+    apt-get -o Acquire::Retries=5 update; \
+    apt-get install -y --no-install-recommends ca-certificates git; \
+    rm -rf /var/lib/apt/lists/*
+RUN corepack enable
+COPY package.json pnpm-lock.yaml .npmrc pnpm-workspace.yaml ./
+RUN --mount=type=cache,id=pnpm-${TARGETOS:-linux}-${TARGETARCH:-amd64},target=/pnpm/store,sharing=locked \
+    pnpm config set store-dir /pnpm/store && pnpm fetch --frozen-lockfile
 
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
-
-COPY . ./
+FROM frontend-deps AS frontend-build
 ARG GIT_COMMIT=unknown
 ENV GIT_COMMIT=${GIT_COMMIT}
-RUN yarn run build:ci
+COPY . ./
+RUN --mount=type=cache,id=pnpm-${TARGETOS:-linux}-${TARGETARCH:-amd64},target=/pnpm/store,sharing=locked \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --offline --frozen-lockfile && \
+    pnpm run build
 
-FROM nginx:1.27-alpine
-
+FROM ${NGINX_IMAGE} AS frontend-runtime
+ARG VCS_REF=unknown
+ARG BUILD_VERSION=phase1
+LABEL org.opencontainers.image.source="xju-OJ" \
+      org.opencontainers.image.revision="$VCS_REF" \
+      org.opencontainers.image.version="$BUILD_VERSION"
 COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /src/dist/ /usr/share/nginx/html/
-
+COPY docker-entrypoint.d/ /docker-entrypoint.d/
+COPY --from=frontend-build /src/dist/ /usr/share/nginx/html/
 EXPOSE 80

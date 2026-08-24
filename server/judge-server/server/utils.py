@@ -27,11 +27,20 @@ def server_info():
 
 
 def get_token():
+    token_file = os.environ.get("TOKEN_FILE")
+    if token_file:
+        try:
+            with open(token_file, "r", encoding="utf-8") as handle:
+                token = handle.read().strip()
+            if token:
+                return token
+        except OSError:
+            pass
+
     token = os.environ.get("TOKEN")
     if token:
         return token
-    else:
-        raise JudgeClientError("env 'TOKEN' not found")
+    raise JudgeClientError("judge token not configured")
 
 
 class ProblemIOMode:

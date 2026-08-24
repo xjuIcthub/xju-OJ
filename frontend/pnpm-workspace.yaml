@@ -1,0 +1,8 @@
+allowBuilds:
+  core-js: true
+  ejs: true
+  es5-ext: true
+  esbuild: true
+  highlight.js: true
+  uglifyjs-webpack-plugin: true
+blockExoticSubdeps: false

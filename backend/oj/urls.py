@@ -1,17 +1,17 @@
-from django.conf.urls import include, url
+from django.urls import include, re_path
 
 urlpatterns = [
-    url(r"^api/", include("account.urls.oj")),
-    url(r"^api/admin/", include("account.urls.admin")),
-    url(r"^api/", include("announcement.urls.oj")),
-    url(r"^api/admin/", include("announcement.urls.admin")),
-    url(r"^api/", include("conf.urls.oj")),
-    url(r"^api/admin/", include("conf.urls.admin")),
-    url(r"^api/", include("problem.urls.oj")),
-    url(r"^api/admin/", include("problem.urls.admin")),
-    url(r"^api/", include("contest.urls.oj")),
-    url(r"^api/admin/", include("contest.urls.admin")),
-    url(r"^api/", include("submission.urls.oj")),
-    url(r"^api/admin/", include("submission.urls.admin")),
-    url(r"^api/admin/", include("utils.urls")),
+    re_path(r"^api/", include("account.urls.oj")),
+    re_path(r"^api/admin/", include("account.urls.admin")),
+    re_path(r"^api/", include("announcement.urls.oj")),
+    re_path(r"^api/admin/", include("announcement.urls.admin")),
+    re_path(r"^api/", include("conf.urls.oj")),
+    re_path(r"^api/admin/", include("conf.urls.admin")),
+    re_path(r"^api/", include("problem.urls.oj")),
+    re_path(r"^api/admin/", include("problem.urls.admin")),
+    re_path(r"^api/", include("contest.urls.oj")),
+    re_path(r"^api/admin/", include("contest.urls.admin")),
+    re_path(r"^api/", include("submission.urls.oj")),
+    re_path(r"^api/admin/", include("submission.urls.admin")),
+    re_path(r"^api/admin/", include("utils.urls")),
 ]
