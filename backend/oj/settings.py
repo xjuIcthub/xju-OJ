@@ -10,8 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.8/ref/settings/
 """
 import os
-import raven
 from copy import deepcopy
+
+import sentry_sdk
+
 from utils.shortcuts import get_env
 
 production_env = get_env("OJ_ENV", "dev") == "production"
@@ -39,9 +41,6 @@ VENDOR_APPS = [
     'django_dramatiq',
     'django_dbconn_retry',
 ]
-
-if production_env:
-    VENDOR_APPS.append('raven.contrib.django.raven_compat')
 
 
 LOCAL_APPS = [
@@ -117,8 +116,6 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
-USE_L10N = True
-
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
@@ -141,7 +138,10 @@ STATICFILES_DIRS = [os.path.join(DATA_DIR, "public")]
 
 
 SENTRY_DSN = get_env('SENTRY_DSN', '')
-LOGGING_HANDLERS = ['console', 'sentry'] if production_env and SENTRY_DSN else ['console']
+if production_env and SENTRY_DSN:
+    sentry_sdk.init(dsn=SENTRY_DSN)
+
+LOGGING_HANDLERS = ['console']
 LOGGING = {
    'version': 1,
    'disable_existing_loggers': False,
@@ -157,11 +157,6 @@ LOGGING = {
            'class': 'logging.StreamHandler',
            'formatter': 'standard'
        },
-       'sentry': {
-           'level': 'ERROR',
-           'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler',
-           'formatter': 'standard'
-       }
    },
    'loggers': {
        'django.request': {
@@ -202,7 +197,7 @@ def redis_config(db):
         return key
 
     return {
-        "BACKEND": "utils.cache.MyRedisCache",
+        "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": f"{REDIS_URL}/{db}",
         "TIMEOUT": None,
         "KEY_PREFIX": "",
@@ -241,10 +236,6 @@ DRAMATIQ_RESULT_BACKEND = {
     "MIDDLEWARE_OPTIONS": {
         "result_ttl": None
     }
-}
-
-RAVEN_CONFIG = {
-    'dsn': SENTRY_DSN
 }
 
 IP_HEADER = "HTTP_X_REAL_IP"

@@ -1,27 +1,35 @@
-from django.core.cache import cache, caches  # noqa
-from django.conf import settings  # noqa
-
-from django_redis.cache import RedisCache
-from django_redis.client.default import DefaultClient
+from django.core.cache import cache as django_cache, caches  # noqa
+from django_redis import get_redis_connection
 
 
-class MyRedisClient(DefaultClient):
+class CacheProxy:
+    """Expose Django cache operations plus the DB1 Redis list primitives in use."""
+
     def __getattr__(self, item):
-        client = self.get_client(write=True)
-        return getattr(client, item)
+        return getattr(django_cache, item)
+
+    @staticmethod
+    def _redis():
+        return get_redis_connection("default", write=True)
+
+    def llen(self, key):
+        return self._redis().llen(key)
+
+    def lpush(self, key, *values):
+        return self._redis().lpush(key, *values)
+
+    def rpop(self, key):
+        return self._redis().rpop(key)
+
+    def hget(self, key, field):
+        return self._redis().hget(key, field)
+
+    def hset(self, key, field, value):
+        return self._redis().hset(key, field, value)
 
     def redis_incr(self, key, count=1):
-        """
-        django 默认的 incr 在 key 不存在时候会抛异常
-        """
-        client = self.get_client(write=True)
-        return client.incr(key, count)
+        """Increment a raw Redis key, creating it when absent."""
+        return self._redis().incr(key, count)
 
 
-class MyRedisCache(RedisCache):
-    def __init__(self, server, params):
-        super().__init__(server, params)
-        self._client_cls = MyRedisClient
-
-    def __getattr__(self, item):
-        return getattr(self.client, item)
+cache = CacheProxy()
