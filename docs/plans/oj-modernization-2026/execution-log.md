@@ -9,8 +9,8 @@
 - 当前分支：`main`
 - 计划入口：[README.md](README.md)
 - 当前执行模型：Phase 0–5；Step 文档作为 Phase 内技术清单
-- 当前 Phase：Phase 2（WSL full-stack checkpoint；release-gate pending）
-- 最近完成：Phase 1 组件桥接；Phase 2 隔离 Compose/deploy 全栈 checkpoint
+- 当前 Phase：Phase 2 fixture lane 已验收；可进入 Phase 3，真实 protected clone/生产发布证据仍留在后续 gate
+- 最近完成：Phase 2 Judge 五边界闭环、完整 build/pull/rollback gate 与 WSL 全栈验收
 
 ## 记录格式
 
@@ -141,3 +141,25 @@
 - Hard-stop 核验: 未将 Secret、密码、Token、Cookie、私钥、运行数据或测试 dump 写入 Git、镜像层或普通日志；未使用生产连接、`privileged`、Docker socket、`SYS_ADMIN`、公开非 frontend 端口、可写 `/test_case`、`down -v`、prune、FLUSHDB、DROP 或 volume 删除；未执行 huawei1。
 - 回滚点: Phase 1 bridge `7020d88`/acceptance `e39973e`；Phase 2 当前代码 `db5de41`；隔离 runtime、Compose project、日志和 local image IDs 均保留，未删除旧 checkpoint。
 - 下一 Phase: 完成上列 Phase 2 release-gate pending 项后进入 Phase 3；在此之前不触碰 huawei1 或生产。
+
+### 2026-08-24 — Phase 2 / Judge 五边界与 WSL fixture lane 验收
+
+- Commit: `6536fe6` — `fix(server): close judge sandbox boundaries`；本条执行证据随独立 docs 提交记录。
+- 完成的范围: JudgeServer 编译产物交接、File IO 生命周期、SPJ 隔离、native runner/后代回收、六语言 seccomp 五个边界闭环；完成最终 build deploy、immutable-digest pull、无数据 rollback、应用/Worker/Judge smoke，以及 fixture PostgreSQL/Redis 恢复证据。
+- 实际命令: 对最终提交执行一次完整 `ENV_FILE=/tmp/xju-oj-phase2-deploy.NrQVku/.env-final ./deploy.sh`；随后执行既定 Judge API/security/SPJ/六语言脚本、Session/CSRF/路由脚本和 Worker stop/restart probe；把三张运行镜像推到临时 loopback registry 后，以 manifest digest 写入 `.env-pull` 并执行一次 `DEPLOY_MODE=pull` 全门；用 build refs 与 pull digest refs 各切换一次 Compose 验证 rollback；BuildKit 以 `--provenance=mode=min --sbom=true --push` 生成四个带 attestation manifest 的 OCI index。没有再次重复完整 Judge 或 deploy 矩阵。
+- Judge/安全验收:
+  - File IO 缺失输出稳定返回 WA，`output=null`、`output_md5=null`，随机哨兵不再进入 API；固定输入/输出拒绝 symlink、hardlink 和替换，编译产物保持 root-owned、单链接并在 runtime 前完成显式交接。
+  - SPJ 使用私有 staging、版本化不可变发布和 root-only compile lock；4 路并发编译、4 路并发判题（每次 8 testcase）通过，冲突版本被拒绝，调用方配置未被修改。
+  - native Judger 为 `2.1.4`；显式 cwd、setup/exec error pipe、UID/GID/补充组降权、process group、subreaper、FD 清理、后代 CPU/rusage 聚合、精确 timeout 和 Landlock File IO scope 均通过定向验证。
+  - C、C++20、Python、Java、Go、JavaScript 的 Standard IO/File IO 为 `12/12`；通用攻击矩阵 `6/6`、多 runtime 安全矩阵 `8/8`、负例矩阵 `7/7`；外部只读 `/test_case`、Node worker thread、noexec/setup error、后代回收和资源边界通过。
+  - 上游 Judger corpus 为 `36/38`；仅保留两个现代工具链断言差异：`cpp_meta` 当前为 RE 而旧断言预期 TLE，`gcc_random` 在 GCC 14.4 立即失败而旧断言预期等待至少 2 秒。实际 Judge、资源和攻击矩阵不受影响。
+- 应用/部署验收: frontend、backend-api、backend-worker、JudgeServer、PostgreSQL 18、Redis 8.2 均 healthy；登录、session refresh、sessions endpoint、logout、合法/非法 CSRF、`/`、`/admin/`、deep links、API、完整 `/public/`、immutable asset cache 通过。Worker 在停止期间成功入队，重启后消费并恢复 health，DB1 保持 `0→0`，DB4 为 `1→3→1`；额外 deterministic retry-failure 注入未为测试而新增。临时 registry/builder 清理后，只有 frontend 发布 `127.0.0.1:18080`。
+- build/pull/rollback: 完整 build gate 的 attempt 为 `attempt-20260824T153830Z-2265677`，pull gate 为 `attempt-20260824T154802Z-2286167`；两者均通过 infra、bootstrap、migration、token/admin 幂等、services-ready、HTTP、Worker 和 Judge `/ping`。build refs 与 pull digest refs 双向切换后 Session/Worker smoke 通过；`current.json`/`previous.json` 保留相同 image ID 和不同引用，证明无数据镜像 rollback 路径。
+- 镜像与 digest: source SHA `6536fe65da9a8ab1c6e050a99cd3221e17a31233`；Compose SHA-256 `dec1ee36418177386732245c3cac959740091bd6e12a1b8d280b81a3722dc176`；image IDs 为 frontend `sha256:97aa218b10b26e57a6f52ef30bad166d6b96907b8ec39b4f42ef89b34596ddae`、backend `sha256:93b18ce3ba8f9fe3839cf26de7ec53a7196711bd1cff2c072a4c299ba939bfae`、server `sha256:f90353373b23dadb4d4be7a6ff7da6c4959c829a0920ba70e54c6a568177f8b7`、judge-toolchain `sha256:d6e2ab4ec2e99cd50180aa7bcf3fcf0e2063177b10f4ae70fb4ac425d67247fc`。
+- immutable pull refs: frontend `sha256:bf79ab9101edcc76c1d28ae1c4fc5a87b141ccac4ae1627a5eada2e895d3954a`、backend `sha256:f4982197ddcf4af3d0b517588716e56fadcd8ca7cef052fb9073d8c526b44dd8`、server `sha256:7a1fa7486a5f1f236fda3c45662c63fb24e0ad48e4f1621b2383156a978c06ed`；`runtime/deployments/images.env` 已由 `current.json` 生成且模式为 `0600`。
+- SBOM/provenance: 四个临时 OCI index 均包含 amd64 image manifest 和独立 attestation manifest；index digest 为 frontend `sha256:6c21201bb27c9218e2e1e1eb6baa857cdf5dfab02f3063f512d235f9cd428fa9`、backend `sha256:8fcecf19cbcab0c66b2201b5707744b18b783bd12c34a156f76bfb88fe876171`、judge-toolchain `sha256:fc8c6534932fb0969f6fb8fcaa81f9a2fea0f640aed88b1f11139cf518742e39`、server `sha256:28053e7821f5e6115cef1a78e926815157a103581d4d3ec287fa6002b91d2252`。临时 loopback registry 已删除；持久 registry/cache promotion 和 CVE scanner gate 留到 Phase 3/4，当前环境没有可用 scanner。
+- 数据/Redis/queue 证据: 最新 fixture backup `20260824T085542Z` 的 `sha256sums` 全部通过；fresh PostgreSQL 18 directory restore 已验证 `django_migrations=70`；Redis `4.0.14→6.2.23→7.4.10→8.2.8` 每跳均保留 DB1 marker、`waiting_queue=1` 和 DB4 marker。所有数据、RDB、dump、Secret 和 runtime 均位于 Git ignored 的临时根；未访问生产数据。
+- Soft failures / deferred: 真实 protected clone、两次生产规模 restore、业务对象级 queue/ACK/result 核账和持久 registry transfer 按 Phase 2 文档留作后续 release gate；显式 Worker retry-failure 注入、registry cache artifact、CVE scan 与 `shellcheck` 未执行。15 个历史 JSONField W904、GCC patch drift 和上述两项旧 Judger corpus 差异继续记录，不阻塞 fixture lane。
+- Hard-stop 核验: 未触碰 `huawei1` 或生产；未把 Secret、Token、Cookie、私钥、dump、RDB/AOF 或 runtime 写入 Git、镜像参数或普通日志；未使用 `privileged`、Docker socket、`SYS_ADMIN`、公开非 frontend 端口、可写 `/test_case`、`down -v`、prune、FLUSHDB、DROP 或破坏性 volume 操作。
+- 回滚点: `008fa38` 为 Phase 2 checkpoint，`6536fe6` 为 Judge 五边界代码提交；最终 build refs 与 immutable pull refs 映射到相同 image IDs，`previous.json`/`current.json` 和两个成功 attempt 日志均保留在隔离 runtime。
+- 下一 Phase: Phase 2 WSL fixture lane 已达到进入 Phase 3 的完成标志；Phase 3 只继续最终应用/供应链收束，不重跑已通过的 Judge 全矩阵。进入 Phase 4 前仍不触碰 `huawei1`。
