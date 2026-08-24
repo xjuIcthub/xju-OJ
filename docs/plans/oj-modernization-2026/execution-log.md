@@ -70,3 +70,18 @@
 - 已知风险: frontend 老 Webpack/Babel 与 Node24 的 OpenSSL 兼容问题；Judge Dockerfile 的 `COPY Judger/`/`COPY server/` context/case mismatch；host 缺少 libseccomp dev header；root Compose 仍是 PG10/Redis4、backend 发布端口和浮动 tag。详见 `docs/contracts/step02-known-findings.md`。
 - 回滚点: `3e209be8e5574aa4f4ec211dc0da2ce054e0f358`；本 Step 只新增脱敏清单/指标，删除本 Step 文件即可回到 Step 01。
 - 下一步: Step 03 — Ubuntu >=22.04 运行前置。
+
+### 2026-08-24 — Step 03
+
+- 状态: **阻塞（非破坏性宿主/运行时预检已完成；生产 Secret 门未满足）**。
+- Commit: 本条记录随 `step 03: record Ubuntu runtime preflight` 独立提交
+- 目标机: `huawei1` / `XJU-ICTHubS1`；Ubuntu 22.04.5 LTS、x86_64、kernel 5.15.0-186-generic、cgroup v2。
+- 工具门: Docker Engine 29.7.1、containerd 2.2.6、runc 1.3.6、Compose v5.4.0、Buildx 0.36.0、BuildKit v0.32.0；default builder healthy，amd64 可用，未声称 arm64 生产就绪。
+- 容量/挂载: `/dev/vda1` ext4 `rw,relatime`，40G 总量/17G 已用/22G 可用，inode 使用 15%；`/srv/xju-oj` 与 `/var/backups/xju-oj` 仅有空目录，未读取或修改数据内容。
+- 目录/权限: 创建并核验 `/srv/xju-oj/runtime`、PG10/PG18、Redis4/6.2/7.4/8.2 独立根、`deployments`、`secrets` 和 `/var/backups/xju-oj`；运行/卷/部署目录为 `0750 root:root`，secrets/backup 为 `0700 root:root`。
+- 权限测试: Judge root container 对 `runtime/judger`/`runtime/log` 写删 probe 成功；`runtime/public` 与 `runtime/test_case` 以 `:ro` 挂载时可读且写入被拒绝；probe 已删除。
+- 网络门: UFW inactive；IPv4 Docker FORWARD DROP；IPv6 FORWARD ACCEPT 已记录为后续安全复核项；当前 host 仅监听 SSH/HTTP/HTTPS 与 loopback 服务，未监听 8000/8080/5432/6379；未修改防火墙。
+- Secret 门: `/srv/xju-oj/secrets` 为空。没有生成、打印、请求或提交 PostgreSQL password、Django SECRET_KEY、Judge token、管理员密码或 TLS 私钥；因此生产发布门保持 fail-closed，不能声称 Step 03 完成，也不能进入 Step 04。
+- 证据: 详见 `docs/contracts/step03-host-preflight.md`、`docs/contracts/step03-runtime-preflight.md`、`docs/contracts/step03-known-findings.md`。
+- 回滚点: `6aead8a81cc708d861263baf0bfcabe1a913db35`；仅可删除本 Step 创建的空目录，不执行 volume prune、`down -v` 或删除 Secret。
+- 下一步: 由外部 Secret 管理流程提供并核验文件路径/权限/非空内容后，重新验收 Step 03；在此之前停止现代化顺序。
