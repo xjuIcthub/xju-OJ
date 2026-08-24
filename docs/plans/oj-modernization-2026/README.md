@@ -1,6 +1,6 @@
 # xju-OJ 2026 现代化迁移总计划
 
-> 当前状态：**Phase 0 已完成，下一次从 Phase 1 开始**。
+> 当前状态：**Phase 3 已在 WSL 完成；下一阶段为 Phase 4 immutable-digest huawei1 隔离演练，尚未开始**。
 >
 > 本 README 是唯一执行入口。`00-*.md` 至 `30-*.md` 保留为技术检查清单；执行顺序、失败分类、提交和跨环境规则以本 README 与 `phases/` 为准。
 >

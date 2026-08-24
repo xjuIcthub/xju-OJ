@@ -9,8 +9,8 @@
 - 当前分支：`main`
 - 计划入口：[README.md](README.md)
 - 当前执行模型：Phase 0–5；Step 文档作为 Phase 内技术清单
-- 当前 Phase：Phase 2 fixture lane 已验收；可进入 Phase 3，真实 protected clone/生产发布证据仍留在后续 gate
-- 最近完成：Phase 2 Judge 五边界闭环、完整 build/pull/rollback gate 与 WSL 全栈验收
+- 当前 Phase：Phase 3 已在 WSL 验收；Phase 4 尚未开始，`huawei1` 与生产均未触碰
+- 最近完成：Vue 3/Vite 8/Pinia 最终 frontend、Django 5.2/Psycopg 3/Worker 最终 backend 与四镜像 Phase 3 RC
 
 ## 记录格式
 
@@ -163,3 +163,19 @@
 - Hard-stop 核验: 未触碰 `huawei1` 或生产；未把 Secret、Token、Cookie、私钥、dump、RDB/AOF 或 runtime 写入 Git、镜像参数或普通日志；未使用 `privileged`、Docker socket、`SYS_ADMIN`、公开非 frontend 端口、可写 `/test_case`、`down -v`、prune、FLUSHDB、DROP 或破坏性 volume 操作。
 - 回滚点: `008fa38` 为 Phase 2 checkpoint，`6536fe6` 为 Judge 五边界代码提交；最终 build refs 与 immutable pull refs 映射到相同 image IDs，`previous.json`/`current.json` 和两个成功 attempt 日志均保留在隔离 runtime。
 - 下一 Phase: Phase 2 WSL fixture lane 已达到进入 Phase 3 的完成标志；Phase 3 只继续最终应用/供应链收束，不重跑已通过的 Judge 全矩阵。进入 Phase 4 前仍不触碰 `huawei1`。
+
+### 2026-08-24 — Phase 3 / WSL final application acceptance
+
+- Commits: `54c9277` backend Django 5.2 runtime；`9605f33` frontend Vue 3 application；`fa9080e`/`151d511` Vue Router 与 runtime compatibility fixes；`996d38c` editor contracts；`013aee9` exact version/release metadata lock。
+- 完成的范围: frontend Steps 07–10 落地 Vue `3.5.41`、Vue Router `5.2.0`、vue-i18n `11.4.8`、Pinia `4.0.3`、Element Plus `2.14.4`、Vite `8.2.1`、CodeMirror 6/Tiptap 3 adapters，并删除 Vue2/Vuex/Element UI/iView/Simditor/CodeMirror5/Webpack/Babel6/Yarn 链；backend Steps 15–18 落地 Django `5.2.17`、Psycopg `3.3.4`、DRF `3.18.0`、django-redis `7.0.0`、redis-py `7.4.1`、Dramatiq `2.2.0`、django-dramatiq `0.15.0`。
+- Frontend 验收: frozen pnpm install、modern-stack scan、route contract、65 SFC compile 和 Vite 双入口 production build 通过；`/`、`/problem`、`/admin/` 在最终 Nginx image 中渲染且无 browser warning/pageerror。登录 modal 的空表单验证通过，证明 Element Plus form method proxy 可用。Tiptap focused corpus 成功保留历史 table、text alignment、color 与 `simditor-attach-link`；图片/文件端点和字段仍为 `/api/admin/upload_image/` + `image`、`/api/admin/upload_file` + `file`。构建仅保留 runtime-config external script 与大 chunk 非致命 warning。
+- Backend 验收: `uv.lock` 固定 45 packages；Django system check、`makemigrations --check --dry-run` 和既有 contract tests `7/7` 通过；fresh migration replay 与历史 `jsonfield`/PostgreSQL JSONField imports 通过。五个 `SeparateDatabaseAndState` migration 在 fixture DB 应用成功；`sqlmigrate` 核验无 CREATE/ALTER/DROP 或其他 DDL/DML。旧 Phase 2 session cookie 在 Django5.2/django-redis7 上仍可读取，随后完整 login/session refresh/sessions/logout/CSRF smoke 通过。
+- Redis/Worker: DB1/DB4 分工和 RESP2/bytes 语义保持；最终 Dramatiq2 worker enqueue/consume smoke 通过，`store_results` 的 DB4 enqueue→result 通过，隔离 StubBroker retry probe 执行两次后通过；测试 result key 已定向删除，DB4 最终仅保留 `dramatiq:__heartbeats__`。未让新旧 Worker 同时消费。
+- Judge 复用边界: `git diff 6536fe6..013aee9 -- server compose.yaml` 为空；JudgeServer/Judger/seccomp/toolchain 业务输入未改变，仅 OCI release labels 变化。因此不重跑 Phase 2 六语言/SPJ/攻击矩阵；最终 Compose gate 只执行 Judge `/ping` smoke并通过。
+- 最终 deploy: `attempt-20260824T185804Z-2638244` 对 source `013aee93b669c552e7261556a8d162429d664b4e` 构建四个 `linux/amd64` RC image；infra、bootstrap、migration 幂等、token/admin no-overwrite、六服务 health、HTTP、Worker 和 Judge smoke 全部通过。Compose SHA-256 仍为 `dec1ee36418177386732245c3cac959740091bd6e12a1b8d280b81a3722dc176`，只有 frontend 发布 `127.0.0.1:18080`。
+- Phase 3 RC image IDs: frontend `sha256:a440aaf5a8149c9c930b09552961980627a64706627f472d66a537f94ecfaf1a`；backend `sha256:f2efe9852ed6ba15b4ef5c51ada01b92c1625473facf8cafa262f5294e3dcbb5`；judge-toolchain `sha256:714d9eb32324c0b8c77b0ac113d59031e1f4d8a8db93709042b1ba879d3350d8`；server `sha256:2778a4c3d8f06cf566b43369034a16d35fdc111f869633d51f78100402187bd9`。四者均含 source/revision/version/created labels，revision 为 `013aee9`，created 为 `2026-08-24T18:57:42Z`。
+- RC artifacts: `/tmp/xju-oj-phase2-deploy.NrQVku/runtime/deployments/phase3-rc/` 保存 `build-metadata.json`、`deployment-digests.json`、`images.env` 和 `sha256sums`，权限为 `0600`；artifact 只含非秘密 source/Compose/image metadata。
+- 回滚边界: Phase 2 Vue2/Vite7 image 与四个 Phase 2 image IDs 保留。Frontend 可直接切回 N-1，因为 API/schema/runtime-config 合同未改变。Backend 的 state migrations 无数据库 DDL，且旧 session 已验证可读；但 Dramatiq2 已消费测试消息，任何 backend/worker major 回退必须先 freeze producer、drain、核对 DB4/result，再选择 rollback 或 forward-fix，不能把旧 Worker 直接并行启动。
+- Soft failures / deferred: 没有批准的持久 registry/cache namespace 和 CVE scanner，因此最终 RC 目前以本地 immutable image ID 保存；Phase 2 已证明 SBOM/provenance 机制，但 Phase 3 RC 的 persistent registry digest、`provenance=mode=max`、SBOM、cache import 和 vulnerability report 必须在 Phase 4 promotion 前补齐，禁止用 mutable tag 在 `huawei1` 重建。默认 `SysOptions.languages` 的展示字符串仍有历史版本标签，实际 toolchain 与判题合同无误；后续只允许 customization-preserving metadata 更新，禁止 blind reset。
+- Hard-stop 核验: 没有修改历史 migration、app label、db_table、DEFAULT_AUTO_FIELD、API/Session/CSRF、DB1/DB4 或 Judge protocol；未访问生产数据/Secret，未触碰 `huawei1`，未使用 `privileged`、Docker socket、`SYS_ADMIN`、公开非 frontend 端口或破坏性数据命令。
+- 下一 Phase: Phase 3 WSL final application 已达到完成标志。Phase 4 开始前先把这组 RC image IDs 发布/转移为可由 `huawei1` 消费的同一 immutable digest，并补齐最终 SBOM/provenance/scan；不得重新构建另一组镜像。
