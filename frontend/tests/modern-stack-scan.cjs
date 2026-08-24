@@ -5,7 +5,8 @@ const root = path.join(__dirname, '..')
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const exact = {
   vue: '3.5.41', 'vue-router': '5.2.0', 'vue-i18n': '11.4.8', 'element-plus': '2.14.4',
-  pinia: '4.0.3', vite: '8.2.1', '@tiptap/vue-3': '3.30.3', '@codemirror/state': '6.7.1'
+  pinia: '4.0.3', vite: '8.2.1', '@tiptap/vue-3': '3.30.3', '@tiptap/extension-table': '3.30.3',
+  '@tiptap/extension-color': '3.30.3', '@tiptap/extension-text-align': '3.30.3', '@codemirror/state': '6.7.1'
 }
 for (const [name, version] of Object.entries(exact)) assert.strictEqual(pkg.dependencies[name] || pkg.devDependencies[name], version)
 for (const name of ['vuex', 'element-ui', 'iview', '@vue/compat', 'vue-codemirror-lite', 'tar-simditor', 'webpack']) {

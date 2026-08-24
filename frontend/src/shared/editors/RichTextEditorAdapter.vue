@@ -1,9 +1,20 @@
 <template>
   <div class="rich-editor-adapter">
     <div class="rich-editor-toolbar">
+      <button type="button" @click="command('toggleHeading', { level: 2 })">H2</button>
       <button type="button" @click="command('toggleBold')"><b>B</b></button>
       <button type="button" @click="command('toggleItalic')"><i>I</i></button>
+      <button type="button" @click="command('toggleUnderline')"><u>U</u></button>
       <button type="button" @click="command('toggleBulletList')">• List</button>
+      <button type="button" @click="command('toggleOrderedList')">1. List</button>
+      <button type="button" @click="command('toggleBlockquote')">Quote</button>
+      <button type="button" @click="setLink">Link</button>
+      <button type="button" @click="command('insertTable', { rows: 3, cols: 3, withHeaderRow: true })">Table</button>
+      <button type="button" @click="command('setTextAlign', 'left')">Left</button>
+      <button type="button" @click="command('setTextAlign', 'center')">Center</button>
+      <button type="button" @click="command('setTextAlign', 'right')">Right</button>
+      <input type="color" title="Text color" @input="setColor($event.target.value)">
+      <button type="button" @click="command('setHorizontalRule')">Rule</button>
       <button type="button" @click="$refs.image.click()">Image</button>
       <button type="button" @click="$refs.file.click()">File</button>
       <input ref="image" hidden type="file" accept="image/*" @change="upload($event, true)">
@@ -17,7 +28,10 @@ import axios from 'axios'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
-import Link from '@tiptap/extension-link'
+import Color from '@tiptap/extension-color'
+import TextAlign from '@tiptap/extension-text-align'
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table'
+import { TextStyle } from '@tiptap/extension-text-style'
 
 export default {
   name: 'RichTextEditorAdapter',
@@ -29,7 +43,17 @@ export default {
   mounted () {
     this.editor = new Editor({
       content: this.content || '',
-      extensions: [StarterKit, Image, Link.configure({ openOnClick: false })],
+      extensions: [
+        StarterKit.configure({ link: { openOnClick: false } }),
+        Image,
+        TextStyle,
+        Color,
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+        Table.configure({ resizable: true }),
+        TableRow,
+        TableHeader,
+        TableCell
+      ],
       onUpdate: ({ editor }) => this.emitValue(editor.getHTML())
     })
   },
@@ -44,7 +68,22 @@ export default {
       this.$emit('input', value); this.$emit('change', value)
       this.$emit('update:value', value); this.$emit('update:modelValue', value)
     },
-    command (name) { if (this.editor) this.editor.chain().focus()[name]().run() },
+    command (name, options) {
+      if (!this.editor) return
+      const chain = this.editor.chain().focus()
+      if (typeof chain[name] !== 'function') return
+      if (options === undefined) chain[name]().run()
+      else chain[name](options).run()
+    },
+    setColor (color) { if (this.editor) this.editor.chain().focus().setColor(color).run() },
+    setLink () {
+      if (!this.editor) return
+      const current = this.editor.getAttributes('link').href || ''
+      const href = window.prompt('Link URL', current)
+      if (href === null) return
+      if (!href) this.editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      else this.editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
+    },
     async upload (event, image) {
       const file = event.target.files && event.target.files[0]
       event.target.value = ''
@@ -54,10 +93,12 @@ export default {
       const url = image ? '/api/admin/upload_image/' : '/api/admin/upload_file'
       const response = await axios.post(url, data)
       const body = response.data || {}
-      const href = body.file_path || (body.data && (body.data.file_path || body.data.url)) || body.url
+      if (body.success === false) throw new Error(body.msg || 'Upload failed')
+      const payload = body.data && typeof body.data === 'object' ? body.data : body
+      const href = payload.file_path || payload.url
       if (!href) throw new Error('Upload response did not contain a URL')
       if (image) this.editor.chain().focus().setImage({ src: href }).run()
-      else this.editor.chain().focus().insertContent(`<a target="_blank" class="simditor-attach-link" href="${href}">${body.file_name || file.name}</a>`).run()
+      else this.editor.chain().focus().insertContent(`<a target="_blank" class="simditor-attach-link" href="${href}">${payload.file_name || file.name}</a>`).run()
       this.$emit('upload', body)
     }
   }
