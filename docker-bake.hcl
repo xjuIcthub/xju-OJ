@@ -14,6 +14,10 @@ variable "BUILD_VERSION" {
   default = "phase1"
 }
 
+variable "BUILD_CREATED" {
+  default = "unknown"
+}
+
 variable "BUILD_NETWORK" {
   default = "default"
 }
@@ -33,6 +37,7 @@ target "_common" {
     "org.opencontainers.image.source"   = "xju-OJ"
     "org.opencontainers.image.revision" = "${GIT_SHA}"
     "org.opencontainers.image.version"  = "${BUILD_VERSION}"
+    "org.opencontainers.image.created"  = "${BUILD_CREATED}"
   }
   network = "${BUILD_NETWORK}"
 }

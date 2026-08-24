@@ -242,7 +242,7 @@ PY
                         ;;
                 esac
                 build_log="$attempt_dir/build-$build_target.log"
-                if ! BUILD_NETWORK="$build_network" GIT_SHA="$git_sha" BUILD_VERSION="$build_version" \
+                if ! BUILD_NETWORK="$build_network" GIT_SHA="$git_sha" BUILD_VERSION="$build_version" BUILD_CREATED="${BUILD_CREATED:-unknown}" \
                     docker buildx bake $build_allow --progress=plain --file "$ROOT/docker-bake.hcl" \
                     --set '*.platform=linux/amd64' \
                     --set "$build_target.args.HTTP_PROXY=$target_http_proxy" \

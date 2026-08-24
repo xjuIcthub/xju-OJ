@@ -49,6 +49,18 @@ Ubuntu support status and the runtime-root/path/permission gates remain mandator
 
 The Python image digest above is an OCI manifest digest for the official multi-architecture tag; `docker run ... python --version` on `huawei1` returned `3.10.21` for the amd64 image. Step 13 must still verify the interpreter ABI inside the selected architecture image before any production build. A mutable tag must never be used without this digest.
 
+## Phase 3 exact application pins
+
+The WSL Phase 3 final lock resolved and froze these exact patches; later changes require a new lock diff and rollback point.
+
+| Lane | Exact final versions |
+|---|---|
+| Frontend core | Vue `3.5.41`, Vue Router `5.2.0`, vue-i18n `11.4.8`, Pinia `4.0.3`, Element Plus `2.14.4`, Vite `8.2.1`, `@vitejs/plugin-vue` `6.0.8` |
+| Frontend editors/visuals | Tiptap `3.30.3` packages, CodeMirror state `6.7.1` / view `6.43.9` / commands `6.11.0`, ECharts `6.1.0`, vue-echarts `8.1.0`, KaTeX `0.16.39`, highlight.js `11.11.1` |
+| Backend framework/driver | Django `5.2.17`, Psycopg `[c] 3.3.4`, DRF `3.18.0`, Python `>=3.10,<3.11` |
+| Backend cache/worker | django-redis `7.0.0`, redis-py `7.4.1` with RESP2 semantics, Dramatiq `2.2.0`, django-dramatiq `0.15.0` |
+| Backend compatibility | jsonfield `3.2.0` for historical migration loading, django-cas-ng `5.1.1`, django-dbconn-retry `0.3.1`, sentry-sdk `[django] 2.68.0` |
+
 ## Resolved research conflicts
 
 1. **Python 3.10 vs research recommendation for 3.13:** the user-specified `>=3.10,<3.11` production feature line overrides the research recommendation. Python 3.13 is not introduced by any production command in this plan.

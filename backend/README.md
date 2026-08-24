@@ -45,7 +45,7 @@ Main modules are available below:
 
 ## Locked development environment
 
-Phase 1 uses Python `>=3.10,<3.11` and keeps `pyproject.toml` + `uv.lock` as the dependency source of truth. The runtime image installs the locked environment with uv and does not resolve dependencies at startup.
+Phase 3 uses Python `>=3.10,<3.11` with Django `5.2.17`, Psycopg `3.3.4`, DRF `3.18.0`, redis-py `7.4.1`, django-redis `7.0.0`, Dramatiq `2.2.0` and django-dramatiq `0.15.0`. `pyproject.toml` + `uv.lock` are the dependency source of truth; the runtime image never resolves dependencies at startup.
 
 ```bash
 uv sync --locked --group dev
@@ -53,7 +53,7 @@ uv run --locked --no-sync python manage.py check
 uv run --locked --no-sync python manage.py makemigrations --check --dry-run
 ```
 
-The current-model JSONField remains on the historical Django PostgreSQL field during the bridge because switching it produced unapproved `AlterField` migration output; that migration-sensitive cleanup is deferred to the Django compatibility phase.
+Current models use Django `models.JSONField`; historical migration imports remain intact through the locked `jsonfield` loader. Five `SeparateDatabaseAndState` migrations update Django state only and emit no database DDL, preserving the existing PostgreSQL JSONB columns and N-1 schema readability.
 
 ## Backend commands
 

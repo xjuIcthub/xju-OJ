@@ -1,13 +1,14 @@
 # frontend
 
-这是单仓库中的浏览器静态入口，保留原 OnlineJudgeFE 的 Vue 2、Vue Router、Vuex、Axios 和 Webpack 3 基线。
+这是单仓库中的浏览器静态入口，Phase 3 最终运行栈为 Vue 3、Vue Router 5、Pinia、vue-i18n 11、Element Plus 和 Vite 8。
 
-- 用户端和 `/admin/` 管理端仍是两个 history 入口。
-- Axios 的同源基址继续是 `/api`，CSRF Cookie/Header 继续使用 `csrftoken`/`X-CSRFToken`。
+- 用户端和 `/admin/` 管理端保持两个 history 入口。
+- Axios 同源基址继续是 `/api`，CSRF Cookie/Header 继续使用 `csrftoken`/`X-CSRFToken`。
 - `/public` 由部署层发布后端运行时公开资源；前端不直接读取测试数据。
-- Phase 1 bridge 使用 Node `24.19.0`、pnpm `11.22.0` 和 Vite `7.3.6`，保留 Vue 2/Router/Vuex/业务依赖；`yarn.lock` 与 Webpack 路径仍作为回滚资产。
-- `pnpm-lock.yaml` 是当前桥接构建真源；`pnpm run build` 生成用户端和管理端双入口，`pnpm run build:legacy` 保留旧 Webpack 构建。
-- 运行时域名和非秘密版本信息由 Nginx entrypoint 写入 `/runtime-config.js`，API 继续使用同源 `/api`，不把 Secret 编译进 bundle。
+- Node 固定为 `24.19.0`，pnpm 固定为 `11.22.0`；`pnpm-lock.yaml` 是唯一依赖真源。
+- CodeMirror 6 与 Tiptap 通过本地 adapter 保留旧 `value/input/change/update:value`、上传端点和历史 HTML/附件合同。
+- `pnpm run build` 生成用户端和管理端双入口；Vue 2/Vite 7 的 Phase 2 immutable image 作为 N-1 回滚资产保留，不再从当前源码重建。
+- 运行时域名和非秘密版本信息由 Nginx entrypoint 写入 `/runtime-config.js`，不把 Secret 编译进 bundle。
 
 ## 原始模块说明
 
@@ -37,18 +38,16 @@ Use Node **24.19.0** and pnpm **11.22.0**. Do not replace the frozen-lockfile in
 
 ```bash
 corepack pnpm@11.22.0 install --frozen-lockfile
-pnpm run lint
+pnpm run lint:modern
+pnpm run test:routes
 pnpm run build
 
 # the Vite dev-server requires a backend target and keeps /api + /public same-origin
 export TARGET=http://Your-backend
 pnpm run dev
-
-# legacy rollback build, retained until Phase 3
-pnpm run build:legacy
 ```
 
-The bridge keeps `yarn.lock` and the old Webpack configuration. The `tar-simditor` Git subdependencies are inherited pinned legacy inputs and are explicitly deferred to the Phase 3 editor migration.
+Vue 2、Vuex、Element UI/iView、CodeMirror 5、Simditor、Webpack/Babel 6 和 Yarn Classic 已从最终源码与锁文件移除。
 
 ## Screenshots
 
