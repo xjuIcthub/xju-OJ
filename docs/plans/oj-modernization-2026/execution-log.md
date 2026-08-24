@@ -9,8 +9,8 @@
 - 当前分支：`main`
 - 计划入口：[README.md](README.md)
 - 当前执行模型：Phase 0–5；Step 文档作为 Phase 内技术清单
-- 当前 Phase：Phase 0 已完成，准备 Phase 1
-- 最近完成：Phase 0（Step 00–03）
+- 当前 Phase：Phase 2（WSL full-stack checkpoint；release-gate pending）
+- 最近完成：Phase 1 组件桥接；Phase 2 隔离 Compose/deploy 全栈 checkpoint
 
 ## 记录格式
 
@@ -117,4 +117,27 @@
   - Vite reports legacy font URL, runtime-config script, CommonJS namespace and bundle-size warnings; build and route smoke still pass. Full six-language/security/resource corpus and cold/warm timing benchmark remain deferred to the next integration lane.
 - Hard-stop 核验: no Secret, token, credential, private key or runtime data entered Git, image layers or ordinary logs; no `privileged`, Docker socket, `SYS_ADMIN`, public Judge port, writable `/test_case`, or weakened Judge UID/GID/Seccomp boundary was used. No destructive command (`down -v`, prune, FLUSHDB, DROP, volume deletion) was run.
 - 回滚点: code checkpoint `0385d96` (Phase 0); bridge commit `7020d88`; local bridge images are separately tagged `git-7020d88` and old remote/legacy Compose assets were not modified.
-- 下一 Phase: Phase 2 — WSL isolated PG/Redis target data, Compose topology, deploy.sh and full-stack smoke. Phase 1 can be reverted independently without data rollback.
+- 下一 Phase: Phase 2 release-gate pending；完成 fixture/restore、Redis ladder、pull lane 和剩余 Judge/worker smoke 后再进入 Phase 3。Phase 1 can be reverted independently without data rollback.
+
+### 2026-08-24 — Phase 2 / WSL full-stack checkpoint
+
+- Commit: `db5de41` — `phase 2: run isolated WSL full stack`
+- 完成的范围: Step 19 inventory/manifest 工具实现并在隔离运行时执行；Step 28 Compose 网络、卷、health、Secret-file 和多角色 backend 拓扑；Step 29 deploy.sh 的 build、首装、幂等升级、dry-run、config-only 和核心全栈 smoke。该条是 WSL checkpoint，不把尚未执行的发布路径写成完成。
+- 实际命令: 在隔离 `COMPOSE_PROJECT_NAME=xju-oj-phase2`、临时 runtime/backup/Secret 根中执行四个 BuildKit chunk（`frontend`、`backend`、`judge-toolchain`、`server`）；执行 `ENV_FILE=/tmp/xju-oj-phase2-deploy.NrQVku/.env ./deploy.sh`（提交后重新构建并执行一次）、`./deploy.sh --dry-run`、`./deploy.sh --config-only`；执行 `docker buildx bake --allow=network.host --call=check --file docker-bake.hcl frontend backend judge-toolchain server`、`docker compose config --quiet`、各 shell `sh -n`、`git diff --check`；执行 `deploy/ops/inventory.sh` 和定向 HTTP/CSRF、Worker、Judge smoke。
+- 测试/验收结果:
+  - `deploy.sh` build chunk、infra readiness、bootstrap、migration、token/admin 幂等、service readiness、HTTP smoke、worker smoke 和 Judge `/ping` 均通过；`current.json` 已写入，`previous.json` 在升级路径中保留。migration second run 报告 `No migrations to apply`；已有 token/admin 未被覆盖。
+  - 服务状态: PostgreSQL 18、Redis 8.2、backend-api、backend-worker、frontend、JudgeServer 全部 healthy；仅 frontend 发布 `127.0.0.1:18080`，backend/Judge/PostgreSQL/Redis 保持 Compose 内部端口。
+  - HTTP/contract: `/` 为 200，`/admin` 为 301，`/admin/`、`/runtime-config.js`、`/api/website/`、`/public/website/favicon.ico` 通过；缺失 CSRF 返回 403，带合法 CSRF 的无效登录请求返回 200；内部 Judge `/ping` 鉴权和 heartbeat 通过。
+  - Inventory: 生成 manifest 和 SHA-256；WSL rootless 无法读取容器 UID 拥有的 `backend/test_case` 时记录 `files=unavailable bytes=unavailable access=denied`，不再把权限错误刷入普通日志或错误报告为零文件。
+  - Bake contract: 四个目标 `--call=check` 通过且无 Dockerfile warning；Compose config 和 shell syntax 通过。
+- 镜像与 digest: source SHA `db5de41`；Compose SHA-256 `1355956767c57698a33deb9fc19792897af4baf596be9b5199d6a66680d907ae`；local image IDs: `frontend sha256:e747eccf28b02b69a57aba0cc4b4f127575b8496f671f0026a87048d0d47d3e7`、`backend sha256:2df80deadbb48369aeb2e8d74f3a03f984acffc8cc798e4fa94f7a3cf72564f2`、`server sha256:8cd01fb4839daa5759eee8c0e88e4c92825651aa4e0df2de33978b1c14076ce6`、`judge-toolchain sha256:7986f063d9d7a7370dc840b7e63c11c7dbcca574ffa467ccfbdafdd57fc8ca2e`；四个镜像 label revision 均为 `db5de41`、version `phase2`。
+- 数据/Redis/queue 证据: 只使用 `/tmp/xju-oj-phase2-deploy.NrQVku` 隔离 runtime、临时 PostgreSQL/Redis 和测试 Secret；未读取或修改生产卷、生产 Secret、生产 queue、dump、RDB/AOF 或用户数据。已验证 Redis DB1/DB4 queue smoke、backend worker enqueue/result/delete 和 Judge heartbeat。
+- Soft failures / deferred:
+  - 真实 protected clone、PG directory dump restore、Redis 4→6.2→7.4→8.2 ladder、waiting_queue/DB4 完整业务核账仍为 release-gate pending；`backup-fixture.sh` 尚未作为恢复证据执行。
+  - `DEPLOY_MODE=pull` 尚未执行；本 WSL lane 使用 `--load` 的本地 immutable image IDs，未进行 registry push/transfer。
+  - `/judge`、`/compile_spj` 正向判题 smoke、worker retry/stop/restart、完整 login/session refresh/logout 矩阵尚未完成；本 checkpoint 已覆盖 `/ping`、heartbeat、CSRF 和核心 worker smoke。
+  - SBOM/provenance/registry cache artifact 尚未生成；shellcheck 不在当前环境中，已执行 `sh -n` 替代语法检查。
+  - 保留 Phase 1 已知软失败：Django 15 个 JSONField W904、Judger `test_cpp_meta`/`test_gcc_random`/`test_get_time` 三个资源/工具链敏感用例、GCC 14.4.0 与候选 14.2.x 的 patch drift。
+- Hard-stop 核验: 未将 Secret、密码、Token、Cookie、私钥、运行数据或测试 dump 写入 Git、镜像层或普通日志；未使用生产连接、`privileged`、Docker socket、`SYS_ADMIN`、公开非 frontend 端口、可写 `/test_case`、`down -v`、prune、FLUSHDB、DROP 或 volume 删除；未执行 huawei1。
+- 回滚点: Phase 1 bridge `7020d88`/acceptance `e39973e`；Phase 2 当前代码 `db5de41`；隔离 runtime、Compose project、日志和 local image IDs 均保留，未删除旧 checkpoint。
+- 下一 Phase: 完成上列 Phase 2 release-gate pending 项后进入 Phase 3；在此之前不触碰 huawei1 或生产。
