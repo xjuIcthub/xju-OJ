@@ -174,7 +174,7 @@ export default [
     component: FAQ
   },
   {
-    path: '*',
+    path: '/:pathMatch(.*)*',
     meta: {title: '404'},
     component: NotFound
   }

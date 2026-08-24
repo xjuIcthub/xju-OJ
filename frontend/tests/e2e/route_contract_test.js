@@ -13,6 +13,10 @@ assert.ok(manifest.api.some((item) => item.path === '/api/website/' && item.same
 assert.ok(manifest.public.some((item) => item.missing_fallback === '404'))
 assert.deepStrictEqual(manifest.redirects[0], {from: '/admin', to: '/admin/', status: 301})
 
+const routes = fs.readFileSync(path.join(__dirname, '../../src/pages/oj/router/routes.js'), 'utf8')
+assert.ok(!/path:\s*['"]\*['"]/.test(routes))
+assert.ok(routes.includes('/:pathMatch(.*)*'))
+
 const nginx = fs.readFileSync(path.join(__dirname, '../../nginx/nginx.conf'), 'utf8')
 assert.ok(nginx.includes('location = /admin'))
 assert.ok(nginx.includes('return 301 /admin/'))
