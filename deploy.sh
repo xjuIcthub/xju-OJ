@@ -205,8 +205,10 @@ esac
 case "${JUDGE_TOOLCHAIN_IMAGE_REF:-}" in
     ""|xju-oj-judge-toolchain:auto) JUDGE_TOOLCHAIN_IMAGE_REF=xju-oj-judge-toolchain:tc-$git_tag ;;
 esac
-POSTGRES_IMAGE_REF=${POSTGRES_IMAGE_REF:-postgres:18.6-bookworm@sha256:7d2695c3aa88e792e8b3b233e7e4adb296a20412c6c0ca361e3edaaacfada108}
-REDIS_IMAGE_REF=${REDIS_IMAGE_REF:-redis:8.2.8-bookworm@sha256:2f7462b9e93e0a7ae2edf3a0a0babc8a4d29f8bfc50849b906b7caaef925edc1}
+case "${POSTGRES_IMAGE_REF:-}" in
+    ""|xju-oj-postgres:auto) POSTGRES_IMAGE_REF=xju-oj-postgres:git-$git_tag ;;
+esac
+REDIS_IMAGE_REF=${REDIS_IMAGE_REF:-redis:8.2.8-alpine@sha256:a7859ed111db3c1f5404a973a4747505d559fb5ca32d37e447afc0ef845a2103}
 POSTGRES_DB=${POSTGRES_DB:-onlinejudge}
 POSTGRES_USER=${POSTGRES_USER:-onlinejudge}
 INITIAL_ADMIN_USERNAME=${INITIAL_ADMIN_USERNAME:-admin}
@@ -226,7 +228,7 @@ required() {
 
 for name in COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL HTTP_BIND_ADDRESS HTTP_PORT \
     RUNTIME_ROOT BACKUP_ROOT FRONTEND_IMAGE_REF BACKEND_IMAGE_REF JUDGE_IMAGE_REF \
-    POSTGRES_IMAGE_REF REDIS_IMAGE_REF POSTGRES_DB POSTGRES_USER \
+    JUDGE_TOOLCHAIN_IMAGE_REF POSTGRES_IMAGE_REF REDIS_IMAGE_REF POSTGRES_DB POSTGRES_USER \
     POSTGRES_PASSWORD_FILE DJANGO_SECRET_KEY_FILE JUDGE_SERVER_TOKEN_FILE \
     INITIAL_ADMIN_PASSWORD_FILE; do
     required "$name"
@@ -404,7 +406,7 @@ compose() {
 
 validate_pull_references() {
     for immutable_ref in "$FRONTEND_IMAGE_REF" "$BACKEND_IMAGE_REF" "$JUDGE_IMAGE_REF" \
-        "$POSTGRES_IMAGE_REF" "$REDIS_IMAGE_REF"; do
+        "$JUDGE_TOOLCHAIN_IMAGE_REF" "$POSTGRES_IMAGE_REF" "$REDIS_IMAGE_REF"; do
         case "$immutable_ref" in
             *@sha256:*) ;;
             *) fail "pull mode requires immutable image@sha256 references: $immutable_ref" ;;
@@ -474,7 +476,7 @@ ensure_dir "$SECRET_ROOT" 0700
 ensure_dir "$RUNTIME_ROOT/backend" 0750
 ensure_dir "$RUNTIME_ROOT/backend/public" 0750
 ensure_dir "$RUNTIME_ROOT/backend/test_case" 0750
-# PostgreSQL 18 re-execs its entrypoint as uid 999; the parent mount must be traversable.
+# PostgreSQL re-execs its entrypoint as the image's postgres user; the parent mount must be traversable.
 ensure_dir "$RUNTIME_ROOT/postgres" 0755
 ensure_dir "$RUNTIME_ROOT/redis" 0750
 ensure_dir "$RUNTIME_ROOT/judge-server" 0750
@@ -558,9 +560,15 @@ PY
             build_version=${BUILD_VERSION:-phase2}
             build_allow=
             [ "$build_network" = host ] && build_allow=--allow=network.host
-            build_targets=${BUILD_TARGETS:-"frontend backend judge-toolchain server"}
+            build_targets=${BUILD_TARGETS:-"postgres frontend backend judge-toolchain server"}
             for build_target in $build_targets; do
                 case "$build_target" in
+                    postgres)
+                        target_ref=$POSTGRES_IMAGE_REF
+                        target_http_proxy=$build_http_proxy
+                        target_https_proxy=$build_https_proxy
+                        target_all_proxy=$build_all_proxy
+                        ;;
                     frontend)
                         target_ref=$FRONTEND_IMAGE_REF
                         target_http_proxy=$build_http_proxy
@@ -613,6 +621,7 @@ PY
             ;;
         pull)
             validate_pull_references
+            docker pull --platform linux/amd64 "$JUDGE_TOOLCHAIN_IMAGE_REF"
             compose pull postgres redis frontend backend-api backend-worker judge-server
             ;;
         *)
@@ -703,8 +712,11 @@ cat > "$attempt_dir/release.json" <<EOF
   "compose_sha256": "$compose_hash",
   "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "images": {
+    "postgres": {"reference": "$POSTGRES_IMAGE_REF", "image_id": "$(image_id "$POSTGRES_IMAGE_REF")"},
+    "redis": {"reference": "$REDIS_IMAGE_REF", "image_id": "$(image_id "$REDIS_IMAGE_REF")"},
     "frontend": {"reference": "$FRONTEND_IMAGE_REF", "image_id": "$(image_id "$FRONTEND_IMAGE_REF")"},
     "backend": {"reference": "$BACKEND_IMAGE_REF", "image_id": "$(image_id "$BACKEND_IMAGE_REF")"},
+    "judge_toolchain": {"reference": "$JUDGE_TOOLCHAIN_IMAGE_REF", "image_id": "$(image_id "$JUDGE_TOOLCHAIN_IMAGE_REF")"},
     "server": {"reference": "$JUDGE_IMAGE_REF", "image_id": "$(image_id "$JUDGE_IMAGE_REF")"}
   }
 }

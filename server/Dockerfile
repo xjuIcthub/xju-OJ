@@ -8,6 +8,12 @@ ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48
 
 FROM ${PYTHON_IMAGE} AS python-runtime
 FROM ${NODE_IMAGE} AS node-runtime
+ARG NPM_VERSION=11.19.0
+RUN set -eux; \
+    npm install --global --ignore-scripts --no-audit --no-fund "npm@$NPM_VERSION"; \
+    test "$(npm --version)" = "$NPM_VERSION"; \
+    test "$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')" = '7.5.19'; \
+    npm cache clean --force
 FROM ${GO_IMAGE} AS go-runtime
 FROM ${JAVA_IMAGE} AS java-runtime
 FROM ${UV_IMAGE} AS uv-runtime

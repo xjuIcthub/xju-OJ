@@ -23,7 +23,7 @@ variable "BUILD_NETWORK" {
 }
 
 group "default" {
-  targets = ["frontend", "backend", "judge-toolchain", "server"]
+  targets = ["postgres", "frontend", "backend", "judge-toolchain", "server"]
 }
 
 target "_common" {
@@ -40,6 +40,15 @@ target "_common" {
     "org.opencontainers.image.created"  = "${BUILD_CREATED}"
   }
   network = "${BUILD_NETWORK}"
+}
+
+target "postgres" {
+  inherits   = ["_common"]
+  context    = "."
+  dockerfile = "deploy/images/postgres/Dockerfile"
+  tags       = ["${IMAGE_REGISTRY}/postgres:git-${GIT_SHA}"]
+  cache-from = CACHE_REGISTRY != "" ? ["type=registry,ref=${CACHE_REGISTRY}/postgres:buildcache"] : []
+  cache-to   = CACHE_REGISTRY != "" ? ["type=registry,ref=${CACHE_REGISTRY}/postgres:buildcache,mode=max"] : []
 }
 
 target "frontend" {

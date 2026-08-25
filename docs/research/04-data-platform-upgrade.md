@@ -231,17 +231,9 @@ Dramatiq 1.18 的官方包定义允许 `redis>=2,<7`，并要求 Python >=3.9；
 
 **架构建议：**
 
-使用官方：
+版本仍固定为 PostgreSQL 18.6，不使用 floating `postgres:18` 或 `latest`。
 
-```text
-postgres:18.6-bookworm
-```
-
-而不是 floating `postgres:18` 或 `latest`。
-
-生产 release 时再记录对应 manifest digest。
-
-优先 bookworm 而非 alpine 不是 PostgreSQL 官方强制要求，而是本项目跨 PG10→18 时的保守工程选择：减少 musl/glibc、locale/collation 行为和 native debugging 同时发生变化的变量。
+初始保守候选是 `postgres:18.6-bookworm`，用于减少跨 PG10→18 时 musl/glibc、locale/collation 与 native debugging 同时变化的变量。2026-08-25 发布扫描发现该锁定镜像含无法消除的 Debian Critical 项，因此最终 release base 改为固定 digest 的 `postgres:18.6-alpine`，并用 Go 1.26.5 重建、替换官方镜像中的 `gosu` 1.19。该选择不改变 PostgreSQL major/minor，但必须重新执行 fresh restore、collation、UTC 和应用连接验收，最终只消费派生镜像的 immutable digest。
 
 ### 不首选 PG17 的原因
 
@@ -255,13 +247,9 @@ postgres:18.6-bookworm
 
 ## 4.2 Redis：最终 8.2.8
 
-推荐：
+最终版本固定为 Redis 8.2.8。2026-08-25 发布扫描后，最终运行镜像从 Bookworm 变体改为 Critical=0 的固定 digest `redis:8.2.8-alpine`；此前已验证的 6.2/7.4 阶梯和 DB1/DB4 ledger 要求不变。
 
-```text
-redis:8.2.8-bookworm
-```
-
-但生产迁移不是：
+生产迁移不是：
 
 ```text
 4 → 8.2

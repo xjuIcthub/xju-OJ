@@ -17,7 +17,7 @@
 
 ## 选择原则
 
-主方案：`postgres:18.6-bookworm` + verified digest。报告曾推荐 PG17；若 PG18 在真实 restore、扩展、collation、Django/driver smoke 发现 blocker，记录证据后改用 `postgres:17.11-bookworm`，不要临时混用两个版本。
+主方案保持 PostgreSQL `18.6`，但 2026-08-25 的 release Critical-CVE gate 将运行镜像改为 `postgres:18.6-alpine` 固定 digest，并通过仓库内 release recipe 用 Go 1.26.5 重建 `gosu` 1.19。输出派生镜像必须再次固定 digest、生成 SBOM/provenance，并重新验证 restore、扩展、collation、UTC 与 Django/driver smoke。若 PG18 本身出现真实 blocker，仍按批准流程退回 17.11；不要临时混用两个 major。
 
 PG10 data directory 不直接挂给 PG18；默认采用 fresh cluster + `pg_restore`，不把 `pg_upgrade --link` 作为本项目首选。
 

@@ -6,11 +6,9 @@ on:
       source_sha:
         description: Accepted application source commit
         required: true
-        default: 013aee93b669c552e7261556a8d162429d664b4e
       release_id:
         description: Immutable release identifier
         required: true
-        default: phase3-rc-013aee9
 
 concurrency:
   group: publish-${{ inputs.release_id }}
@@ -22,22 +20,15 @@ env:
   TRIVY_IMAGE: ghcr.io/aquasecurity/trivy:0.66.0@sha256:086971aaf400beebd94e8300fd8ea623774419597169156cec56eec5b00dfb1e
 
 jobs:
-  mirror-data-images:
+  validate-release-id:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: postgres
-            source: postgres:18.6-bookworm@sha256:7d2695c3aa88e792e8b3b233e7e4adb296a20412c6c0ca361e3edaaacfada108
-            destination: xju-oj-postgres
-          - name: redis
-            source: redis:8.2.8-bookworm@sha256:2f7462b9e93e0a7ae2edf3a0a0babc8a4d29f8bfc50849b906b7caaef925edc1
-            destination: xju-oj-redis
+      packages: read
     steps:
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -45,50 +36,138 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Mirror the pinned amd64 image
-        id: mirror
+      - name: Require an unused release identifier
         env:
-          SOURCE: ${{ matrix.source }}
-          DESTINATION: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.destination }}:${{ inputs.release_id }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ inputs.release_id }}
         run: |
           set -euo pipefail
-          docker pull --platform linux/amd64 "$SOURCE"
-          image_id=$(docker image inspect --format '{{.Id}}' "$SOURCE")
-          docker tag "$SOURCE" "$DESTINATION"
-          docker push "$DESTINATION" | tee push.log
-          digest=$(awk '/digest: sha256:/{print $3}' push.log | tail -1)
-          test -n "$digest"
-          printf 'reference=%s@%s\n' "${DESTINATION%:*}" "$digest" >> "$GITHUB_OUTPUT"
-          printf 'image_id=%s\n' "$image_id" >> "$GITHUB_OUTPUT"
+          if gh release view "images-${RELEASE_ID}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release already exists: images-${RELEASE_ID}" >&2
+            exit 1
+          fi
+          for image in postgres redis frontend backend judge-toolchain server; do
+            reference="$REGISTRY/$NAMESPACE/xju-oj-${image}:${RELEASE_ID}"
+            if docker buildx imagetools inspect "$reference" >/dev/null 2>&1; then
+              echo "immutable release tag already exists: $reference" >&2
+              exit 1
+            fi
+          done
 
-      - name: Scan critical vulnerabilities
+  build-data-images:
+    needs: validate-release-id
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: postgres
+            file: ./deploy/images/postgres/Dockerfile
+            destination: xju-oj-postgres
+            base: postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+            patch: gosu-1.19-go1.26.5-6456aaa0f3c854d199d0f037f068eb97515b7513
+            build_args: |
+              POSTGRES_IMAGE=postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+              GO_IMAGE=golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd
+              GOSU_COMMIT=6456aaa0f3c854d199d0f037f068eb97515b7513
+          - name: redis
+            file: ./deploy/images/redis/Dockerfile
+            destination: xju-oj-redis
+            base: redis:8.2.8-alpine@sha256:a7859ed111db3c1f5404a973a4747505d559fb5ca32d37e447afc0ef845a2103
+            patch: none
+            build_args: |
+              REDIS_IMAGE=redis:8.2.8-alpine@sha256:a7859ed111db3c1f5404a973a4747505d559fb5ca32d37e447afc0ef845a2103
+    steps:
+      - name: Check out release recipe
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set build timestamp
+        id: timestamp
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push candidate data image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.destination }}:candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          build-args: ${{ matrix.build_args }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ inputs.release_id }}
+            org.opencontainers.image.created=${{ steps.timestamp.outputs.value }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=data-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=data-${{ matrix.name }}
+
+      - name: Require zero critical vulnerabilities
         env:
-          IMAGE: ${{ matrix.source }}
+          IMAGE: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.destination }}@${{ steps.build.outputs.digest }}
+          NAME: ${{ matrix.name }}
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+          mkdir -p scan
+          set +e
+          docker run --rm -v "$PWD:/work" \
+            -e TRIVY_USERNAME -e TRIVY_PASSWORD \
+            "$TRIVY_IMAGE" image --timeout 20m --skip-version-check \
+            --scanners vuln --severity CRITICAL --exit-code 1 \
+            --format json --output "/work/scan/trivy-${NAME}.json" "$IMAGE"
+          scan_rc=$?
+          set -e
           docker run --rm \
             -e TRIVY_USERNAME -e TRIVY_PASSWORD \
-            "$TRIVY_IMAGE" image \
-            --scanners vuln --severity CRITICAL \
-            --exit-code 1 --format json --output /tmp/trivy.json "$IMAGE"
-          docker run --rm \
-            -e TRIVY_USERNAME -e TRIVY_PASSWORD \
-            "$TRIVY_IMAGE" image \
-            --scanners vuln --severity CRITICAL \
-            --exit-code 0 --format table "$IMAGE"
+            "$TRIVY_IMAGE" image --timeout 20m --skip-version-check \
+            --scanners vuln --severity CRITICAL --exit-code 0 --format table "$IMAGE"
+          exit "$scan_rc"
+
+      - name: Upload vulnerability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-report-${{ matrix.name }}
+          path: scan/trivy-${{ matrix.name }}.json
+          if-no-files-found: warn
 
       - name: Record image metadata
         env:
           NAME: ${{ matrix.name }}
-          SOURCE: ${{ matrix.source }}
-          REFERENCE: ${{ steps.mirror.outputs.reference }}
-          IMAGE_ID: ${{ steps.mirror.outputs.image_id }}
+          BASE: ${{ matrix.base }}
+          PATCH: ${{ matrix.patch }}
+          REFERENCE: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.destination }}@${{ steps.build.outputs.digest }}
+          RECIPE_SHA: ${{ github.sha }}
+          BUILD_METADATA: ${{ steps.build.outputs.metadata }}
         run: |
+          critical_total=$(jq '[.Results[]?.Vulnerabilities[]?] | length' "scan/trivy-${NAME}.json")
+          test "$critical_total" -eq 0
           jq -n \
-            --arg name "$NAME" --arg source "$SOURCE" \
-            --arg reference "$REFERENCE" --arg image_id "$IMAGE_ID" \
-            '{name:$name, source:$source, reference:$reference, image_id:$image_id, platform:"linux/amd64", critical_vulnerabilities:"none-fixed"}' \
+            --arg name "$NAME" --arg base "$BASE" --arg patch "$PATCH" \
+            --arg reference "$REFERENCE" --arg recipe_sha "$RECIPE_SHA" \
+            --argjson critical_total "$critical_total" --argjson build "$BUILD_METADATA" \
+            '{name:$name, base_reference:$base, patch:$patch, recipe_sha:$recipe_sha, reference:$reference, platform:"linux/amd64", sbom:true, provenance:"mode=max", critical_vulnerabilities:{total:$critical_total,gate:"zero"}, build:$build}' \
             > "metadata-$NAME.json"
 
       - name: Upload image metadata
@@ -99,7 +178,9 @@ jobs:
           if-no-files-found: error
 
   build-application-images:
-    needs: mirror-data-images
+    needs:
+      - validate-release-id
+      - build-data-images
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -149,7 +230,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push immutable image
+      - name: Build and push candidate image
         id: build
         uses: docker/build-push-action@v6
         with:
@@ -158,7 +239,7 @@ jobs:
           target: ${{ matrix.target }}
           platforms: linux/amd64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.destination }}:${{ inputs.release_id }}
+          tags: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.destination }}:candidate-${{ github.run_id }}-${{ github.run_attempt }}
           build-args: |
             GIT_COMMIT=${{ inputs.source_sha }}
             VCS_REF=${{ inputs.source_sha }}
@@ -173,22 +254,37 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
-      - name: Scan critical vulnerabilities
+      - name: Scan critical vulnerabilities and gate available fixes
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.destination }}@${{ steps.build.outputs.digest }}
+          NAME: ${{ matrix.name }}
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+          mkdir -p scan
+          docker run --rm -v "$PWD:/work" \
+            -e TRIVY_USERNAME -e TRIVY_PASSWORD \
+            "$TRIVY_IMAGE" image --timeout 20m --skip-version-check \
+            --scanners vuln --severity CRITICAL --exit-code 0 \
+            --format json --output "/work/scan/trivy-${NAME}.json" "$IMAGE"
           docker run --rm \
             -e TRIVY_USERNAME -e TRIVY_PASSWORD \
-            "$TRIVY_IMAGE" image \
-            --scanners vuln --severity CRITICAL \
-            --exit-code 1 --format json --output /tmp/trivy.json "$IMAGE"
-          docker run --rm \
-            -e TRIVY_USERNAME -e TRIVY_PASSWORD \
-            "$TRIVY_IMAGE" image \
-            --scanners vuln --severity CRITICAL \
-            --exit-code 0 --format table "$IMAGE"
+            "$TRIVY_IMAGE" image --timeout 20m --skip-version-check \
+            --scanners vuln --severity CRITICAL --exit-code 0 --format table "$IMAGE"
+          fixed_available=$(jq '[.Results[]?.Vulnerabilities[]? | select((.FixedVersion // "") != "")] | length' "scan/trivy-${NAME}.json")
+          test "$fixed_available" -eq 0 || {
+            jq -r '.Results[]?.Vulnerabilities[]? | select((.FixedVersion // "") != "") | [.VulnerabilityID,.PkgName,.InstalledVersion,.FixedVersion] | @tsv' "scan/trivy-${NAME}.json"
+            exit 1
+          }
+
+      - name: Upload vulnerability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-report-${{ matrix.name }}
+          path: scan/trivy-${{ matrix.name }}.json
+          if-no-files-found: warn
 
       - name: Record image metadata
         env:
@@ -197,10 +293,14 @@ jobs:
           SOURCE_SHA: ${{ inputs.source_sha }}
           BUILD_METADATA: ${{ steps.build.outputs.metadata }}
         run: |
+          critical_total=$(jq '[.Results[]?.Vulnerabilities[]?] | length' "scan/trivy-${NAME}.json")
+          fixed_available=$(jq '[.Results[]?.Vulnerabilities[]? | select((.FixedVersion // "") != "")] | length' "scan/trivy-${NAME}.json")
+          test "$fixed_available" -eq 0
           jq -n \
-            --arg name "$NAME" --arg reference "$REFERENCE" \
-            --arg source_sha "$SOURCE_SHA" --argjson build "$BUILD_METADATA" \
-            '{name:$name, source_sha:$source_sha, reference:$reference, platform:"linux/amd64", sbom:true, provenance:"mode=max", critical_vulnerabilities:"none-fixed", build:$build}' \
+            --arg name "$NAME" --arg reference "$REFERENCE" --arg source_sha "$SOURCE_SHA" \
+            --argjson critical_total "$critical_total" --argjson fixed_available "$fixed_available" \
+            --argjson build "$BUILD_METADATA" \
+            '{name:$name, source_sha:$source_sha, reference:$reference, platform:"linux/amd64", sbom:true, provenance:"mode=max", critical_vulnerabilities:{total:$critical_total,with_available_fix:$fixed_available,gate:"no-available-fix"}, build:$build}' \
             > "metadata-$NAME.json"
 
       - name: Upload image metadata
@@ -210,32 +310,86 @@ jobs:
           path: metadata-${{ matrix.name }}.json
           if-no-files-found: error
 
-  publish-release-manifest:
+  promote-release-images:
     needs:
-      - mirror-data-images
+      - validate-release-id
+      - build-data-images
       - build-application-images
     runs-on: ubuntu-24.04
     permissions:
       actions: read
-      contents: write
+      packages: write
     steps:
-      - name: Download metadata
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download candidate metadata
         uses: actions/download-artifact@v4
         with:
           pattern: release-metadata-*
           path: metadata
           merge-multiple: true
 
+      - name: Promote only the fully accepted candidates
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          set -euo pipefail
+          test "$(find metadata -name 'metadata-*.json' | wc -l)" -eq 6
+          for metadata_file in metadata/metadata-*.json; do
+            source_reference=$(jq -r '.reference' "$metadata_file")
+            repository=${source_reference%@sha256:*}
+            release_tag="${repository}:${RELEASE_ID}"
+            if docker buildx imagetools inspect "$release_tag" >/dev/null 2>&1; then
+              echo "immutable release tag already exists: $release_tag" >&2
+              exit 1
+            fi
+            docker buildx imagetools create --tag "$release_tag" "$source_reference"
+            promoted_digest=$(docker buildx imagetools inspect "$release_tag" --format '{{json .Manifest}}' | jq -r '.digest')
+            test "$promoted_digest" != null
+            jq --arg candidate "$source_reference" --arg reference "${repository}@${promoted_digest}" \
+              '.candidate_reference=$candidate | .reference=$reference' "$metadata_file" > "$metadata_file.tmp"
+            mv "$metadata_file.tmp" "$metadata_file"
+          done
+
+      - name: Upload promoted metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: promoted-release-metadata
+          path: metadata/metadata-*.json
+          if-no-files-found: error
+
+  publish-release-manifest:
+    needs: promote-release-images
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Download promoted metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: promoted-release-metadata
+          path: metadata
+
       - name: Assemble release manifest
         env:
           SOURCE_SHA: ${{ inputs.source_sha }}
+          RECIPE_SHA: ${{ github.sha }}
           RELEASE_ID: ${{ inputs.release_id }}
         run: |
           set -euo pipefail
           test "$(find metadata -name 'metadata-*.json' | wc -l)" -eq 6
           jq -s \
-            --arg release_id "$RELEASE_ID" --arg source_sha "$SOURCE_SHA" \
-            '{release_id:$release_id, source_sha:$source_sha, generated_at:(now|todate), images:(map({key:.name,value:.})|from_entries)}' \
+            --arg release_id "$RELEASE_ID" --arg source_sha "$SOURCE_SHA" --arg recipe_sha "$RECIPE_SHA" \
+            '{release_id:$release_id, source_sha:$source_sha, recipe_sha:$recipe_sha, generated_at:(now|todate), images:(map({key:.name,value:.})|from_entries)}' \
             metadata/metadata-*.json > release-manifest.json
           sha256sum release-manifest.json > release-manifest.sha256
 
@@ -249,4 +403,4 @@ jobs:
           gh release create "$tag" release-manifest.json release-manifest.sha256 \
             --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" --prerelease \
             --title "Immutable images ${RELEASE_ID}" \
-            --notes "Immutable linux/amd64 release images with SBOM, maximum BuildKit provenance, and fixed-Critical vulnerability gates."
+            --notes "Immutable linux/amd64 release images with BuildKit SBOM, maximum provenance, zero-Critical data images, and a no-available-fix Critical gate for application images."
