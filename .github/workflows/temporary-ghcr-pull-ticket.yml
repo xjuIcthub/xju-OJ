@@ -26,8 +26,8 @@ jobs:
         run: |
           set -euo pipefail
           gh release download "images-${RELEASE_ID}" --repo "$GITHUB_REPOSITORY" \
-            --pattern huawei1-ghcr-pull-public.pem --dir .
-          openssl pkey -pubin -in huawei1-ghcr-pull-public.pem -noout
+            --pattern huawei1-ghcr-pull-cert.pem --dir .
+          openssl x509 -in huawei1-ghcr-pull-cert.pem -noout -fingerprint -sha256
 
       - name: Encrypt the job-scoped package token
         env:
@@ -35,10 +35,10 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$JOB_TOKEN" \
-          | openssl pkeyutl -encrypt -pubin -inkey huawei1-ghcr-pull-public.pem \
-              -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 \
-          > gha-ghcr-pull-token.enc
-          chmod 0600 gha-ghcr-pull-token.enc
+          | openssl cms -encrypt -binary -outform DER -aes-256-cbc \
+              -recip huawei1-ghcr-pull-cert.pem \
+              -out gha-ghcr-pull-token.cms
+          chmod 0600 gha-ghcr-pull-token.cms
 
       - name: Publish the encrypted temporary ticket
         env:
@@ -46,7 +46,7 @@ jobs:
           RELEASE_ID: ${{ inputs.release_id }}
         run: |
           set -euo pipefail
-          gh release upload "images-${RELEASE_ID}" gha-ghcr-pull-token.enc \
+          gh release upload "images-${RELEASE_ID}" gha-ghcr-pull-token.cms \
             --repo "$GITHUB_REPOSITORY" --clobber
           echo "Encrypted pull ticket published; it expires when this job ends."
 
