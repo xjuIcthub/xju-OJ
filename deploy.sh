@@ -621,7 +621,6 @@ PY
             ;;
         pull)
             validate_pull_references
-            docker pull --platform linux/amd64 "$JUDGE_TOOLCHAIN_IMAGE_REF"
             compose pull postgres redis frontend backend-api backend-worker judge-server
             ;;
         *)
@@ -716,7 +715,7 @@ cat > "$attempt_dir/release.json" <<EOF
     "redis": {"reference": "$REDIS_IMAGE_REF", "image_id": "$(image_id "$REDIS_IMAGE_REF")"},
     "frontend": {"reference": "$FRONTEND_IMAGE_REF", "image_id": "$(image_id "$FRONTEND_IMAGE_REF")"},
     "backend": {"reference": "$BACKEND_IMAGE_REF", "image_id": "$(image_id "$BACKEND_IMAGE_REF")"},
-    "judge_toolchain": {"reference": "$JUDGE_TOOLCHAIN_IMAGE_REF", "image_id": "$(image_id "$JUDGE_TOOLCHAIN_IMAGE_REF")"},
+    "judge_toolchain": {"reference": "$JUDGE_TOOLCHAIN_IMAGE_REF", "runtime_loaded": false},
     "server": {"reference": "$JUDGE_IMAGE_REF", "image_id": "$(image_id "$JUDGE_IMAGE_REF")"}
   }
 }
