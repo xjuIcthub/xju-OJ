@@ -7,6 +7,11 @@ COMPOSE_FILE=${COMPOSE_FILE:-"$ROOT/compose.yaml"}
 DRY_RUN=0
 CONFIG_ONLY=0
 
+# Never inherit workstation/server proxy variables. Optional download proxies are
+# accepted only through the explicit BUILD_*_PROXY settings and are never used
+# by runtime containers.
+unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_proxy ftp_proxy
+
 usage() {
     cat <<'EOF'
 Usage: ./deploy.sh [--dry-run] [--config-only]

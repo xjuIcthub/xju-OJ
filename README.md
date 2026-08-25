@@ -56,6 +56,8 @@ http://127.0.0.1:18080/admin/
 
 首次构建会下载并构建 frontend、backend、Judge toolchain 和 JudgeServer，耗时取决于网络与机器性能。
 
+`deploy.sh` 会主动清除宿主继承的 `http_proxy`、`https_proxy`、`ALL_PROXY` 等变量，运行容器也不会继承这些变量。只有 `.env` 中显式填写的 `BUILD_*_PROXY` 可用于 frontend 构建下载，且不会进入运行时。
+
 ## `.env` 常用配置
 
 部署前可编辑 `.env`：

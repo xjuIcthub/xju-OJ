@@ -45,6 +45,8 @@ http://127.0.0.1:18080/admin/
 
 The first build downloads and builds the frontend, backend, Judge toolchain, and JudgeServer, so its duration depends on network and host performance.
 
+`deploy.sh` clears inherited `http_proxy`, `https_proxy`, `ALL_PROXY`, and equivalent host variables. Runtime containers do not inherit them. Only explicit `BUILD_*_PROXY` values in `.env` may affect frontend build downloads, and they never enter runtime.
+
 ## Configuration
 
 Edit `.env` before deployment when needed:
