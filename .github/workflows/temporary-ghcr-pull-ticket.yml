@@ -1,0 +1,54 @@
+name: Issue temporary GHCR pull ticket
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Existing immutable image release identifier
+        required: true
+
+concurrency:
+  group: temporary-ghcr-pull-ticket
+  cancel-in-progress: true
+
+jobs:
+  issue-ticket:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - name: Download the target public key
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          set -euo pipefail
+          gh release download "images-${RELEASE_ID}" --repo "$GITHUB_REPOSITORY" \
+            --pattern huawei1-ghcr-pull-public.pem --dir .
+          openssl pkey -pubin -in huawei1-ghcr-pull-public.pem -noout
+
+      - name: Encrypt the job-scoped package token
+        env:
+          JOB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$JOB_TOKEN" \
+          | openssl pkeyutl -encrypt -pubin -inkey huawei1-ghcr-pull-public.pem \
+              -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 \
+          > gha-ghcr-pull-token.enc
+          chmod 0600 gha-ghcr-pull-token.enc
+
+      - name: Publish the encrypted temporary ticket
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          set -euo pipefail
+          gh release upload "images-${RELEASE_ID}" gha-ghcr-pull-token.enc \
+            --repo "$GITHUB_REPOSITORY" --clobber
+          echo "Encrypted pull ticket published; it expires when this job ends."
+
+      - name: Keep the job-scoped token valid during deployment
+        run: sleep 4800
