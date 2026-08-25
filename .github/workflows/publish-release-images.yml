@@ -56,14 +56,14 @@ jobs:
           image_id=$(docker image inspect --format '{{.Id}}' "$SOURCE")
           docker tag "$SOURCE" "$DESTINATION"
           docker push "$DESTINATION" | tee push.log
-          digest=$(awk '/digest: sha256:/{print $2}' push.log | tail -1)
+          digest=$(awk '/digest: sha256:/{print $3}' push.log | tail -1)
           test -n "$digest"
           printf 'reference=%s@%s\n' "${DESTINATION%:*}" "$digest" >> "$GITHUB_OUTPUT"
           printf 'image_id=%s\n' "$image_id" >> "$GITHUB_OUTPUT"
 
       - name: Scan critical vulnerabilities
         env:
-          IMAGE: ${{ steps.mirror.outputs.reference }}
+          IMAGE: ${{ matrix.source }}
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
