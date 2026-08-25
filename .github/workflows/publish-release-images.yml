@@ -61,12 +61,6 @@ jobs:
           printf 'reference=%s@%s\n' "${DESTINATION%:*}" "$digest" >> "$GITHUB_OUTPUT"
           printf 'image_id=%s\n' "$image_id" >> "$GITHUB_OUTPUT"
 
-      - name: Make package public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE: ${{ matrix.destination }}
-        run: gh api --method PATCH "/orgs/${NAMESPACE}/packages/container/${PACKAGE}/visibility" -f visibility=public
-
       - name: Scan critical vulnerabilities
         env:
           IMAGE: ${{ steps.mirror.outputs.reference }}
@@ -178,12 +172,6 @@ jobs:
           sbom: true
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
-
-      - name: Make package public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE: ${{ matrix.destination }}
-        run: gh api --method PATCH "/orgs/${NAMESPACE}/packages/container/${PACKAGE}/visibility" -f visibility=public
 
       - name: Scan critical vulnerabilities
         env:
