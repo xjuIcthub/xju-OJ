@@ -621,7 +621,7 @@ PY
             ;;
         pull)
             validate_pull_references
-            compose pull postgres redis frontend backend-api backend-worker judge-server
+            compose pull --policy missing postgres redis frontend backend-api backend-worker judge-server
             ;;
         *)
             fail "DEPLOY_MODE must be build or pull"

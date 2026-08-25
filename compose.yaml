@@ -7,6 +7,7 @@ x-backend-runtime-secrets: &backend-runtime-secrets
 services:
   postgres:
     image: "${POSTGRES_IMAGE_REF:?POSTGRES_IMAGE_REF is required}"
+    restart: unless-stopped
     environment:
       POSTGRES_DB: "${POSTGRES_DB:?POSTGRES_DB is required}"
       POSTGRES_USER: "${POSTGRES_USER:?POSTGRES_USER is required}"
@@ -26,6 +27,7 @@ services:
 
   redis:
     image: "${REDIS_IMAGE_REF:?REDIS_IMAGE_REF is required}"
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/redis:/data"
@@ -140,6 +142,7 @@ services:
 
   backend-api:
     image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
+    restart: unless-stopped
     command: ["api"]
     environment: *backend-environment
     secrets: *backend-runtime-secrets
@@ -162,6 +165,7 @@ services:
 
   backend-worker:
     image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
+    restart: unless-stopped
     command: ["worker"]
     environment: *backend-environment
     secrets: *backend-runtime-secrets
@@ -183,6 +187,7 @@ services:
 
   judge-server:
     image: "${JUDGE_IMAGE_REF:?JUDGE_IMAGE_REF is required}"
+    restart: unless-stopped
     environment:
       TOKEN_FILE: /run/judge-token/token
       BACKEND_URL: http://backend-api:8000/api/judge_server_heartbeat/
@@ -226,6 +231,7 @@ services:
 
   frontend:
     image: "${FRONTEND_IMAGE_REF:?FRONTEND_IMAGE_REF is required}"
+    restart: unless-stopped
     environment:
       APP_DOMAIN: "${APP_DOMAIN:?APP_DOMAIN is required}"
       PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}"
