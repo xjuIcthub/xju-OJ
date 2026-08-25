@@ -50,7 +50,7 @@ core: backend-api, backend-worker, judge-server, postgres, redis
 
 ## 配置变量
 
-`.env.example` 只包含非秘密值和 Secret 文件路径：
+`.env.example` 只包含非秘密值和 Secret 文件路径。交互式首次安装可由 `deploy.sh` 将操作员在隐藏 TTY 中输入的值一次性写入缺失的外部 Secret 文件；脚本不生成值、不回显且不覆盖已有路径。无人值守和生产部署必须使用外部 Secret 管理：
 
 ```text
 COMPOSE_PROJECT_NAME
@@ -118,7 +118,7 @@ docker compose --env-file .env.example config --quiet
 ## 停止条件
 
 - backend/server 有 host ports。
-- `.env` 包含真实密码/Token，或 bootstrap 自动生成/覆盖 Secret。
+- `.env` 包含真实密码/Token，或 bootstrap 自动生成、回显、覆盖已有 Secret；交互式 create-once 外部文件不属于自动生成。
 - `/test_case` 非只读、PG/Redis 卷被覆盖、`down -v` 成为正常升级流程。
 - health DAG 循环或 Judge backend down 会重启容器。
 

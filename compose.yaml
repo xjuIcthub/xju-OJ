@@ -1,10 +1,8 @@
 name: "${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}"
 
-x-backend-secrets: &backend-secrets
+x-backend-runtime-secrets: &backend-runtime-secrets
   - postgres_password
   - django_secret_key
-  - judge_server_token
-  - initial_admin_password
 
 services:
   postgres:
@@ -58,10 +56,7 @@ services:
       NO_PROXY: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
       no_proxy: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
       DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
-      JUDGE_SERVER_TOKEN_FILE: /run/secrets/judge_server_token
-      INITIAL_ADMIN_USERNAME: "${INITIAL_ADMIN_USERNAME:-admin}"
-      INITIAL_ADMIN_PASSWORD_FILE: /run/secrets/initial_admin_password
-    secrets: *backend-secrets
+    secrets: *backend-runtime-secrets
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
     networks:
@@ -77,7 +72,7 @@ services:
     profiles: ["init"]
     command: ["migrate"]
     environment: *backend-environment
-    secrets: *backend-secrets
+    secrets: *backend-runtime-secrets
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
     networks:
@@ -92,8 +87,13 @@ services:
     image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
     profiles: ["init"]
     command: ["configure-judge-token"]
-    environment: *backend-environment
-    secrets: *backend-secrets
+    environment:
+      <<: *backend-environment
+      JUDGE_SERVER_TOKEN_FILE: /run/secrets/judge_server_token
+    secrets:
+      - postgres_password
+      - django_secret_key
+      - judge_server_token
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
     networks:
@@ -120,8 +120,14 @@ services:
     image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
     profiles: ["init"]
     command: ["create-initial-admin"]
-    environment: *backend-environment
-    secrets: *backend-secrets
+    environment:
+      <<: *backend-environment
+      INITIAL_ADMIN_USERNAME: "${INITIAL_ADMIN_USERNAME:-admin}"
+      INITIAL_ADMIN_PASSWORD_FILE: /run/secrets/initial_admin_password
+    secrets:
+      - postgres_password
+      - django_secret_key
+      - initial_admin_password
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
     networks:
@@ -136,7 +142,7 @@ services:
     image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
     command: ["api"]
     environment: *backend-environment
-    secrets: *backend-secrets
+    secrets: *backend-runtime-secrets
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
     networks:
@@ -158,7 +164,7 @@ services:
     image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
     command: ["worker"]
     environment: *backend-environment
-    secrets: *backend-secrets
+    secrets: *backend-runtime-secrets
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
     networks:

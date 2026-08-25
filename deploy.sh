@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 ENV_FILE=${ENV_FILE:-"$ROOT/.env"}
 COMPOSE_FILE=${COMPOSE_FILE:-"$ROOT/compose.yaml"}
 DRY_RUN=0
@@ -32,15 +32,186 @@ fail() {
 }
 
 command -v docker >/dev/null 2>&1 || fail "docker is required"
-docker info >/dev/null 2>&1 || fail "docker daemon is unavailable"
+command -v python3 >/dev/null 2>&1 || fail "python3 is required"
 docker compose version >/dev/null 2>&1 || fail "docker compose is required"
-[ -f "$ENV_FILE" ] || fail "env file is required: $ENV_FILE"
-[ -f "$COMPOSE_FILE" ] || fail "compose file is required: $COMPOSE_FILE"
 
-set -a
-# shellcheck disable=SC1090
-. "$ENV_FILE"
-set +a
+case "$ENV_FILE" in
+    /*) ;;
+    *) ENV_FILE="$ROOT/$ENV_FILE" ;;
+esac
+case "$COMPOSE_FILE" in
+    /*) ;;
+    *) COMPOSE_FILE="$ROOT/$COMPOSE_FILE" ;;
+esac
+ENV_FILE=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$ENV_FILE")
+COMPOSE_FILE=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$COMPOSE_FILE")
+EXAMPLE_ENV=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$ROOT/.env.example")
+
+[ -f "$ENV_FILE" ] || fail "env file is required: $ENV_FILE (copy .env.example to .env first)"
+[ -f "$COMPOSE_FILE" ] || fail "compose file is required: $COMPOSE_FILE"
+env_identity=$(stat -c '%d:%i' "$ENV_FILE")
+example_identity=$(stat -c '%d:%i' "$EXAMPLE_ENV")
+[ "$env_identity" != "$example_identity" ] || fail "do not deploy with .env.example directly; copy it to .env"
+if [ "$DRY_RUN" -eq 0 ] && [ "$CONFIG_ONLY" -eq 0 ]; then
+    chmod 600 "$ENV_FILE" || fail "cannot protect env file: $ENV_FILE"
+fi
+unset EXAMPLE_ENV env_identity example_identity
+
+parsed_env=$(python3 - "$ENV_FILE" <<'PY'
+import json
+import os
+import re
+import shlex
+import sys
+
+path = sys.argv[1]
+name_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+var_re = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)")
+allowed = {
+    "COMPOSE_PROJECT_NAME", "APP_DOMAIN", "PUBLIC_BASE_URL",
+    "HTTP_BIND_ADDRESS", "HTTP_PORT", "DEPLOY_ROOT", "RUNTIME_ROOT",
+    "BACKUP_ROOT", "SECRET_ROOT", "DEPLOY_MODE", "SECRET_PROVISION_MODE",
+    "GIT_COMMIT", "BUILD_VERSION", "BUILD_CREATED", "BUILD_TARGETS",
+    "BUILD_NETWORK", "BUILD_HTTP_PROXY", "BUILD_HTTPS_PROXY", "BUILD_ALL_PROXY",
+    "CACHE_REGISTRY",
+    "FRONTEND_IMAGE_REF", "BACKEND_IMAGE_REF", "JUDGE_IMAGE_REF",
+    "JUDGE_TOOLCHAIN_IMAGE_REF", "POSTGRES_IMAGE_REF", "REDIS_IMAGE_REF",
+    "POSTGRES_DB", "POSTGRES_USER", "INITIAL_ADMIN_USERNAME",
+    "POSTGRES_PASSWORD_FILE", "DJANGO_SECRET_KEY_FILE",
+    "JUDGE_SERVER_TOKEN_FILE", "INITIAL_ADMIN_PASSWORD_FILE",
+    "JUDGER_HTTP_WORKERS", "JUDGER_HTTP_THREADS", "JUDGER_TESTCASE_WORKERS",
+    "TEST_CASE_GROUP_GID",
+}
+forbidden = {
+    "POSTGRES_PASSWORD", "DJANGO_SECRET_KEY", "JUDGE_SERVER_TOKEN",
+    "INITIAL_ADMIN_PASSWORD",
+}
+values = dict(os.environ)
+file_keys = []
+
+def expand(value):
+    return var_re.sub(lambda match: values.get(match.group(1) or match.group(2), ""), value)
+
+with open(path, encoding="utf-8") as handle:
+    for line_number, original in enumerate(handle, 1):
+        line = original.rstrip("\r\n")
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("export "):
+            stripped = stripped[7:].lstrip()
+        if "=" not in stripped:
+            raise SystemExit(f"{path}:{line_number}: expected KEY=value")
+        key, raw = stripped.split("=", 1)
+        key = key.strip()
+        if not name_re.fullmatch(key):
+            raise SystemExit(f"{path}:{line_number}: invalid variable name")
+        if key in forbidden:
+            raise SystemExit(f"{path}:{line_number}: secrets must use *_FILE paths, not {key}")
+        if key not in allowed:
+            raise SystemExit(f"{path}:{line_number}: unsupported deployment variable: {key}")
+        raw = raw.strip()
+        if raw.startswith("'"):
+            if len(raw) < 2 or not raw.endswith("'"):
+                raise SystemExit(f"{path}:{line_number}: unterminated single quote")
+            value = raw[1:-1]
+        elif raw.startswith('"'):
+            try:
+                value = expand(json.loads(raw))
+            except (json.JSONDecodeError, TypeError) as exc:
+                raise SystemExit(f"{path}:{line_number}: invalid double-quoted value: {exc}")
+        else:
+            raw = re.split(r"\s+#", raw, maxsplit=1)[0].rstrip()
+            value = expand(raw)
+        if key not in os.environ:
+            values[key] = value
+        if key not in file_keys:
+            file_keys.append(key)
+
+for key in file_keys:
+    print(f"export {key}={shlex.quote(values.get(key, ''))}")
+PY
+) || fail "invalid env file: $ENV_FILE"
+eval "$parsed_env"
+unset parsed_env
+
+absolute_path() {
+    python3 - "$ROOT" "$1" <<'PY'
+import os
+import sys
+
+root, value = sys.argv[1:]
+if not os.path.isabs(value):
+    value = os.path.join(root, value)
+print(os.path.realpath(value))
+PY
+}
+
+secret_path() {
+    python3 - "$ROOT" "$1" <<'PY'
+import os
+import sys
+
+root, value = sys.argv[1:]
+if not os.path.isabs(value):
+    value = os.path.join(root, value)
+lexical = os.path.abspath(value)
+if os.path.islink(lexical):
+    raise SystemExit(f"secret destination must not be a symlink: {lexical}")
+parent = os.path.realpath(os.path.dirname(lexical))
+print(os.path.join(parent, os.path.basename(lexical)))
+PY
+}
+
+detected_commit=$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf '%s' local)
+GIT_COMMIT=${GIT_COMMIT:-$detected_commit}
+git_tag=$(printf '%.12s' "$GIT_COMMIT")
+BUILD_VERSION=${BUILD_VERSION:-phase3}
+if [ -z "${BUILD_CREATED:-}" ]; then
+    BUILD_CREATED=$(git -C "$ROOT" show -s --format=%cI "$GIT_COMMIT" 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+fi
+
+COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-xju-oj}
+APP_DOMAIN=${APP_DOMAIN:-localhost}
+PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://127.0.0.1:18080}
+HTTP_BIND_ADDRESS=${HTTP_BIND_ADDRESS:-127.0.0.1}
+HTTP_PORT=${HTTP_PORT:-18080}
+DEPLOY_MODE=${DEPLOY_MODE:-build}
+SECRET_PROVISION_MODE=${SECRET_PROVISION_MODE:-prompt}
+
+DEPLOY_ROOT=$(absolute_path "${DEPLOY_ROOT:-../xju-oj-data}")
+RUNTIME_ROOT=$(absolute_path "${RUNTIME_ROOT:-$DEPLOY_ROOT/runtime}")
+BACKUP_ROOT=$(absolute_path "${BACKUP_ROOT:-$DEPLOY_ROOT/backups}")
+SECRET_ROOT=$(absolute_path "${SECRET_ROOT:-$DEPLOY_ROOT/secrets}")
+POSTGRES_PASSWORD_FILE=$(secret_path "${POSTGRES_PASSWORD_FILE:-$SECRET_ROOT/postgres-password}") || fail "invalid POSTGRES_PASSWORD_FILE"
+DJANGO_SECRET_KEY_FILE=$(secret_path "${DJANGO_SECRET_KEY_FILE:-$SECRET_ROOT/django-secret}") || fail "invalid DJANGO_SECRET_KEY_FILE"
+JUDGE_SERVER_TOKEN_FILE=$(secret_path "${JUDGE_SERVER_TOKEN_FILE:-$SECRET_ROOT/judge-token}") || fail "invalid JUDGE_SERVER_TOKEN_FILE"
+INITIAL_ADMIN_PASSWORD_FILE=$(secret_path "${INITIAL_ADMIN_PASSWORD_FILE:-$SECRET_ROOT/admin-password}") || fail "invalid INITIAL_ADMIN_PASSWORD_FILE"
+
+case "${FRONTEND_IMAGE_REF:-}" in
+    ""|xju-oj-frontend:auto) FRONTEND_IMAGE_REF=xju-oj-frontend:git-$git_tag ;;
+esac
+case "${BACKEND_IMAGE_REF:-}" in
+    ""|xju-oj-backend:auto) BACKEND_IMAGE_REF=xju-oj-backend:git-$git_tag ;;
+esac
+case "${JUDGE_IMAGE_REF:-}" in
+    ""|xju-oj-server:auto) JUDGE_IMAGE_REF=xju-oj-server:git-$git_tag ;;
+esac
+case "${JUDGE_TOOLCHAIN_IMAGE_REF:-}" in
+    ""|xju-oj-judge-toolchain:auto) JUDGE_TOOLCHAIN_IMAGE_REF=xju-oj-judge-toolchain:tc-$git_tag ;;
+esac
+POSTGRES_IMAGE_REF=${POSTGRES_IMAGE_REF:-postgres:18.6-bookworm@sha256:7d2695c3aa88e792e8b3b233e7e4adb296a20412c6c0ca361e3edaaacfada108}
+REDIS_IMAGE_REF=${REDIS_IMAGE_REF:-redis:8.2.8-bookworm@sha256:2f7462b9e93e0a7ae2edf3a0a0babc8a4d29f8bfc50849b906b7caaef925edc1}
+POSTGRES_DB=${POSTGRES_DB:-onlinejudge}
+POSTGRES_USER=${POSTGRES_USER:-onlinejudge}
+INITIAL_ADMIN_USERNAME=${INITIAL_ADMIN_USERNAME:-admin}
+
+export COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL HTTP_BIND_ADDRESS HTTP_PORT
+export DEPLOY_ROOT RUNTIME_ROOT BACKUP_ROOT SECRET_ROOT DEPLOY_MODE SECRET_PROVISION_MODE
+export FRONTEND_IMAGE_REF BACKEND_IMAGE_REF JUDGE_IMAGE_REF JUDGE_TOOLCHAIN_IMAGE_REF
+export POSTGRES_IMAGE_REF REDIS_IMAGE_REF GIT_COMMIT BUILD_VERSION BUILD_CREATED
+export POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD_FILE DJANGO_SECRET_KEY_FILE
+export JUDGE_SERVER_TOKEN_FILE INITIAL_ADMIN_USERNAME INITIAL_ADMIN_PASSWORD_FILE
 
 required() {
     name=$1
@@ -56,41 +227,191 @@ for name in COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL HTTP_BIND_ADDRESS HT
     required "$name"
 done
 
-case "$RUNTIME_ROOT" in
-    /*) ;;
-    *) fail "RUNTIME_ROOT must be absolute" ;;
-esac
-[ "$RUNTIME_ROOT" != "/" ] || fail "RUNTIME_ROOT cannot be /"
-case "$RUNTIME_ROOT" in
-    "$ROOT"|"$ROOT"/*) fail "RUNTIME_ROOT must be outside the checkout" ;;
+for path_name in DEPLOY_ROOT RUNTIME_ROOT BACKUP_ROOT SECRET_ROOT; do
+    eval "path_value=\${$path_name}"
+    case "$path_value" in
+        /*) ;;
+        *) fail "$path_name must be absolute" ;;
+    esac
+    [ "$path_value" != "/" ] || fail "$path_name cannot be /"
+    case "$path_value" in
+        "$ROOT"|"$ROOT"/*) fail "$path_name must be outside the checkout" ;;
+    esac
+done
+
+for secret_path in "$POSTGRES_PASSWORD_FILE" "$DJANGO_SECRET_KEY_FILE" \
+    "$JUDGE_SERVER_TOKEN_FILE" "$INITIAL_ADMIN_PASSWORD_FILE"; do
+    case "$secret_path" in
+        /*) ;;
+        *) fail "secret file paths must be absolute" ;;
+    esac
+    case "$secret_path" in
+        "$ROOT"|"$ROOT"/*) fail "secret files must be outside the checkout" ;;
+    esac
+done
+
+python3 - "$POSTGRES_PASSWORD_FILE" "$DJANGO_SECRET_KEY_FILE" \
+    "$JUDGE_SERVER_TOKEN_FILE" "$INITIAL_ADMIN_PASSWORD_FILE" <<'PY' || fail "secret file destinations must be distinct"
+import sys
+
+paths = sys.argv[1:]
+if len(paths) != len(set(paths)):
+    raise SystemExit(1)
+PY
+
+case "$SECRET_PROVISION_MODE" in
+    prompt|external) ;;
+    *) fail "SECRET_PROVISION_MODE must be prompt or external" ;;
 esac
 
 check_secret_file() {
-    path=$1
-    [ -f "$path" ] || fail "secret file is missing: $path"
-    [ -r "$path" ] || fail "secret file is unreadable: $path"
-    [ -s "$path" ] || fail "secret file is empty: $path"
-    mode=$(stat -c '%a' "$path")
-    case "$mode" in
+    secret_file=$1
+    secret_label=$2
+    minimum_length=$3
+    [ ! -L "$secret_file" ] || fail "secret file must not be a symlink: $secret_file"
+    [ -f "$secret_file" ] || fail "secret file is missing: $secret_file"
+    [ -r "$secret_file" ] || fail "secret file is unreadable: $secret_file"
+    [ -s "$secret_file" ] || fail "secret file is empty: $secret_file"
+    secret_mode=$(stat -c '%a' "$secret_file")
+    case "$secret_mode" in
         400|440|600|640) ;;
-        *) fail "secret file must be owner-readable and not writable by others: $path" ;;
+        *) fail "secret file must be owner-readable and not writable by others: $secret_file" ;;
     esac
+    secret_length=$(python3 - "$secret_file" <<'PY'
+from pathlib import Path
+import sys
+
+data = Path(sys.argv[1]).read_bytes()
+value = data.rstrip(b"\r\n")
+if not value or b"\x00" in value or b"\n" in value or b"\r" in value:
+    raise SystemExit(1)
+print(len(value))
+PY
+    ) || fail "$secret_label must be a non-empty single-line value"
+    [ "$secret_length" -ge "$minimum_length" ] || fail "$secret_label is shorter than $minimum_length characters"
 }
 
-check_secret_file "$POSTGRES_PASSWORD_FILE"
-check_secret_file "$DJANGO_SECRET_KEY_FILE"
-check_secret_file "$JUDGE_SERVER_TOKEN_FILE"
-check_secret_file "$INITIAL_ADMIN_PASSWORD_FILE"
+check_secret_set() {
+    check_secret_file "$POSTGRES_PASSWORD_FILE" "PostgreSQL password" 16
+    check_secret_file "$DJANGO_SECRET_KEY_FILE" "Django secret key" 32
+    check_secret_file "$JUDGE_SERVER_TOKEN_FILE" "JudgeServer token" 32
+    check_secret_file "$INITIAL_ADMIN_PASSWORD_FILE" "Initial administrator password" 12
+    python3 - "$POSTGRES_PASSWORD_FILE" "$DJANGO_SECRET_KEY_FILE" \
+        "$JUDGE_SERVER_TOKEN_FILE" "$INITIAL_ADMIN_PASSWORD_FILE" <<'PY' || fail "secret files must not be hard-linked aliases"
+import os
+import sys
+
+identities = [(os.stat(path).st_dev, os.stat(path).st_ino) for path in sys.argv[1:]]
+if len(identities) != len(set(identities)):
+    raise SystemExit(1)
+PY
+}
+
+prompt_secret_value() {
+    prompt_label=$1
+    prompt_minimum=$2
+    prompt_confirm=${3:-0}
+    [ -r /dev/tty ] && [ -w /dev/tty ] || fail "missing $prompt_label secret; rerun interactively or provision its *_FILE path"
+    python3 - "$prompt_label" "$prompt_minimum" "$prompt_confirm" <<'PY'
+import getpass
+import sys
+
+label = sys.argv[1]
+minimum = int(sys.argv[2])
+confirm = sys.argv[3] == "1"
+while True:
+    try:
+        value = getpass.getpass(f"{label} (minimum {minimum} characters): ")
+    except (EOFError, KeyboardInterrupt):
+        raise SystemExit(f"could not read {label}")
+    if len(value) < minimum:
+        print(f"{label} is too short", file=sys.stderr)
+        continue
+    if confirm:
+        try:
+            repeated = getpass.getpass(f"Confirm {label}: ")
+        except (EOFError, KeyboardInterrupt):
+            raise SystemExit(f"could not confirm {label}")
+        if value != repeated:
+            print(f"{label} confirmation does not match", file=sys.stderr)
+            continue
+    sys.stdout.write(value)
+    break
+PY
+}
+
+write_secret_once() {
+    secret_destination=$1
+    if ! python3 -c '
+import os
+import sys
+
+path = sys.argv[1]
+data = sys.stdin.buffer.read()
+parent, name = os.path.split(path)
+dir_flags = (
+    os.O_RDONLY
+    | getattr(os, "O_DIRECTORY", 0)
+    | getattr(os, "O_CLOEXEC", 0)
+    | getattr(os, "O_NOFOLLOW", 0)
+)
+dir_fd = os.open(parent, dir_flags)
+try:
+    file_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(name, file_flags, 0o600, dir_fd=dir_fd)
+    try:
+        remaining = memoryview(data)
+        while remaining:
+            written = os.write(fd, remaining)
+            remaining = remaining[written:]
+        os.fsync(fd)
+    except BaseException:
+        os.close(fd)
+        os.unlink(name, dir_fd=dir_fd)
+        raise
+    else:
+        os.close(fd)
+finally:
+    os.close(dir_fd)
+' "$secret_destination"; then
+        fail "could not create protected secret file: $secret_destination"
+    fi
+}
+
+provision_secret_file() {
+    secret_destination=$1
+    secret_label=$2
+    secret_minimum=$3
+    secret_confirm=${4:-0}
+    [ ! -e "$secret_destination" ] || return 0
+    [ "$SECRET_PROVISION_MODE" = prompt ] || fail "secret file is missing: $secret_destination"
+    ensure_dir "$(dirname "$secret_destination")" 0700
+    secret_value=$(prompt_secret_value "$secret_label" "$secret_minimum" "$secret_confirm") || fail "could not read $secret_label"
+    printf '%s\n' "$secret_value" | write_secret_once "$secret_destination"
+    unset secret_value
+    chmod 600 "$secret_destination" || fail "cannot protect secret file: $secret_destination"
+    printf '%s\n' "$secret_label stored in protected file: $secret_destination"
+}
 
 compose() {
     docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
+validate_pull_references() {
+    for immutable_ref in "$FRONTEND_IMAGE_REF" "$BACKEND_IMAGE_REF" "$JUDGE_IMAGE_REF" \
+        "$POSTGRES_IMAGE_REF" "$REDIS_IMAGE_REF"; do
+        case "$immutable_ref" in
+            *@sha256:*) ;;
+            *) fail "pull mode requires immutable image@sha256 references: $immutable_ref" ;;
+        esac
+    done
 }
 
 compose config --quiet || fail "compose config validation failed"
 
 config_json=$(mktemp)
 cleanup_config() { rm -f "$config_json"; }
-trap cleanup_config EXIT
+trap cleanup_config 0
 compose config --format json > "$config_json"
 python3 - "$config_json" <<'PY'
 import json
@@ -106,29 +427,45 @@ for name, service in config.get("services", {}).items():
 if published != ["frontend"]:
     raise SystemExit("only frontend may publish host ports: " + ",".join(published))
 PY
+rm -f "$config_json"
+trap - 0
 
-if [ "$DRY_RUN" -eq 1 ]; then
-    printf '%s\n' "deploy dry-run passed"
-    exit 0
-fi
 if [ "$CONFIG_ONLY" -eq 1 ]; then
     printf '%s\n' "deploy config-only passed"
     exit 0
 fi
 
+command -v curl >/dev/null 2>&1 || fail "curl is required"
+docker info >/dev/null 2>&1 || fail "docker daemon is unavailable"
+
+if [ "$DRY_RUN" -eq 1 ]; then
+    case "$DEPLOY_MODE" in
+        build) docker buildx version >/dev/null 2>&1 || fail "docker buildx is required for build mode" ;;
+        pull) validate_pull_references ;;
+        *) fail "DEPLOY_MODE must be build or pull" ;;
+    esac
+    if [ "$SECRET_PROVISION_MODE" = external ]; then
+        check_secret_set
+    fi
+    printf '%s\n' "deploy dry-run passed"
+    exit 0
+fi
+
 umask 077
 ensure_dir() {
-    path=$1
-    mode=$2
-    if [ -e "$path" ]; then
-        [ -d "$path" ] || fail "runtime path is not a directory: $path"
+    ensure_path=$1
+    ensure_mode=$2
+    if [ -e "$ensure_path" ]; then
+        [ -d "$ensure_path" ] || fail "runtime path is not a directory: $ensure_path"
         return 0
     fi
-    mkdir -p "$path"
-    chmod "$mode" "$path" || fail "cannot set permissions on new runtime path: $path"
+    mkdir -p "$ensure_path"
+    chmod "$ensure_mode" "$ensure_path" || fail "cannot set permissions on new runtime path: $ensure_path"
 }
 
+ensure_dir "$DEPLOY_ROOT" 0750
 ensure_dir "$RUNTIME_ROOT" 0750
+ensure_dir "$SECRET_ROOT" 0700
 ensure_dir "$RUNTIME_ROOT/backend" 0750
 ensure_dir "$RUNTIME_ROOT/backend/public" 0750
 ensure_dir "$RUNTIME_ROOT/backend/test_case" 0750
@@ -142,6 +479,12 @@ ensure_dir "$RUNTIME_ROOT/deployments" 0750
 ensure_dir "$RUNTIME_ROOT/deployments/history" 0750
 ensure_dir "$BACKUP_ROOT" 0700
 
+provision_secret_file "$POSTGRES_PASSWORD_FILE" "PostgreSQL password" 16
+provision_secret_file "$DJANGO_SECRET_KEY_FILE" "Django secret key" 32
+provision_secret_file "$JUDGE_SERVER_TOKEN_FILE" "JudgeServer token" 32
+provision_secret_file "$INITIAL_ADMIN_PASSWORD_FILE" "Initial administrator password" 12 1
+check_secret_set
+
 attempt_dir="$RUNTIME_ROOT/deployments/history/attempt-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 ensure_dir "$attempt_dir" 0700
 
@@ -154,7 +497,7 @@ on_exit() {
     fi
     exit "$rc"
 }
-trap on_exit EXIT
+trap on_exit 0
 
 run_step() {
     name=$1
@@ -174,9 +517,9 @@ run_step() {
 }
 
 if [ "$CONFIG_ONLY" -eq 0 ]; then
-    case "${DEPLOY_MODE:-build}" in
+    case "$DEPLOY_MODE" in
         build)
-            command -v docker >/dev/null 2>&1 || fail "docker is required for build mode"
+            docker buildx version >/dev/null 2>&1 || fail "docker buildx is required for build mode"
             build_network=${BUILD_NETWORK:-default}
             build_http_proxy=${BUILD_HTTP_PROXY:-}
             build_https_proxy=${BUILD_HTTPS_PROXY:-}
@@ -264,6 +607,7 @@ PY
             done
             ;;
         pull)
+            validate_pull_references
             compose pull postgres redis frontend backend-api backend-worker judge-server
             ;;
         *)
@@ -299,8 +643,14 @@ fi
 
 run_step services-ready 'Healthy|healthy' compose up -d --remove-orphans --wait
 
-http_host=127.0.0.1
-http_url="http://${http_host}:${HTTP_PORT}"
+case "$HTTP_BIND_ADDRESS" in
+    0.0.0.0|::) http_host=127.0.0.1 ;;
+    *) http_host=$HTTP_BIND_ADDRESS ;;
+esac
+case "$http_host" in
+    *:*) http_url="http://[${http_host}]:${HTTP_PORT}" ;;
+    *) http_url="http://${http_host}:${HTTP_PORT}" ;;
+esac
 http_smoke() {
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 "$http_url/" >/dev/null
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 -I "$http_url/admin" | grep -q '301'
@@ -311,24 +661,26 @@ http_smoke() {
 run_step http-smoke 'PASS' http_smoke
 
 run_step runtime-worker-smoke 'passed|PASS' compose exec -T backend-api python deploy/worker_smoke.py
-run_step runtime-judge-smoke 'passed|PASS' compose exec -T backend-api python -c '
+run_step runtime-judge-smoke 'passed|PASS' compose exec -T judge-server python -c '
 import hashlib, os, requests
-with open(os.environ["JUDGE_SERVER_TOKEN_FILE"], encoding="utf-8") as handle:
+with open(os.environ["TOKEN_FILE"], encoding="utf-8") as handle:
     token = handle.read().strip()
-response = requests.post("http://judge-server:8080/ping", headers={"X-Judge-Server-Token": hashlib.sha256(token.encode()).hexdigest()}, timeout=5)
+response = requests.post("http://127.0.0.1:8080/ping", headers={"X-Judge-Server-Token": hashlib.sha256(token.encode()).hexdigest()}, timeout=5)
 response.raise_for_status()
 assert response.json().get("err") is None
 print("Judge /ping passed")
 '
 
 heartbeat_ok=0
-for i in $(seq 1 20); do
+heartbeat_attempt=1
+while [ "$heartbeat_attempt" -le 20 ]; do
     if compose exec -T backend-api python manage.py shell -c \
         'from conf.models import JudgeServer; raise SystemExit(0 if JudgeServer.objects.filter(is_disabled=False).exists() else 1)' >/dev/null 2>&1; then
         heartbeat_ok=1
         break
     fi
     sleep 1
+    heartbeat_attempt=$((heartbeat_attempt + 1))
 done
 [ "$heartbeat_ok" -eq 1 ] || fail "JudgeServer heartbeat was not observed"
 
@@ -355,5 +707,5 @@ EOF
 mv "$attempt_dir/release.json" "$release_dir/current.json"
 cp "$release_dir/current.json" "$attempt_dir/release-success.json"
 
-trap - EXIT
+trap - 0
 printf '%s\n' "deploy succeeded; release metadata written to $release_dir/current.json"

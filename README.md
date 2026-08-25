@@ -1,77 +1,164 @@
-简体中文 | [English](https://github.com/QingdaoU/OnlineJudgeDeploy/blob/2.0/README.en.md)
+简体中文 | [English](README.en.md)
 
-## 环境准备
+# xju-OJ
 
-### Linux 环境
+单仓库包含 Vue 3 前端、Django 5.2 后端、JudgeServer/Judger、PostgreSQL 18、Redis 8 和统一 Docker Compose 部署入口。
 
-1. 安装必要的依赖
+## 一键安装
 
-    ```bash
-    sudo apt-get update && sudo apt-get install -y vim python3-pip curl git
-    pip3 install --upgrade pip
-    pip install docker-compose
-    ```
+### 环境要求
 
-2. 安装 Docker 
+- Ubuntu 22.04 或更新版本，`linux/amd64`
+- Docker Engine
+- Docker Compose v2
+- Docker Buildx
+- Git、Python 3、curl
+- 建议至少保留 20 GB 可用磁盘空间
 
-    国内用户使用脚本一键安装: `sudo curl -sSL https://get.daocloud.io/docker | sh`  
-    国外用户使用脚本一键安装: `sudo curl -sSL get.docker.com | sh`
-    
-    详细步骤参照： [https://docs.docker.com/install/](https://docs.docker.com/install/)
+Docker 安装请使用 [Docker 官方 Ubuntu 文档](https://docs.docker.com/engine/install/ubuntu/)。
 
-### Windows 环境
+### 克隆并部署
 
+```bash
+git clone https://github.com/xjuIcthub/xju-OJ.git
+cd xju-OJ
+cp .env.example .env
+./deploy.sh
+```
 
-Windows 下的安装仅供体验，勿在生产环境使用。如有必要，请使用虚拟机安装 Linux 并将 OJ 安装在其中。
+第一次运行会在终端中依次询问：
 
-以下教程仅适用于 Win10 x64 下的 `PowerShell`
+1. PostgreSQL 密码
+2. Django secret key
+3. JudgeServer token
+4. 初始管理员密码（输入两次）
 
-1. 安装 Windows 的 Docker 工具
-2. 右击右下角 Docker 图标，选择 Settings 进行设置
-3. 选择 `Shared Drives` 菜单，之后勾选你想安装 OJ 的盘符位置（例如勾选D盘），点击 `Apply`
-4. 输入 Windows 的账号密码进行文件共享
-5. 安装 `Python`、`pip`、`git`、`docker-compose`，安装方法自行搜索。
+输入内容不会回显，也不会进入 Git 或普通部署日志。Secret 默认存放在 `~/.local/share/xju-oj/secrets/`，权限为 `0600`；以后重复运行 `./deploy.sh` 不会覆盖已有 Secret、管理员或 Judge token。
 
-## 开始安装
+默认配置只监听：
 
-1. 请选择磁盘空间富余的位置，运行下面的命令
+```text
+http://127.0.0.1:18080
+```
 
-    ```bash
-    git clone -b 2.0 https://github.com/QingdaoU/OnlineJudgeDeploy.git && cd OnlineJudgeDeploy
-    ```
+远程服务器上可使用 SSH 隧道访问：
 
-2. 启动服务
+```bash
+ssh -N -L 18080:127.0.0.1:18080 user@server
+```
 
-    ```bash
-    docker-compose up -d
-    ```
+浏览器打开：
 
-根据网速情况，大约5到30分钟就可以自动搭建完成，全程无需人工干预。
+```text
+http://127.0.0.1:18080/
+http://127.0.0.1:18080/admin/
+```
 
-等命令执行完成，然后运行 `docker ps -a`，当看到所有的容器的状态没有 `unhealthy` 或 `Exited (x) xxx` 就代表 OJ 已经启动成功。
+首次构建会下载并构建 frontend、backend、Judge toolchain 和 JudgeServer，耗时取决于网络与机器性能。
 
-## 尽情享用吧
+## `.env` 常用配置
 
-通过浏览器访问服务器的 HTTP 80 端口或者 HTTPS 443 端口，就可以开始使用了。后台管理路径为`/admin`, 安装过程中自动添加的超级管理员用户名为 `root`，密码为 `rootroot`， **请务必及时修改密码**。
+部署前可编辑 `.env`：
 
-不要忘记阅读文档 http://opensource.qduoj.com/
+```dotenv
+COMPOSE_PROJECT_NAME=xju-oj
+APP_DOMAIN=oj.example.edu.cn
+PUBLIC_BASE_URL=https://oj.example.edu.cn
+HTTP_BIND_ADDRESS=127.0.0.1
+HTTP_PORT=18080
+DEPLOY_ROOT=${HOME}/.local/share/xju-oj
+INITIAL_ADMIN_USERNAME=admin
+DEPLOY_MODE=build
+```
 
-## 定制
+关键说明：
 
-2.0 版将一些常用设置放到了后台管理中，您可以直接登录管理后台对系统进行配置，而无需进行代码改动。
+- `COMPOSE_PROJECT_NAME` 是部署身份，首次安装后不要随意修改。
+- `DEPLOY_ROOT` 保存 PostgreSQL、Redis、上传文件、备份、Secret 和部署记录，必须位于 Git 仓库外。
+- 推荐保持 `HTTP_BIND_ADDRESS=127.0.0.1`，由宿主 Nginx/Caddy/负载均衡器代理到 `127.0.0.1:18080`。
+- 若确实要直接暴露测试端口，可改为 `HTTP_BIND_ADDRESS=0.0.0.0`；backend、Judge、PostgreSQL 和 Redis 仍不会发布宿主端口。
+- `DEPLOY_MODE=pull` 只接受 `image@sha256:...`，拒绝 mutable tag。
+- 外部 Secret 管理场景可设置 `SECRET_PROVISION_MODE=external` 并填写四个 `*_FILE` 路径。
 
-若需要对系统进行修改或二次开发，请参照各模块的**README**，修改完成后需自行构建Docker镜像并修改`docker-compose.yml`
+完整字段和注释见 [`.env.example`](.env.example)。
 
-## 遇到了问题？
+## 域名与 HTTPS
 
-请参照: [http://opensource.qduoj.com/](http://opensource.qduoj.com/#/onlinejudge/faq) ，如有其他问题请入群讨论或提issue。
+DNS 只能指向服务器 IP，不能指定 `18080` 端口。典型配置：
 
-## 当前单仓库布局（阶段 01 基线）
+```text
+A     oj     <服务器公网 IPv4>
+CNAME www    oj.example.edu.cn
+```
 
-源码已纳管为三个一级业务模块：
+然后在宿主反向代理中配置：
 
-- `frontend/`：Vue 2/Webpack 3 用户端与 `/admin/` 管理端静态入口；浏览器仍同源请求 `/api`。
-- `backend/`：Django API、业务 app、迁移和异步任务；内部 app 名称、数据库表名、Session/CSRF 约定不改。
-- `server/`：`judge-server/` Flask 判题服务与 `judger/` C/Seccomp 沙箱；JudgeServer HTTP 协议和结果字段不改。
+```nginx
+server {
+    listen 80;
+    server_name oj.example.edu.cn;
 
-`docker-compose.yml` 仍是旧远程镜像部署的兼容基线，不代表新模块已经独立构建或切换生产流量。目录移动、许可证边界和阶段 00 契约记录见 `docs/contracts/` 与 `docs/plans/oj-unification/execution-log.md`；前端/后端 API 拆分、判题镜像和 Compose 改造按后续阶段执行。
+    client_max_body_size 256m;
+
+    location / {
+        proxy_pass http://127.0.0.1:18080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+TLS 证书应由宿主 Nginx/Caddy/云负载均衡器管理，不要写入 `.env` 或 Git。
+
+## 日常操作
+
+执行完整预检但不创建目录、不构建、不启动：
+
+```bash
+./deploy.sh --dry-run
+```
+
+只验证 `.env`、Compose 渲染和端口发布边界：
+
+```bash
+./deploy.sh --config-only
+```
+
+升级或重新部署：
+
+```bash
+git pull --ff-only
+./deploy.sh
+```
+
+查看状态：
+
+```bash
+docker compose --env-file .env -f compose.yaml ps
+```
+
+生成隔离备份：
+
+```bash
+./deploy/ops/backup-fixture.sh
+```
+
+停止服务但保留数据与 Secret：
+
+```bash
+docker compose --env-file .env -f compose.yaml down
+```
+
+不要使用 `down -v`、`docker volume prune` 或 `docker system prune --volumes`。
+
+## 目录
+
+- `frontend/`：Vue 3、Vite 8、Pinia、Element Plus 用户端和 `/admin/` 管理端
+- `backend/`：Django 5.2 API 与 Dramatiq Worker
+- `server/`：JudgeServer 与 Judger/Seccomp 沙箱
+- `compose.yaml`：隔离服务拓扑
+- `deploy.sh`：构建、初始化、迁移、启动和 smoke 入口
+- `docs/`：兼容合同、升级计划和验收记录

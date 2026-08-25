@@ -38,8 +38,8 @@
 - Build inputs are lockfiles plus immutable image digests; `latest`, `main`, floating `stable`, or an unrecorded tag cannot be a production rollback reference.
 - Frontend, backend, server, and toolchain digests, source SHA, configuration version, and release time are recorded without secrets.
 - Backend API, worker, migration, and bootstrap roles may share an image but remain separate runtime roles. Frontend is the only service permitted to publish host ports.
-- Runtime roots are absolute, not `/`, outside the Git worktree's unignored sensitive paths, and use distinct PostgreSQL/Redis generations. `deploy.sh` checks required paths, permissions, and non-empty secret files without creating, printing, overwriting, or echoing their contents.
-- Missing production Django Secret fails closed; production secrets are supplied only through the approved command-line/`.env` mechanism and never committed, copied into image layers, or printed in ordinary logs.
+- Runtime roots are absolute, not `/`, outside the Git worktree's unignored sensitive paths, and use distinct PostgreSQL/Redis generations. `deploy.sh` checks required paths, permissions, and non-empty secret files without printing, overwriting, or echoing their contents. For a new interactive quick-start installation only, `SECRET_PROVISION_MODE=prompt` may write operator-supplied hidden input once to missing mode-`0600` files outside the checkout; it never generates values or replaces an existing path. Unattended and production deployments use `SECRET_PROVISION_MODE=external`.
+- Missing production Django Secret fails closed; secret values never live in `.env`, Git, image layers, command arguments, or ordinary logs. `.env` contains only non-secret configuration and protected Secret file paths.
 
 ## Rollback contract
 
