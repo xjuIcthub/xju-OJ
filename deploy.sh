@@ -73,7 +73,7 @@ path = sys.argv[1]
 name_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 var_re = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)")
 allowed = {
-    "COMPOSE_PROJECT_NAME", "APP_DOMAIN", "PUBLIC_BASE_URL",
+    "COMPOSE_PROJECT_NAME", "APP_DOMAIN", "PUBLIC_BASE_URL", "DEPLOY_HEARTBEAT_SECONDS",
     "HTTP_BIND_ADDRESS", "HTTP_PORT", "DEPLOY_ROOT", "RUNTIME_ROOT",
     "BACKUP_ROOT", "SECRET_ROOT", "DEPLOY_MODE", "SECRET_PROVISION_MODE",
     "GIT_COMMIT", "BUILD_VERSION", "BUILD_CREATED", "BUILD_TARGETS",
@@ -189,6 +189,12 @@ HTTP_BIND_ADDRESS=${HTTP_BIND_ADDRESS:-127.0.0.1}
 HTTP_PORT=${HTTP_PORT:-18080}
 DEPLOY_MODE=${DEPLOY_MODE:-build}
 SECRET_PROVISION_MODE=${SECRET_PROVISION_MODE:-prompt}
+DEPLOY_HEARTBEAT_SECONDS=${DEPLOY_HEARTBEAT_SECONDS:-60}
+case "$DEPLOY_HEARTBEAT_SECONDS" in
+    ''|*[!0-9]*) fail "DEPLOY_HEARTBEAT_SECONDS must be an integer between 10 and 3600" ;;
+esac
+[ "$DEPLOY_HEARTBEAT_SECONDS" -ge 10 ] && [ "$DEPLOY_HEARTBEAT_SECONDS" -le 3600 ] || \
+    fail "DEPLOY_HEARTBEAT_SECONDS must be an integer between 10 and 3600"
 
 DEPLOY_ROOT=$(absolute_path "${DEPLOY_ROOT:-../xju-oj-data}")
 RUNTIME_ROOT=$(absolute_path "${RUNTIME_ROOT:-$DEPLOY_ROOT/runtime}")
@@ -602,8 +608,8 @@ stream_command() {
     (
         stream_waited=0
         while [ ! -s "$stream_status" ]; do
-            sleep 10
-            stream_waited=$((stream_waited + 10))
+            sleep "$DEPLOY_HEARTBEAT_SECONDS"
+            stream_waited=$((stream_waited + DEPLOY_HEARTBEAT_SECONDS))
             [ -s "$stream_status" ] && break
             printf '%s\n' "[deploy] still running (${stream_waited}s): $stream_log" >&2
         done
