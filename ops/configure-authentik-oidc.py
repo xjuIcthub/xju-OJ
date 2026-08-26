@@ -87,8 +87,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    if os.geteuid() != 0:
-        fail("run as root")
     if not args.env_file.is_absolute() or not args.secret_file.is_absolute():
         fail("paths must be absolute")
     if sys.stdin.isatty():
@@ -110,7 +108,7 @@ def main() -> int:
     secret_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     if secret_path.exists() and not secret_path.is_file():
         fail("secret path is not a regular file")
-    atomic_write(secret_path, client_secret + "\n", 0o600, 0, 0)
+    atomic_write(secret_path, client_secret + "\n", 0o600, os.getuid(), os.getgid())
     update_env(
         args.env_file,
         {
