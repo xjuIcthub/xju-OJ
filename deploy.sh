@@ -605,10 +605,12 @@ stream_command() {
     stream_status="$stream_log.status"
     rm -f "$stream_status"
     printf '%s\n' "[deploy] logging command output to $stream_log"
+    stream_parent_pid=$$
     (
         stream_waited=0
         while [ ! -s "$stream_status" ]; do
             sleep "$DEPLOY_HEARTBEAT_SECONDS"
+            kill -0 "$stream_parent_pid" 2>/dev/null || exit 0
             stream_waited=$((stream_waited + DEPLOY_HEARTBEAT_SECONDS))
             [ -s "$stream_status" ] && break
             printf '%s\n' "[deploy] still running (${stream_waited}s): $stream_log" >&2
