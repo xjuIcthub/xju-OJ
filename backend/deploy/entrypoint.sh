@@ -43,9 +43,59 @@ prepare_backend_secrets() {
     load_secret_file "${INITIAL_ADMIN_PASSWORD_FILE:-}" INITIAL_ADMIN_PASSWORD
 }
 
+prepare_oidc_client_secret() {
+    case "${AUTHENTIK_OIDC_ENABLED:-false}" in
+        true|TRUE|1|yes|YES|on|ON) ;;
+        *) return 0 ;;
+    esac
+
+    source_path=${AUTHENTIK_OIDC_CLIENT_SECRET_SOURCE_FILE:-}
+    destination_path=${AUTHENTIK_OIDC_CLIENT_SECRET_FILE:-}
+    [ -n "$source_path" ] && [ -n "$destination_path" ] || {
+        printf '%s\n' "Authentik OIDC client secret paths are missing" >&2
+        return 1
+    }
+    [ -r "$source_path" ] && [ -s "$source_path" ] || {
+        printf '%s\n' "Authentik OIDC client secret source is unreadable" >&2
+        return 1
+    }
+
+    case "$destination_path" in
+        /run/xju-oj-secrets/*) ;;
+        *)
+            printf '%s\n' "Authentik OIDC runtime secret path is invalid" >&2
+            return 1
+            ;;
+    esac
+
+    destination_dir=${destination_path%/*}
+    mkdir -p "$destination_dir"
+    chown root:root "$destination_dir"
+    chmod 700 "$destination_dir"
+
+    secret_tmp="$destination_dir/.authentik_oidc_client_secret.$$"
+    rm -f "$secret_tmp"
+    umask 077
+    cat "$source_path" > "$secret_tmp"
+    [ -s "$secret_tmp" ] || {
+        rm -f "$secret_tmp"
+        printf '%s\n' "Authentik OIDC client secret source is empty" >&2
+        return 1
+    }
+    chown "$backend_user:$backend_user" "$secret_tmp"
+    chmod 400 "$secret_tmp"
+    mv -f "$secret_tmp" "$destination_path"
+    export AUTHENTIK_OIDC_CLIENT_SECRET_FILE=$destination_path
+}
+
+prepare_backend_process() {
+    prepare_backend_secrets
+    prepare_oidc_client_secret
+}
+
 run_backend() {
     if [ "$(id -u)" -eq 0 ]; then
-        prepare_backend_secrets
+        prepare_backend_process
         if command -v gosu >/dev/null 2>&1; then
             exec gosu "$backend_user" "$@"
         fi
@@ -58,7 +108,7 @@ run_backend() {
 
 run_backend_shell() {
     if [ "$(id -u)" -eq 0 ]; then
-        prepare_backend_secrets
+        prepare_backend_process
         if command -v gosu >/dev/null 2>&1; then
             exec gosu "$backend_user" /bin/sh -c "$1"
         fi
