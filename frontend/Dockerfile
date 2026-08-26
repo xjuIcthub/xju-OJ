@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1.7
 ARG NODE_IMAGE=node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03
 ARG NGINX_IMAGE=nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
+ARG PNPM_VERSION=11.22.0
+ARG FRONTEND_BASE_IMAGE=xju-oj-frontend-base:node-24.19.0-bookworm-slim-v1
 
-FROM ${NODE_IMAGE} AS frontend-deps
-ARG TARGETOS TARGETARCH
-WORKDIR /src
+FROM ${NODE_IMAGE} AS frontend-base
+ARG PNPM_VERSION
 RUN set -eux; \
     sed -i \
         -e 's|http://deb.debian.org/debian-security|http://mirrors.aliyun.com/debian-security|g' \
@@ -14,8 +15,14 @@ RUN set -eux; \
         /etc/apt/sources.list.d/debian.sources; \
     apt-get -o Acquire::Retries=5 update; \
     apt-get install -y --no-install-recommends ca-certificates git; \
-    rm -rf /var/lib/apt/lists/*
-RUN corepack enable
+    rm -rf /var/lib/apt/lists/*; \
+    corepack enable; \
+    corepack install --global "pnpm@${PNPM_VERSION}"; \
+    pnpm --version | grep -Fx "${PNPM_VERSION}"
+
+FROM ${FRONTEND_BASE_IMAGE} AS frontend-deps
+ARG TARGETOS TARGETARCH
+WORKDIR /src
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-${TARGETOS:-linux}-${TARGETARCH:-amd64},target=/pnpm/store,sharing=locked \
     pnpm config set store-dir /pnpm/store && pnpm fetch --frozen-lockfile

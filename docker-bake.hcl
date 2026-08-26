@@ -22,6 +22,14 @@ variable "BUILD_NETWORK" {
   default = "default"
 }
 
+variable "FRONTEND_BASE_IMAGE" {
+  default = "xju-oj-frontend-base:node-24.19.0-bookworm-slim-v1"
+}
+
+variable "PNPM_VERSION" {
+  default = "11.22.0"
+}
+
 group "default" {
   targets = ["postgres", "frontend", "backend", "judge-toolchain", "server"]
 }
@@ -56,9 +64,26 @@ target "frontend" {
   context    = "./frontend"
   dockerfile = "Dockerfile"
   target     = "frontend-runtime"
+  args       = {
+    FRONTEND_BASE_IMAGE = "${FRONTEND_BASE_IMAGE}"
+    PNPM_VERSION        = "${PNPM_VERSION}"
+  }
   tags       = ["${IMAGE_REGISTRY}/frontend:git-${GIT_SHA}"]
   cache-from = CACHE_REGISTRY != "" ? ["type=registry,ref=${CACHE_REGISTRY}/frontend:buildcache"] : []
   cache-to   = CACHE_REGISTRY != "" ? ["type=registry,ref=${CACHE_REGISTRY}/frontend:buildcache,mode=max"] : []
+}
+
+target "frontend-base" {
+  inherits   = ["_common"]
+  context    = "./frontend"
+  dockerfile = "Dockerfile"
+  target     = "frontend-base"
+  args       = {
+    PNPM_VERSION = "${PNPM_VERSION}"
+  }
+  tags       = ["${FRONTEND_BASE_IMAGE}"]
+  cache-from = CACHE_REGISTRY != "" ? ["type=registry,ref=${CACHE_REGISTRY}/frontend-base:buildcache"] : []
+  cache-to   = CACHE_REGISTRY != "" ? ["type=registry,ref=${CACHE_REGISTRY}/frontend-base:buildcache,mode=max"] : []
 }
 
 target "backend" {

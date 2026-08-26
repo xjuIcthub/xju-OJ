@@ -79,7 +79,7 @@ allowed = {
     "GIT_COMMIT", "BUILD_VERSION", "BUILD_CREATED", "BUILD_TARGETS",
     "BUILD_NETWORK", "BUILD_HTTP_PROXY", "BUILD_HTTPS_PROXY", "BUILD_ALL_PROXY",
     "CACHE_REGISTRY",
-    "FRONTEND_IMAGE_REF", "BACKEND_IMAGE_REF", "JUDGE_IMAGE_REF",
+    "FRONTEND_IMAGE_REF", "FRONTEND_BASE_IMAGE", "BACKEND_IMAGE_REF", "JUDGE_IMAGE_REF",
     "JUDGE_TOOLCHAIN_IMAGE_REF", "POSTGRES_IMAGE_REF", "REDIS_IMAGE_REF",
     "POSTGRES_DB", "POSTGRES_USER", "INITIAL_ADMIN_USERNAME",
     "POSTGRES_PASSWORD_FILE", "DJANGO_SECRET_KEY_FILE",
@@ -205,6 +205,13 @@ DJANGO_SECRET_KEY_FILE=$(secret_path "${DJANGO_SECRET_KEY_FILE:-$SECRET_ROOT/dja
 JUDGE_SERVER_TOKEN_FILE=$(secret_path "${JUDGE_SERVER_TOKEN_FILE:-$SECRET_ROOT/judge-token}") || fail "invalid JUDGE_SERVER_TOKEN_FILE"
 INITIAL_ADMIN_PASSWORD_FILE=$(secret_path "${INITIAL_ADMIN_PASSWORD_FILE:-$SECRET_ROOT/admin-password}") || fail "invalid INITIAL_ADMIN_PASSWORD_FILE"
 
+frontend_image_ref_input=${FRONTEND_IMAGE_REF-}
+backend_image_ref_input=${BACKEND_IMAGE_REF-}
+judge_image_ref_input=${JUDGE_IMAGE_REF-}
+judge_toolchain_image_ref_input=${JUDGE_TOOLCHAIN_IMAGE_REF-}
+postgres_image_ref_input=${POSTGRES_IMAGE_REF-}
+build_targets=${BUILD_TARGETS:-"postgres frontend backend judge-toolchain server"}
+
 case "${FRONTEND_IMAGE_REF:-}" in
     ""|xju-oj-frontend:auto) FRONTEND_IMAGE_REF=xju-oj-frontend:git-$git_tag ;;
 esac
@@ -221,6 +228,8 @@ case "${POSTGRES_IMAGE_REF:-}" in
     ""|xju-oj-postgres:auto) POSTGRES_IMAGE_REF=xju-oj-postgres:git-$git_tag ;;
 esac
 REDIS_IMAGE_REF=${REDIS_IMAGE_REF:-redis:8.2.8-alpine@sha256:a7859ed111db3c1f5404a973a4747505d559fb5ca32d37e447afc0ef845a2103}
+FRONTEND_BASE_IMAGE=${FRONTEND_BASE_IMAGE:-xju-oj-frontend-base:node-24.19.0-bookworm-slim-v1}
+CACHE_REGISTRY=${CACHE_REGISTRY:-}
 POSTGRES_DB=${POSTGRES_DB:-onlinejudge}
 POSTGRES_USER=${POSTGRES_USER:-onlinejudge}
 INITIAL_ADMIN_USERNAME=${INITIAL_ADMIN_USERNAME:-admin}
@@ -255,8 +264,9 @@ fi
 
 export COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL HTTP_BIND_ADDRESS HTTP_PORT
 export DEPLOY_ROOT RUNTIME_ROOT BACKUP_ROOT SECRET_ROOT DEPLOY_MODE SECRET_PROVISION_MODE
-export FRONTEND_IMAGE_REF BACKEND_IMAGE_REF JUDGE_IMAGE_REF JUDGE_TOOLCHAIN_IMAGE_REF
+export FRONTEND_IMAGE_REF FRONTEND_BASE_IMAGE BACKEND_IMAGE_REF JUDGE_IMAGE_REF JUDGE_TOOLCHAIN_IMAGE_REF
 export POSTGRES_IMAGE_REF REDIS_IMAGE_REF GIT_COMMIT BUILD_VERSION BUILD_CREATED
+export CACHE_REGISTRY
 export POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD_FILE DJANGO_SECRET_KEY_FILE
 export JUDGE_SERVER_TOKEN_FILE INITIAL_ADMIN_USERNAME INITIAL_ADMIN_PASSWORD_FILE
 export AUTHENTIK_OIDC_ENABLED AUTHENTIK_LOCAL_LOGIN_ENABLED AUTHENTIK_LOCAL_REGISTER_ENABLED
@@ -272,7 +282,7 @@ required() {
 }
 
 for name in COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL HTTP_BIND_ADDRESS HTTP_PORT \
-    RUNTIME_ROOT BACKUP_ROOT FRONTEND_IMAGE_REF BACKEND_IMAGE_REF JUDGE_IMAGE_REF \
+    RUNTIME_ROOT BACKUP_ROOT FRONTEND_IMAGE_REF FRONTEND_BASE_IMAGE BACKEND_IMAGE_REF JUDGE_IMAGE_REF \
     JUDGE_TOOLCHAIN_IMAGE_REF POSTGRES_IMAGE_REF REDIS_IMAGE_REF POSTGRES_DB POSTGRES_USER \
     POSTGRES_PASSWORD_FILE DJANGO_SECRET_KEY_FILE JUDGE_SERVER_TOKEN_FILE \
     INITIAL_ADMIN_PASSWORD_FILE; do
@@ -500,6 +510,142 @@ compose() {
     docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
+release_dir="$RUNTIME_ROOT/deployments"
+release_file="$release_dir/current.json"
+
+release_source_commit() {
+    [ -f "$release_file" ] || return 1
+    python3 - "$release_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    value = json.load(handle).get("source_commit", "")
+if value:
+    print(value)
+else:
+    raise SystemExit(1)
+PY
+}
+
+release_image_ref() {
+    target=$1
+    [ -f "$release_file" ] || return 1
+    case "$target" in
+        postgres|redis|frontend|backend|server) release_key=$target ;;
+        judge-toolchain) release_key=judge_toolchain ;;
+        *) return 1 ;;
+    esac
+    python3 - "$release_file" "$release_key" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    value = json.load(handle).get("images", {}).get(sys.argv[2], {}).get("reference", "")
+if value:
+    print(value)
+else:
+    raise SystemExit(1)
+PY
+}
+
+target_paths() {
+    case "$1" in
+        frontend) printf '%s\n' frontend/ ;;
+        backend) printf '%s\n' backend/ ;;
+        postgres) printf '%s\n' deploy/images/postgres/ ;;
+        judge-toolchain|server) printf '%s\n' server/ ;;
+        *) return 1 ;;
+    esac
+}
+
+target_is_requested() {
+    requested_target=$1
+    for requested_item in $build_targets; do
+        [ "$requested_item" = "$requested_target" ] && return 0
+    done
+    return 1
+}
+
+target_skip_requested() {
+    skipped_target=$1
+    case " $build_skip_targets " in
+        *" $skipped_target "*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+target_ref_for() {
+    case "$1" in
+        frontend) printf '%s\n' "$FRONTEND_IMAGE_REF" ;;
+        backend) printf '%s\n' "$BACKEND_IMAGE_REF" ;;
+        server) printf '%s\n' "$JUDGE_IMAGE_REF" ;;
+        judge-toolchain) printf '%s\n' "$JUDGE_TOOLCHAIN_IMAGE_REF" ;;
+        postgres) printf '%s\n' "$POSTGRES_IMAGE_REF" ;;
+        redis) printf '%s\n' "$REDIS_IMAGE_REF" ;;
+        *) return 1 ;;
+    esac
+}
+
+target_ref_is_auto() {
+    case "$1:$2" in
+        frontend:|frontend:xju-oj-frontend:auto|backend:|backend:xju-oj-backend:auto|server:|server:xju-oj-server:auto|judge-toolchain:|judge-toolchain:xju-oj-judge-toolchain:auto|postgres:|postgres:xju-oj-postgres:auto) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+target_unchanged_since_release() {
+    previous_commit=$(release_source_commit 2>/dev/null || true)
+    [ -n "$previous_commit" ] || return 1
+    git -C "$ROOT" cat-file -e "$previous_commit^{commit}" >/dev/null 2>&1 || return 1
+    target_paths "$1" | while IFS= read -r target_path; do
+        git -C "$ROOT" diff --quiet "$previous_commit" -- "$target_path" || exit 1
+        git -C "$ROOT" status --porcelain --untracked-files=all -- "$target_path" | grep -q . && exit 1
+    done
+}
+
+set_target_ref_from_release() {
+    target=$1
+    previous_ref=$(release_image_ref "$target" 2>/dev/null || true)
+    [ -n "$previous_ref" ] || return 1
+    docker image inspect "$previous_ref" >/dev/null 2>&1 || return 1
+    case "$target" in
+        frontend) FRONTEND_IMAGE_REF=$previous_ref ;;
+        backend) BACKEND_IMAGE_REF=$previous_ref ;;
+        server) JUDGE_IMAGE_REF=$previous_ref ;;
+        judge-toolchain) JUDGE_TOOLCHAIN_IMAGE_REF=$previous_ref ;;
+        postgres) POSTGRES_IMAGE_REF=$previous_ref ;;
+        redis) REDIS_IMAGE_REF=$previous_ref ;;
+        *) return 1 ;;
+    esac
+}
+
+# Reuse the last successful image for targets that were not requested or whose
+# build inputs did not change. This keeps a frontend-only change from rebuilding
+# backend, judge and database images, while still allowing explicit image refs
+# to override the optimization.
+build_skip_targets=
+for reuse_target in postgres frontend backend judge-toolchain server; do
+    case "$reuse_target" in
+        frontend) reuse_input=$frontend_image_ref_input ;;
+        backend) reuse_input=$backend_image_ref_input ;;
+        server) reuse_input=$judge_image_ref_input ;;
+        judge-toolchain) reuse_input=$judge_toolchain_image_ref_input ;;
+        postgres) reuse_input=$postgres_image_ref_input ;;
+    esac
+    target_ref_is_auto "$reuse_target" "$reuse_input" || continue
+    if ! target_is_requested "$reuse_target"; then
+        if set_target_ref_from_release "$reuse_target"; then
+            printf '%s\n' "[reuse] $reuse_target: not requested; using previous release image"
+        fi
+        continue
+    fi
+    if target_unchanged_since_release "$reuse_target" && set_target_ref_from_release "$reuse_target"; then
+        build_skip_targets="$build_skip_targets $reuse_target"
+        printf '%s\n' "[reuse] $reuse_target: inputs unchanged; using previous release image"
+    fi
+done
+
 validate_pull_references() {
     for immutable_ref in "$FRONTEND_IMAGE_REF" "$BACKEND_IMAGE_REF" "$JUDGE_IMAGE_REF" \
         "$JUDGE_TOOLCHAIN_IMAGE_REF" "$POSTGRES_IMAGE_REF" "$REDIS_IMAGE_REF"; do
@@ -594,6 +740,24 @@ check_secret_set
 attempt_dir="$RUNTIME_ROOT/deployments/history/attempt-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 ensure_dir "$attempt_dir" 0700
 
+if [ -t 1 ]; then
+    color_reset=$(printf '\033[0m')
+    color_cyan=$(printf '\033[36m')
+    color_green=$(printf '\033[32m')
+    color_yellow=$(printf '\033[33m')
+    color_red=$(printf '\033[31m')
+else
+    color_reset=
+    color_cyan=
+    color_green=
+    color_yellow=
+    color_red=
+fi
+log_info() { printf '%s%s%s\n' "$color_cyan" "$*" "$color_reset"; }
+log_success() { printf '%s%s%s\n' "$color_green" "$*" "$color_reset"; }
+log_warn() { printf '%s%s%s\n' "$color_yellow" "$*" "$color_reset" >&2; }
+log_error() { printf '%s%s%s\n' "$color_red" "$*" "$color_reset" >&2; }
+
 # Keep a complete copy of every command's output while also showing it in the
 # terminal.  Long BuildKit pulls and compose health waits used to look frozen
 # because their output was redirected to the attempt directory until the
@@ -658,15 +822,15 @@ run_step() {
     pattern=$2
     shift 2
     log="$attempt_dir/$name.log"
-    printf '%s\n' "[step] $name: START (log: $log)"
+    log_info "[step] $name: START (log: $log)"
     if stream_command "$log" "$@"; then
-        printf '%s\n' "$name: PASS"
+        log_success "$name: PASS"
         if [ -n "$pattern" ]; then
             grep -nE "$pattern" "$log" | tail -20 || true
         fi
         return 0
     fi
-    printf '%s\n' "$name: FAIL (key lines; full log: $log)" >&2
+    log_error "$name: FAIL (key lines; full log: $log)"
     grep -nE 'ERROR|error|failed|unhealthy|timeout|permission|Traceback|OperationalError|CommandError' "$log" | tail -80 >&2 || true
     fail "$name failed"
 }
@@ -708,8 +872,36 @@ PY
             build_version=${BUILD_VERSION:-phase2}
             build_allow=
             [ "$build_network" = host ] && build_allow=--allow=network.host
-            build_targets=${BUILD_TARGETS:-"postgres frontend backend judge-toolchain server"}
+
+            frontend_build_needed=0
+            if target_is_requested frontend && ! target_skip_requested frontend; then
+                frontend_build_needed=1
+            fi
+            if [ "$frontend_build_needed" -eq 1 ] && ! docker image inspect "$FRONTEND_BASE_IMAGE" >/dev/null 2>&1; then
+                base_log="$attempt_dir/build-frontend-base.log"
+                log_info "[build] frontend-base: START (image: $FRONTEND_BASE_IMAGE; log: $base_log)"
+                if ! stream_command "$base_log" env \
+                    BUILD_NETWORK="$build_network" GIT_SHA="$git_sha" BUILD_VERSION="$build_version" \
+                    BUILD_CREATED="${BUILD_CREATED:-unknown}" \
+                    docker buildx bake $build_allow --progress=plain --file "$ROOT/docker-bake.hcl" \
+                    --set '*.platform=linux/amd64' \
+                    --set frontend-base.tags="$FRONTEND_BASE_IMAGE" \
+                    --load frontend-base
+                then
+                    log_error "build chunk frontend-base failed; key lines (full log: $base_log):"
+                    grep -nE 'ERROR|error|failed|ECONNREFUSED|CANCELED|cancelled' "$base_log" | tail -80 >&2 || true
+                    fail "image build failed in chunk frontend-base"
+                fi
+                log_success "build chunk frontend-base passed"
+            elif [ "$frontend_build_needed" -eq 1 ]; then
+                log_success "[reuse] frontend-base: local image $FRONTEND_BASE_IMAGE"
+            fi
             for build_target in $build_targets; do
+                if target_skip_requested "$build_target"; then
+                    target_ref=$(target_ref_for "$build_target")
+                    log_success "[build] $build_target: SKIP (inputs unchanged; reusing $target_ref)"
+                    continue
+                fi
                 case "$build_target" in
                     postgres)
                         target_ref=$POSTGRES_IMAGE_REF
@@ -746,7 +938,7 @@ PY
                         ;;
                 esac
                 build_log="$attempt_dir/build-$build_target.log"
-                printf '%s\n' "[build] $build_target: START (image: $target_ref; log: $build_log)"
+                log_info "[build] $build_target: START (image: $target_ref; log: $build_log)"
                 if ! stream_command "$build_log" env \
                     BUILD_NETWORK="$build_network" GIT_SHA="$git_sha" BUILD_VERSION="$build_version" \
                     BUILD_CREATED="${BUILD_CREATED:-unknown}" \
@@ -755,17 +947,18 @@ PY
                     --set "$build_target.args.HTTP_PROXY=$target_http_proxy" \
                     --set "$build_target.args.HTTPS_PROXY=$target_https_proxy" \
                     --set "$build_target.args.ALL_PROXY=$target_all_proxy" \
+                    --set "$build_target.args.FRONTEND_BASE_IMAGE=$FRONTEND_BASE_IMAGE" \
                     --set "$build_target.tags=$target_ref" \
                     --load "$build_target"
                 then
-                    printf '%s\n' "build chunk $build_target failed; key lines (full log: $build_log):" >&2
+                    log_error "build chunk $build_target failed; key lines (full log: $build_log):"
                     grep -nE 'ERROR|error|failed|ECONNREFUSED|CANCELED|cancelled' "$build_log" | tail -80 >&2 || true
                     fail "image build failed in chunk $build_target"
                 fi
-                printf '%s\n' "build chunk $build_target passed:"
+                log_success "build chunk $build_target passed:"
                 grep -E 'naming to |writing image ' "$build_log" | tail -10 || true
                 if grep -qE 'WARN|warning' "$build_log"; then
-                    printf '%s\n' "non-fatal warnings in $build_target (tail; full log: $build_log):"
+                    log_warn "non-fatal warnings in $build_target (tail; full log: $build_log):"
                     grep -nE 'WARN|warning' "$build_log" | tail -20
                 fi
             done
@@ -861,6 +1054,9 @@ cat > "$attempt_dir/release.json" <<EOF
   "source_commit": "${GIT_COMMIT:-unknown}",
   "compose_sha256": "$compose_hash",
   "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "build_bases": {
+    "frontend": "$FRONTEND_BASE_IMAGE"
+  },
   "images": {
     "postgres": {"reference": "$POSTGRES_IMAGE_REF", "image_id": "$(image_id "$POSTGRES_IMAGE_REF")"},
     "redis": {"reference": "$REDIS_IMAGE_REF", "image_id": "$(image_id "$REDIS_IMAGE_REF")"},
