@@ -162,7 +162,11 @@ services:
     secrets:
       - postgres_password
       - django_secret_key
-      - authentik_oidc_client_secret
+      - source: authentik_oidc_client_secret
+        target: authentik_oidc_client_secret
+        uid: "42"
+        gid: "65534"
+        mode: 0440
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
     networks:
