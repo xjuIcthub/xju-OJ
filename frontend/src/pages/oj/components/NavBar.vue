@@ -1,7 +1,10 @@
 <template>
   <div id="header">
     <Menu theme="light" mode="horizontal" @on-select="handleRoute" :active-name="activeMenu" class="oj-menu">
-      <div class="logo"><span>{{website.website_name}}</span></div>
+      <div class="logo">
+        <span class="brand-mark">OJ</span>
+        <span class="brand-name">{{website.website_name}}</span>
+      </div>
       <Menu-item name="/">
         <Icon type="home"></Icon>
         {{$t('m.Home')}}
@@ -49,7 +52,13 @@
                   shape="circle"
                   @click="handleBtnClick('login')">{{$t('m.Login')}}
           </LegacyButton>
-          <LegacyButton v-if="website.allow_register"
+          <LegacyButton v-if="website.allow_register && authentikEnabled"
+                  type="ghost"
+                  shape="circle"
+                  @click="goAuthentikRegister"
+                  style="margin-left: 5px;">{{$t('m.Register')}}
+          </LegacyButton>
+          <LegacyButton v-else-if="website.allow_register && localRegisterEnabled"
                   type="ghost"
                   shape="circle"
                   @click="handleBtnClick('register')"
@@ -106,10 +115,20 @@
           visible: true,
           mode: mode
         })
+      },
+      goAuthentikRegister () {
+        const url = this.authProviders.authentik && this.authProviders.authentik.register_url
+        if (url) window.location.assign(url)
       }
     },
     computed: {
-      ...mapGetters(['website', 'modalStatus', 'user', 'isAuthenticated', 'isAdminRole']),
+      ...mapGetters(['website', 'modalStatus', 'user', 'isAuthenticated', 'isAdminRole', 'authProviders']),
+      authentikEnabled () {
+        return !!(this.authProviders.authentik && this.authProviders.authentik.enabled)
+      },
+      localRegisterEnabled () {
+        return !this.authProviders.local || this.authProviders.local.register_enabled !== false
+      },
       // 跟随路由变化
       activeMenu () {
         return '/' + this.$route.path.split('/')[1]
@@ -138,15 +157,39 @@
     background-color: #fff;
     box-shadow: 0 1px 5px 0 rgba(0, 0, 0, 0.1);
     .oj-menu {
-      background: #fdfdfd;
+      min-height: 64px;
+      border-bottom: 0;
+      background: rgb(255 253 249 / 88%);
+      backdrop-filter: blur(18px);
     }
 
     .logo {
-      margin-left: 2%;
-      margin-right: 2%;
-      font-size: 20px;
-      float: left;
-      line-height: 60px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 22px 0 2%;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 64px;
+      color: var(--oj-text);
+      white-space: nowrap;
+      .brand-mark {
+        display: inline-grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 11px;
+        background: var(--oj-accent);
+        color: #fffdf9;
+        font-size: 12px;
+        letter-spacing: .08em;
+        line-height: 1;
+      }
+      .brand-name {
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
     }
 
     .drop-menu {
@@ -155,13 +198,35 @@
       position: absolute;
       right: 10px;
       &-title {
-        font-size: 18px;
+        font-size: 16px;
+        color: var(--oj-text);
       }
     }
     .btn-menu {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       font-size: 16px;
       float: right;
-      margin-right: 10px;
+      margin-right: 16px;
+    }
+  }
+
+  @media screen and (max-width: 760px) {
+    #header {
+      .oj-menu {
+        overflow-x: auto;
+      }
+      .logo {
+        margin-left: 14px;
+        margin-right: 10px;
+        .brand-name {
+          display: none;
+        }
+      }
+      .btn-menu {
+        margin-right: 8px;
+      }
     }
   }
 

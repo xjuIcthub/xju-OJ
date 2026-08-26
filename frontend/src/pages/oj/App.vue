@@ -40,9 +40,10 @@
     },
     mounted () {
       this.getWebsiteConfig()
+      this.getAuthProviders()
     },
     methods: {
-      ...mapActions(['getWebsiteConfig', 'changeDomTitle'])
+      ...mapActions(['getWebsiteConfig', 'getAuthProviders', 'changeDomTitle'])
     },
     computed: {
       ...mapState(['website'])

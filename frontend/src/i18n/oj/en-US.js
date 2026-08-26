@@ -187,6 +187,11 @@ export const m = {
   No_Account: 'No account? Register now!',
   Forget_Password: 'Forget Password',
   UserLogin: 'Login',
+  Login_with_Authentik: 'Continue with Authentik',
+  Register_with_Authentik: 'Create an Authentik account',
+  Authentik_Account_Notice: 'Your account, password, email verification, and MFA are managed by Authentik.',
+  Bind_Authentik: 'Bind Authentik account',
+  Authentik_Bound: 'Authentik account is bound',
   Welcome_back: 'Welcome back to OJ',
   // OIRank.vue
   OI_Ranklist: 'OI Ranklist',
@@ -215,6 +220,7 @@ export const m = {
   The_email_already_exists: 'The email already exists',
   password_does_not_match: 'password does not match',
   Thanks_for_registering: 'Thanks for your registering, you can login now',
+  Register_through_Authentik: 'Registration is handled by Authentik.',
   // ResetPassword.vue and ApplyResetPassword.vue
   Reset_Password: 'Lost Password',
   RPassword: 'Password',

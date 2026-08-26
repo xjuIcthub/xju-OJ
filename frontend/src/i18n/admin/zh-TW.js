@@ -106,5 +106,7 @@ export const m = {
   DashBoardJudge_Server: 'Judge 伺服器',
   HTTPS_Status: 'HTTPS 狀態',
   Force_HTTPS: '強制 HTTPS',
-  CDN_HOST: 'CDN HOST'
+  CDN_HOST: 'CDN HOST',
+  Login_with_Authentik: '使用 Authentik 登入',
+  Authentik_Account_Notice: '登入驗證由 Authentik 統一管理。'
 }

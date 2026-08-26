@@ -144,8 +144,25 @@ services:
     image: "${BACKEND_IMAGE_REF:?BACKEND_IMAGE_REF is required}"
     restart: unless-stopped
     command: ["api"]
-    environment: *backend-environment
-    secrets: *backend-runtime-secrets
+    environment:
+      <<: *backend-environment
+      AUTHENTIK_OIDC_ENABLED: "${AUTHENTIK_OIDC_ENABLED:-false}"
+      AUTHENTIK_LOCAL_LOGIN_ENABLED: "${AUTHENTIK_LOCAL_LOGIN_ENABLED:-true}"
+      AUTHENTIK_LOCAL_REGISTER_ENABLED: "${AUTHENTIK_LOCAL_REGISTER_ENABLED:-true}"
+      AUTHENTIK_OIDC_ISSUER: "${AUTHENTIK_OIDC_ISSUER:-https://auth.icthub.top/application/o/xju-oj/}"
+      AUTHENTIK_OIDC_CLIENT_ID: "${AUTHENTIK_OIDC_CLIENT_ID:-}"
+      AUTHENTIK_OIDC_CLIENT_SECRET_FILE: /run/secrets/authentik_oidc_client_secret
+      AUTHENTIK_OIDC_REDIRECT_URI: "${AUTHENTIK_OIDC_REDIRECT_URI:-https://oj.icthub.top/api/auth/oidc/callback/}"
+      AUTHENTIK_OIDC_REGISTER_URL: "${AUTHENTIK_OIDC_REGISTER_URL:-https://auth.icthub.top/if/flow/icthub-public-registration/}"
+      AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI: "${AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI:-https://oj.icthub.top}"
+      AUTHENTIK_OIDC_SCOPES: "${AUTHENTIK_OIDC_SCOPES:-openid profile email groups}"
+      AUTHENTIK_OIDC_STATE_TTL_SECONDS: "${AUTHENTIK_OIDC_STATE_TTL_SECONDS:-300}"
+      AUTHENTIK_OIDC_CLOCK_SKEW_SECONDS: "${AUTHENTIK_OIDC_CLOCK_SKEW_SECONDS:-60}"
+      AUTHENTIK_OIDC_ALLOWED_ALGORITHMS: "${AUTHENTIK_OIDC_ALLOWED_ALGORITHMS:-RS256}"
+    secrets:
+      - postgres_password
+      - django_secret_key
+      - authentik_oidc_client_secret
     volumes:
       - "${RUNTIME_ROOT:?RUNTIME_ROOT is required}/backend:/data"
     networks:
@@ -236,6 +253,10 @@ services:
       APP_DOMAIN: "${APP_DOMAIN:?APP_DOMAIN is required}"
       PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}"
       GIT_COMMIT: "${GIT_COMMIT:-unknown}"
+      AUTHENTIK_OIDC_ENABLED: "${AUTHENTIK_OIDC_ENABLED:-false}"
+      AUTHENTIK_OIDC_REGISTER_URL: "${AUTHENTIK_OIDC_REGISTER_URL:-https://auth.icthub.top/register}"
+      AUTHENTIK_LOCAL_LOGIN_ENABLED: "${AUTHENTIK_LOCAL_LOGIN_ENABLED:-true}"
+      AUTHENTIK_LOCAL_REGISTER_ENABLED: "${AUTHENTIK_LOCAL_REGISTER_ENABLED:-true}"
     ports:
       - "${HTTP_BIND_ADDRESS:?HTTP_BIND_ADDRESS is required}:${HTTP_PORT:?HTTP_PORT is required}:80"
     volumes:
@@ -269,3 +290,5 @@ secrets:
     file: "${JUDGE_SERVER_TOKEN_FILE:?JUDGE_SERVER_TOKEN_FILE is required}"
   initial_admin_password:
     file: "${INITIAL_ADMIN_PASSWORD_FILE:?INITIAL_ADMIN_PASSWORD_FILE is required}"
+  authentik_oidc_client_secret:
+    file: "${AUTHENTIK_OIDC_CLIENT_SECRET_FILE:-/dev/null}"

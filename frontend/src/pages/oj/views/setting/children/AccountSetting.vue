@@ -1,6 +1,9 @@
 <template>
   <div class="setting-main">
-    <div class="flex-container">
+    <Alert v-if="authentikManaged" type="info" show-icon>
+      Password and email are managed by Authentik. Use the Studio account settings to change them.
+    </Alert>
+    <div v-else class="flex-container">
       <div class="left">
         <p class="section-title">{{$t('m.ChangePassword')}}</p>
         <Form class="setting-content" ref="formPassword" :model="formPassword" :rules="rulePassword">
@@ -50,6 +53,7 @@
 <script>
   import api from '@oj/api'
   import { FormMixin } from '@oj/components/mixins'
+  import { mapGetters } from '@/store/compat'
 
   export default {
     mixins: [FormMixin],
@@ -160,6 +164,12 @@
           })
         })
       }
+    },
+    computed: {
+      ...mapGetters(['authProviders']),
+      authentikManaged () {
+        return !!(this.authProviders.authentik && this.authProviders.authentik.enabled && this.authProviders.authentik.linked)
+      }
     }
   }
 </script>
@@ -182,4 +192,3 @@
     }
   }
 </style>
-

@@ -8,6 +8,9 @@ axios.defaults.xsrfHeaderName = 'X-CSRFToken'
 axios.defaults.xsrfCookieName = 'csrftoken'
 
 export default {
+  getAuthProviders () {
+    return ajax('auth/providers', 'get')
+  },
   // 登录
   login (username, password) {
     return ajax('login', 'post', {

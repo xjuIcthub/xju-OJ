@@ -1,5 +1,8 @@
 <template>
   <div class="setting-main">
+    <Alert v-if="onboardingRequired" type="warning" show-icon>
+      Complete the OJ profile fields below before continuing. Your Studio username, email and password remain managed by Authentik.
+    </Alert>
     <div class="section-title">{{$t('m.Avatar_Setting')}}</div>
     <template v-if="!avatarOption.imgSrc">
       <Upload type="drag"
@@ -224,11 +227,21 @@
         })
       },
       updateProfile () {
+        if (this.onboardingRequired) {
+          const required = ['real_name', 'school', 'major', 'language']
+          if (required.some(field => !String(this.formProfile[field] || '').trim())) {
+            this.$Notice.warning({title: 'Complete your OJ profile', desc: 'Real name, school, major and language are required.'})
+            return
+          }
+        }
         this.loadingSaveBtn = true
         let updateData = utils.filterEmptyValue(Object.assign({}, this.formProfile))
         api.updateProfile(updateData).then(res => {
           this.$success('Success')
           this.$store.commit(types.CHANGE_PROFILE, {profile: res.data.data})
+          if (this.$route.query.onboarding === '1') {
+            this.$router.replace({query: {}})
+          }
           this.loadingSaveBtn = false
         }, _ => {
           this.loadingSaveBtn = false
@@ -236,6 +249,9 @@
       }
     },
     computed: {
+      onboardingRequired () {
+        return this.$route.query.onboarding === '1' || this.$store.state.user.profile.oj_onboarding_completed === false
+      },
       previewStyle () {
         return {
           'width': this.preview.w + 'px',

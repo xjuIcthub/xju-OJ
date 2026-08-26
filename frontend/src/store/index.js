@@ -5,6 +5,7 @@ import storage from '@/utils/storage'
 import i18n from '@/i18n'
 import types from './types'
 import { STORAGE_KEY, USER_TYPE, PROBLEM_PERMISSION, CONTEST_STATUS, CONTEST_TYPE } from '@/utils/constants'
+import runtime from '@/utils/runtime'
 
 let activeRouter = null
 export const setStoreRouter = router => { activeRouter = router }
@@ -13,6 +14,19 @@ const route = () => activeRouter ? activeRouter.currentRoute.value : { params: {
 const useApplicationStore = defineStore('application', {
   state: () => ({
     website: {},
+    authProviders: {
+      authentik: {
+        enabled: runtime.AUTHENTIK_OIDC_ENABLED,
+        login_url: '/api/auth/oidc/login/?next=/',
+        register_url: runtime.AUTHENTIK_OIDC_REGISTER_URL,
+        link_url: '/api/auth/oidc/link/?next=/setting/security',
+        linked: false
+      },
+      local: {
+        login_enabled: runtime.AUTHENTIK_LOCAL_LOGIN_ENABLED,
+        register_enabled: runtime.AUTHENTIK_LOCAL_REGISTER_ENABLED
+      }
+    },
     modalStatus: { mode: 'login', visible: false },
     user: { profile: {} },
     contest: {
@@ -23,6 +37,7 @@ const useApplicationStore = defineStore('application', {
   }),
   getters: {
     profile: state => state.user.profile,
+    authProviders: state => state.authProviders,
     currentUser: state => state.user.profile.user || {},
     isAuthenticated () { return !!this.currentUser.id },
     isAdminRole () { return this.currentUser.admin_type === USER_TYPE.ADMIN || this.currentUser.admin_type === USER_TYPE.SUPER_ADMIN },
@@ -60,12 +75,28 @@ const useApplicationStore = defineStore('application', {
   },
   actions: {
     async getWebsiteConfig () { const res = await api.getWebsiteConf(); this.website = res.data.data },
+    async getAuthProviders () {
+      if (!runtime.AUTHENTIK_OIDC_ENABLED) return
+      try {
+        const res = await api.getAuthProviders()
+        if (res.data.data) this.authProviders = res.data.data
+      } catch (_) {
+        // Keep the safe runtime defaults if the backend is an older release.
+      }
+    },
     changeModalStatus ({ mode, visible }) { if (mode !== undefined) this.modalStatus.mode = mode; if (visible !== undefined) this.modalStatus.visible = visible },
     changeDomTitle (payload) {
       const title = payload && payload.title ? payload.title : route().meta.title
       window.document.title = this.website.website_name_shortcut + ' | ' + title
     },
-    async getProfile () { const res = await api.getUserInfo(); this.changeProfile(res.data.data || {}) },
+    async getProfile () {
+      const res = await api.getUserInfo()
+      const profile = res.data.data || {}
+      this.changeProfile(profile)
+      if (profile.oj_onboarding_completed === false && route().name !== 'profile-setting') {
+        activeRouter && activeRouter.push({ name: 'profile-setting', query: { onboarding: '1' } })
+      }
+    },
     clearProfile () { this.changeProfile({}); storage.clear() },
     changeProfile (profile) {
       this.user.profile = profile
@@ -95,7 +126,7 @@ let store
 const ensureStore = () => store || (store = useApplicationStore(pinia))
 
 const getterMap = {
-  website: s => s.website, modalStatus: s => s.modalStatus, user: s => s.currentUser, profile: s => s.profile,
+  website: s => s.website, authProviders: s => s.authProviders, modalStatus: s => s.modalStatus, user: s => s.currentUser, profile: s => s.profile,
   isAuthenticated: s => s.isAuthenticated, isAdminRole: s => s.isAdminRole, isSuperAdmin: s => s.isSuperAdmin,
   hasProblemPermission: s => s.hasProblemPermission, contestLoaded: s => s.contestLoaded, contestStatus: s => s.contestStatus,
   contestRuleType: s => s.contestRuleType, isContestAdmin: s => s.isContestAdmin, contestMenuDisabled: s => s.contestMenuDisabled,

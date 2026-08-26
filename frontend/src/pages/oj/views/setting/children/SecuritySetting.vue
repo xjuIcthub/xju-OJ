@@ -1,5 +1,16 @@
 <template>
   <div class="setting-main">
+    <div v-if="authentikEnabled" class="identity-card">
+      <div>
+        <div class="identity-eyebrow">AUTHENTIK</div>
+        <div class="identity-title">{{$t('m.Authentik_Account_Notice')}}</div>
+      </div>
+      <LegacyButton v-if="!authentikLinked" type="primary" @click="bindAuthentik">
+        {{$t('m.Bind_Authentik')}}
+      </LegacyButton>
+      <Tag v-else color="success">{{$t('m.Authentik_Bound')}}</Tag>
+    </div>
+
     <p class="section-title">{{$t('m.Sessions')}}</p>
     <div class="flex-container setting-content">
       <template v-for="session in sessions">
@@ -28,8 +39,9 @@
       </template>
     </div>
 
-    <p class="section-title">{{$t('m.Two_Factor_Authentication')}}</p>
-    <div class="mini-container setting-content">
+    <template v-if="!authentikManaged">
+      <p class="section-title">{{$t('m.Two_Factor_Authentication')}}</p>
+      <div class="mini-container setting-content">
       <Form>
         <Alert v-if="TFAOpened"
                type="success"
@@ -58,7 +70,8 @@
           </LegacyButton>
         </template>
       </Form>
-    </div>
+      </div>
+    </template>
   </div>
 </template>
 <script>
@@ -98,6 +111,10 @@
     },
     methods: {
       ...mapActions(['getProfile']),
+      bindAuthentik () {
+        const url = this.authProviders.authentik && this.authProviders.authentik.link_url
+        if (url) window.location.assign(url)
+      },
       getAuthImg () {
         this.loadingQRcode = true
         api.twoFactorAuth('get').then(res => {
@@ -163,7 +180,16 @@
       }
     },
     computed: {
-      ...mapGetters(['user']),
+      ...mapGetters(['user', 'authProviders']),
+      authentikEnabled () {
+        return !!(this.authProviders.authentik && this.authProviders.authentik.enabled)
+      },
+      authentikLinked () {
+        return !!(this.authProviders.authentik && this.authProviders.authentik.linked)
+      },
+      authentikManaged () {
+        return this.authentikEnabled && this.authentikLinked
+      },
       TFAOpened () {
         return this.user && this.user.two_factor_auth
       }
@@ -186,6 +212,32 @@
 </script>
 
 <style lang="less" scoped>
+  .identity-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 28px;
+    padding: 18px 20px;
+    border: 1px solid var(--oj-border);
+    border-radius: var(--oj-radius-medium);
+    background: var(--oj-surface-muted);
+  }
+
+  .identity-eyebrow {
+    color: var(--oj-accent);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .16em;
+  }
+
+  .identity-title {
+    margin-top: 6px;
+    color: var(--oj-text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
   .notice {
     font-size: 16px;
     margin-bottom: 20px;

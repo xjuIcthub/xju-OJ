@@ -1,6 +1,21 @@
 <template>
-  <div>
-    <Form ref="formLogin" :model="formLogin" :rules="ruleLogin">
+  <div class="auth-panel">
+    <div v-if="authentikEnabled" class="sso-card">
+      <div class="sso-eyebrow">AUTHENTIK</div>
+      <p class="sso-copy">{{$t('m.Authentik_Account_Notice')}}</p>
+      <LegacyButton type="primary" long class="sso-button" @click="startAuthentikLogin">
+        {{$t('m.Login_with_Authentik')}}
+      </LegacyButton>
+      <a class="sso-register" @click.stop="goAuthentikRegister">
+        {{$t('m.Register_with_Authentik')}}
+      </a>
+    </div>
+
+    <div v-if="authentikEnabled && localLoginEnabled" class="auth-divider">
+      <span>or</span>
+    </div>
+
+    <Form v-if="localLoginEnabled" ref="formLogin" :model="formLogin" :rules="ruleLogin">
       <FormItem prop="username">
         <Input type="text" v-model="formLogin.username" :placeholder="$t('m.LoginUsername')" size="large" @on-enter="handleLogin">
         <template #prepend><Icon type="ios-person-outline" ></Icon></template>
@@ -17,7 +32,7 @@
         </Input>
       </FormItem>
     </Form>
-    <div class="footer">
+    <div v-if="localLoginEnabled" class="footer">
       <LegacyButton
         type="primary"
         @click="handleLogin"
@@ -25,7 +40,7 @@
         :loading="btnLoginLoading">
         {{$t('m.UserLogin')}}
       </LegacyButton>
-      <a v-if="website.allow_register" @click.stop="handleBtnClick('register')">{{$t('m.No_Account')}}</a>
+      <a v-if="website.allow_register && localRegisterEnabled" @click.stop="handleBtnClick('register')">{{$t('m.No_Account')}}</a>
       <a @click.stop="goResetPassword" style="float: right">{{$t('m.Forget_Password')}}</a>
     </div>
   </div>
@@ -94,10 +109,28 @@
       goResetPassword () {
         this.changeModalStatus({visible: false})
         this.$router.push({name: 'apply-reset-password'})
+      },
+      startAuthentikLogin () {
+        const url = new URL('/api/auth/oidc/login/', window.location.origin)
+        url.searchParams.set('next', '/')
+        window.location.assign(url.toString())
+      },
+      goAuthentikRegister () {
+        const url = this.authProviders.authentik && this.authProviders.authentik.register_url
+        if (url) window.location.assign(url)
       }
     },
     computed: {
-      ...mapGetters(['website', 'modalStatus']),
+      ...mapGetters(['website', 'modalStatus', 'authProviders']),
+      authentikEnabled () {
+        return !!(this.authProviders.authentik && this.authProviders.authentik.enabled)
+      },
+      localLoginEnabled () {
+        return !this.authProviders.local || this.authProviders.local.login_enabled !== false
+      },
+      localRegisterEnabled () {
+        return !this.authProviders.local || this.authProviders.local.register_enabled !== false
+      },
       visible: {
         get () {
           return this.modalStatus.visible
@@ -111,6 +144,61 @@
 </script>
 
 <style scoped lang="less">
+  .auth-panel {
+    padding: 2px 2px 0;
+  }
+
+  .sso-card {
+    padding: 16px;
+    border: 1px solid var(--oj-border);
+    border-radius: var(--oj-radius-medium);
+    background: var(--oj-surface-muted);
+    text-align: center;
+  }
+
+  .sso-eyebrow {
+    color: var(--oj-accent);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .16em;
+  }
+
+  .sso-copy {
+    margin: 8px 0 14px;
+    color: var(--oj-text-muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .sso-button {
+    margin-bottom: 10px;
+  }
+
+  .sso-register {
+    color: var(--oj-accent);
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0;
+    color: var(--oj-text-faint);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+  }
+
+  .auth-divider::before,
+  .auth-divider::after {
+    content: '';
+    height: 1px;
+    flex: 1;
+    background: var(--oj-border);
+  }
+
   .footer {
     overflow: auto;
     margin-top: 20px;

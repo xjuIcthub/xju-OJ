@@ -240,4 +240,48 @@ DRAMATIQ_RESULT_BACKEND = {
 
 IP_HEADER = "HTTP_X_REAL_IP"
 
-DEFAULT_AUTO_FIELD='django.db.models.AutoField'
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+
+def _env_bool(name, default):
+    value = get_env(name, 'true' if default else 'false').strip().lower()
+    if value not in {'true', 'false'}:
+        raise RuntimeError(f'{name} must be true or false')
+    return value == 'true'
+
+
+def _env_int(name, default):
+    value = get_env(name, str(default)).strip()
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise RuntimeError(f'{name} must be an integer') from exc
+
+
+AUTHENTIK_OIDC_ENABLED = _env_bool('AUTHENTIK_OIDC_ENABLED', False)
+AUTHENTIK_LOCAL_LOGIN_ENABLED = _env_bool('AUTHENTIK_LOCAL_LOGIN_ENABLED', True)
+AUTHENTIK_LOCAL_REGISTER_ENABLED = _env_bool('AUTHENTIK_LOCAL_REGISTER_ENABLED', True)
+AUTHENTIK_OIDC_ISSUER = get_env(
+    'AUTHENTIK_OIDC_ISSUER',
+    'https://auth.icthub.top/application/o/xju-oj/',
+).rstrip('/')
+AUTHENTIK_OIDC_CLIENT_ID = get_env('AUTHENTIK_OIDC_CLIENT_ID', '').strip()
+AUTHENTIK_OIDC_CLIENT_SECRET_FILE = get_env('AUTHENTIK_OIDC_CLIENT_SECRET_FILE', '/dev/null').strip()
+AUTHENTIK_OIDC_REDIRECT_URI = get_env(
+    'AUTHENTIK_OIDC_REDIRECT_URI',
+    'https://oj.icthub.top/api/auth/oidc/callback/',
+).strip()
+AUTHENTIK_OIDC_REGISTER_URL = get_env(
+    'AUTHENTIK_OIDC_REGISTER_URL',
+    'https://auth.icthub.top/if/flow/icthub-public-registration/',
+).strip()
+AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI = get_env(
+    'AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI',
+    'https://oj.icthub.top',
+).strip()
+AUTHENTIK_OIDC_SCOPES = get_env('AUTHENTIK_OIDC_SCOPES', 'openid profile email groups').strip()
+AUTHENTIK_OIDC_STATE_TTL_SECONDS = _env_int('AUTHENTIK_OIDC_STATE_TTL_SECONDS', 300)
+AUTHENTIK_OIDC_CLOCK_SKEW_SECONDS = _env_int('AUTHENTIK_OIDC_CLOCK_SKEW_SECONDS', 60)
+AUTHENTIK_OIDC_ALLOWED_ALGORITHMS = tuple(
+    item for item in get_env('AUTHENTIK_OIDC_ALLOWED_ALGORITHMS', 'RS256').split() if item
+)

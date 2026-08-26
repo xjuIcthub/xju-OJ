@@ -23,7 +23,9 @@ dependencies = [
   "pytz==2026.3.post1",
   "qrcode==7.4.2",
   "sentry-sdk[django]==2.68.0",
-  "XlsxWriter==3.1.9"
+  "XlsxWriter==3.1.9",
+  "authlib==1.6.5",
+  "requests==2.34.2",
 ]
 
 [dependency-groups]

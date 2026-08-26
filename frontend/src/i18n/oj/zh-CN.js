@@ -187,6 +187,11 @@ export const m = {
   No_Account: '还没账号，立即注册!',
   Forget_Password: '忘记密码',
   UserLogin: '登录',
+  Login_with_Authentik: '使用 Authentik 登录',
+  Register_with_Authentik: '创建 Authentik 账户',
+  Authentik_Account_Notice: '账户、密码、邮箱验证和双因素认证由 Authentik 统一管理。',
+  Bind_Authentik: '绑定 Authentik 账户',
+  Authentik_Bound: '已绑定 Authentik 账户',
   Welcome_back: '欢迎回来',
   // OIRank.vue
   OI_Ranklist: 'OI 排名',
@@ -215,6 +220,7 @@ export const m = {
   The_email_already_exists: '该电子邮件地址已存在',
   password_does_not_match: '密码不匹配',
   Thanks_for_registering: '感谢注册，您现在可以登录了',
+  Register_through_Authentik: '注册流程由 Authentik 统一处理。',
   // ResetPassword.vue and ApplyResetPassword.vue
   Reset_Password: '重置密码',
   RPassword: '密码',

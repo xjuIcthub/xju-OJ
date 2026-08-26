@@ -18,7 +18,7 @@ from utils.api import APIView, validate_serializer, CSRFExemptAPIView
 from utils.captcha import Captcha
 from utils.shortcuts import rand_str, img2base64, datetime2str
 from ..decorators import login_required
-from ..models import User, UserProfile, AdminType
+from ..models import ExternalIdentity, User, UserProfile, AdminType
 from ..serializers import (ApplyResetPasswordSerializer, ResetPasswordSerializer,
                            UserChangePasswordSerializer, UserLoginSerializer,
                            UserRegisterSerializer, UsernameOrEmailCheckSerializer,
@@ -55,6 +55,18 @@ class UserProfileAPI(APIView):
     def put(self, request):
         data = request.data
         user_profile = request.user.userprofile
+        if (
+            not user_profile.oj_onboarding_completed
+            and ExternalIdentity.objects.filter(user=request.user, provider="authentik").exists()
+        ):
+            required_fields = ("real_name", "school", "major", "language")
+            merged = {
+                field: data.get(field, getattr(user_profile, field))
+                for field in required_fields
+            }
+            if any(not str(merged[field] or "").strip() for field in required_fields):
+                return self.error("Please complete your OJ profile before continuing")
+            user_profile.oj_onboarding_completed = True
         for k, v in data.items():
             setattr(user_profile, k, v)
         user_profile.save()
@@ -95,6 +107,8 @@ class TwoFactorAuthAPI(APIView):
         Get QR code
         """
         user = request.user
+        if ExternalIdentity.objects.filter(user=user, provider="authentik").exists():
+            return self.error("MFA is managed by Authentik")
         if user.two_factor_auth:
             return self.error("2FA is already turned on")
         token = rand_str()
@@ -111,6 +125,8 @@ class TwoFactorAuthAPI(APIView):
         """
         Open 2FA
         """
+        if ExternalIdentity.objects.filter(user=request.user, provider="authentik").exists():
+            return self.error("MFA is managed by Authentik")
         code = request.data["code"]
         user = request.user
         if OtpAuth(user.tfa_token).valid_totp(code):
@@ -123,6 +139,8 @@ class TwoFactorAuthAPI(APIView):
     @login_required
     @validate_serializer(TwoFactorAuthCodeSerializer)
     def put(self, request):
+        if ExternalIdentity.objects.filter(user=request.user, provider="authentik").exists():
+            return self.error("MFA is managed by Authentik")
         code = request.data["code"]
         user = request.user
         if not user.two_factor_auth:
@@ -158,6 +176,8 @@ class UserLoginAPI(APIView):
         """
         User login api
         """
+        if settings.AUTHENTIK_OIDC_ENABLED and not settings.AUTHENTIK_LOCAL_LOGIN_ENABLED:
+            return self.error("Please login with Authentik")
         data = request.data
         user = auth.authenticate(username=data["username"], password=data["password"])
         # None is returned if username or password is wrong
@@ -214,6 +234,8 @@ class UserRegisterAPI(APIView):
         """
         if not SysOptions.allow_register:
             return self.error("Register function has been disabled by admin")
+        if settings.AUTHENTIK_OIDC_ENABLED and not settings.AUTHENTIK_LOCAL_REGISTER_ENABLED:
+            return self.error("Please register through Authentik")
 
         data = request.data
         data["username"] = data["username"].lower()
@@ -236,6 +258,8 @@ class UserChangeEmailAPI(APIView):
     @validate_serializer(UserChangeEmailSerializer)
     @login_required
     def post(self, request):
+        if ExternalIdentity.objects.filter(user=request.user, provider="authentik").exists():
+            return self.error("Email is managed by Authentik")
         data = request.data
         user = auth.authenticate(username=request.user.username, password=data["password"])
         if user:
@@ -261,6 +285,8 @@ class UserChangePasswordAPI(APIView):
         """
         User change password api
         """
+        if ExternalIdentity.objects.filter(user=request.user, provider="authentik").exists():
+            return self.error("Password is managed by Authentik")
         data = request.data
         username = request.user.username
         user = auth.authenticate(username=username, password=data["old_password"])
@@ -290,6 +316,8 @@ class ApplyResetPasswordAPI(APIView):
             user = User.objects.get(email__iexact=data["email"])
         except User.DoesNotExist:
             return self.error("User does not exist")
+        if ExternalIdentity.objects.filter(user=user, provider="authentik").exists():
+            return self.error("Password is managed by Authentik")
         if user.reset_password_token_expire_time and 0 < int(
                 (user.reset_password_token_expire_time - now()).total_seconds()) < 20 * 60:
             return self.error("You can only reset password once per 20 minutes")
@@ -321,6 +349,8 @@ class ResetPasswordAPI(APIView):
             user = User.objects.get(reset_password_token=data["token"])
         except User.DoesNotExist:
             return self.error("Token does not exist")
+        if ExternalIdentity.objects.filter(user=user, provider="authentik").exists():
+            return self.error("Password is managed by Authentik")
         if user.reset_password_token_expire_time < now():
             return self.error("Token has expired")
         user.reset_password_token = None

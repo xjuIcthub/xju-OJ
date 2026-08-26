@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractBaseUser
 from django.conf import settings
 from django.db import models
+from django.core.validators import RegexValidator
 from utils.models import JSONField
 
 
@@ -26,6 +27,14 @@ class UserManager(models.Manager):
 class User(AbstractBaseUser):
     username = models.TextField(unique=True)
     email = models.TextField(null=True)
+    studio_account_id = models.CharField(
+        max_length=8,
+        null=True,
+        blank=True,
+        unique=True,
+        validators=[RegexValidator(r"^[1-9][0-9]{7}$", "Studio account ID must be 8 digits and start with 1-9.")],
+        help_text="Immutable 8-digit Studio account identifier; null only for pre-migration users.",
+    )
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     # One of UserType
     admin_type = models.TextField(default=AdminType.REGULAR_USER)
@@ -66,6 +75,29 @@ class User(AbstractBaseUser):
         db_table = "user"
 
 
+class ExternalIdentity(models.Model):
+    """A stable external identity mapping; OIDC tokens never live here."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="external_identities")
+    provider = models.CharField(max_length=64, default="authentik")
+    issuer = models.URLField(max_length=512)
+    subject = models.CharField(max_length=255)
+    email = models.TextField(null=True, blank=True)
+    email_verified = models.BooleanField(default=False)
+    claims = JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_login_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "external_identity"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["issuer", "subject"],
+                name="external_identity_issuer_subject_uniq",
+            )
+        ]
+
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # acm_problems_status examples:
@@ -100,6 +132,9 @@ class UserProfile(models.Model):
     # for OI
     total_score = models.BigIntegerField(default=0)
     submission_number = models.IntegerField(default=0)
+    # Existing local users are considered complete; new Studio/OIDC users must
+    # fill product-specific fields before continuing past first login.
+    oj_onboarding_completed = models.BooleanField(default=True)
 
     def add_accepted_problem_number(self):
         self.accepted_number = models.F("accepted_number") + 1

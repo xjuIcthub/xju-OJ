@@ -12,6 +12,9 @@ export default {
       params
     })
   },
+  getAuthProviders () {
+    return ajax('auth/providers', 'get')
+  },
   getAnnouncementList (offset, limit) {
     let params = {
       offset: offset,

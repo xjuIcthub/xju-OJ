@@ -1,9 +1,10 @@
-window.__XJU_RUNTIME_CONFIG__ = window.__XJU_RUNTIME_CONFIG__ || {
-  APP_DOMAIN: '',
-  PUBLIC_BASE_URL: '/public',
-  VERSION: 'dev',
+const defaults = {
   AUTHENTIK_OIDC_ENABLED: false,
   AUTHENTIK_OIDC_REGISTER_URL: 'https://auth.icthub.top/if/flow/icthub-public-registration/',
   AUTHENTIK_LOCAL_LOGIN_ENABLED: true,
   AUTHENTIK_LOCAL_REGISTER_ENABLED: true
 }
+
+const runtime = window.__XJU_RUNTIME_CONFIG__ || {}
+
+export default { ...defaults, ...runtime }

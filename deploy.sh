@@ -86,6 +86,12 @@ allowed = {
     "JUDGE_SERVER_TOKEN_FILE", "INITIAL_ADMIN_PASSWORD_FILE",
     "JUDGER_HTTP_WORKERS", "JUDGER_HTTP_THREADS", "JUDGER_TESTCASE_WORKERS",
     "TEST_CASE_GROUP_GID",
+    "AUTHENTIK_OIDC_ENABLED", "AUTHENTIK_LOCAL_LOGIN_ENABLED", "AUTHENTIK_LOCAL_REGISTER_ENABLED",
+    "AUTHENTIK_OIDC_ISSUER", "AUTHENTIK_OIDC_CLIENT_ID", "AUTHENTIK_OIDC_CLIENT_SECRET_FILE",
+    "AUTHENTIK_OIDC_REDIRECT_URI", "AUTHENTIK_OIDC_REGISTER_URL",
+    "AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI", "AUTHENTIK_OIDC_SCOPES",
+    "AUTHENTIK_OIDC_STATE_TTL_SECONDS", "AUTHENTIK_OIDC_CLOCK_SKEW_SECONDS",
+    "AUTHENTIK_OIDC_ALLOWED_ALGORITHMS",
 }
 forbidden = {
     "POSTGRES_PASSWORD", "DJANGO_SECRET_KEY", "JUDGE_SERVER_TOKEN",
@@ -213,12 +219,40 @@ POSTGRES_DB=${POSTGRES_DB:-onlinejudge}
 POSTGRES_USER=${POSTGRES_USER:-onlinejudge}
 INITIAL_ADMIN_USERNAME=${INITIAL_ADMIN_USERNAME:-admin}
 
+AUTHENTIK_OIDC_ENABLED=${AUTHENTIK_OIDC_ENABLED:-false}
+AUTHENTIK_LOCAL_LOGIN_ENABLED=${AUTHENTIK_LOCAL_LOGIN_ENABLED:-true}
+AUTHENTIK_LOCAL_REGISTER_ENABLED=${AUTHENTIK_LOCAL_REGISTER_ENABLED:-true}
+AUTHENTIK_OIDC_ISSUER=${AUTHENTIK_OIDC_ISSUER:-https://auth.icthub.top/application/o/xju-oj/}
+AUTHENTIK_OIDC_CLIENT_ID=${AUTHENTIK_OIDC_CLIENT_ID:-}
+AUTHENTIK_OIDC_REDIRECT_URI=${AUTHENTIK_OIDC_REDIRECT_URI:-$PUBLIC_BASE_URL/api/auth/oidc/callback/}
+AUTHENTIK_OIDC_REGISTER_URL=${AUTHENTIK_OIDC_REGISTER_URL:-https://auth.icthub.top/register}
+AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI=${AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI:-$PUBLIC_BASE_URL}
+AUTHENTIK_OIDC_SCOPES=${AUTHENTIK_OIDC_SCOPES:-openid profile email}
+AUTHENTIK_OIDC_STATE_TTL_SECONDS=${AUTHENTIK_OIDC_STATE_TTL_SECONDS:-300}
+AUTHENTIK_OIDC_CLOCK_SKEW_SECONDS=${AUTHENTIK_OIDC_CLOCK_SKEW_SECONDS:-60}
+AUTHENTIK_OIDC_ALLOWED_ALGORITHMS=${AUTHENTIK_OIDC_ALLOWED_ALGORITHMS:-RS256}
+if [ "$AUTHENTIK_OIDC_ENABLED" = true ]; then
+    AUTHENTIK_OIDC_CLIENT_SECRET_FILE=$(secret_path "${AUTHENTIK_OIDC_CLIENT_SECRET_FILE:-$SECRET_ROOT/authentik-oidc-client-secret}") || fail "invalid AUTHENTIK_OIDC_CLIENT_SECRET_FILE"
+else
+    AUTHENTIK_OIDC_CLIENT_SECRET_FILE=/dev/null
+fi
+
+case "$AUTHENTIK_OIDC_ENABLED:$AUTHENTIK_LOCAL_LOGIN_ENABLED:$AUTHENTIK_LOCAL_REGISTER_ENABLED" in
+    true:true:true|true:true:false|true:false:true|true:false:false|false:true:true|false:true:false|false:false:true|false:false:false) ;;
+    *) fail "AUTHENTIK_*_ENABLED values must be true or false" ;;
+esac
+
 export COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL HTTP_BIND_ADDRESS HTTP_PORT
 export DEPLOY_ROOT RUNTIME_ROOT BACKUP_ROOT SECRET_ROOT DEPLOY_MODE SECRET_PROVISION_MODE
 export FRONTEND_IMAGE_REF BACKEND_IMAGE_REF JUDGE_IMAGE_REF JUDGE_TOOLCHAIN_IMAGE_REF
 export POSTGRES_IMAGE_REF REDIS_IMAGE_REF GIT_COMMIT BUILD_VERSION BUILD_CREATED
 export POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD_FILE DJANGO_SECRET_KEY_FILE
 export JUDGE_SERVER_TOKEN_FILE INITIAL_ADMIN_USERNAME INITIAL_ADMIN_PASSWORD_FILE
+export AUTHENTIK_OIDC_ENABLED AUTHENTIK_LOCAL_LOGIN_ENABLED AUTHENTIK_LOCAL_REGISTER_ENABLED
+export AUTHENTIK_OIDC_ISSUER AUTHENTIK_OIDC_CLIENT_ID AUTHENTIK_OIDC_CLIENT_SECRET_FILE
+export AUTHENTIK_OIDC_REDIRECT_URI AUTHENTIK_OIDC_REGISTER_URL AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI
+export AUTHENTIK_OIDC_SCOPES AUTHENTIK_OIDC_STATE_TTL_SECONDS AUTHENTIK_OIDC_CLOCK_SKEW_SECONDS
+export AUTHENTIK_OIDC_ALLOWED_ALGORITHMS
 
 required() {
     name=$1
@@ -233,6 +267,33 @@ for name in COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL HTTP_BIND_ADDRESS HT
     INITIAL_ADMIN_PASSWORD_FILE; do
     required "$name"
 done
+
+if [ "$AUTHENTIK_OIDC_ENABLED" = true ]; then
+    [ -n "$AUTHENTIK_OIDC_CLIENT_ID" ] || fail "AUTHENTIK_OIDC_CLIENT_ID is required when OIDC is enabled"
+    python3 - "$AUTHENTIK_OIDC_ISSUER" "$AUTHENTIK_OIDC_REDIRECT_URI" \
+        "$AUTHENTIK_OIDC_REGISTER_URL" "$AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI" \
+        "$AUTHENTIK_OIDC_SCOPES" <<'PY' || fail "invalid Authentik OIDC configuration"
+import sys
+from urllib.parse import urlparse
+
+issuer, redirect_uri, register_url, logout_uri, scopes = sys.argv[1:]
+issuer_parts = urlparse(issuer)
+redirect_parts = urlparse(redirect_uri)
+register_parts = urlparse(register_url)
+logout_parts = urlparse(logout_uri)
+if issuer_parts.scheme != "https" or not issuer_parts.netloc or issuer_parts.query or issuer_parts.fragment:
+    raise SystemExit(1)
+if redirect_parts.scheme != "https" or not redirect_parts.netloc or redirect_parts.query or redirect_parts.fragment:
+    raise SystemExit(1)
+if redirect_parts.path != "/api/auth/oidc/callback/":
+    raise SystemExit(1)
+for parts in (register_parts, logout_parts):
+    if parts.scheme != "https" or not parts.netloc or parts.query or parts.fragment:
+        raise SystemExit(1)
+if "openid" not in scopes.split():
+    raise SystemExit(1)
+PY
+fi
 
 for path_name in DEPLOY_ROOT RUNTIME_ROOT BACKUP_ROOT SECRET_ROOT; do
     eval "path_value=\${$path_name}"
@@ -256,15 +317,33 @@ for secret_path in "$POSTGRES_PASSWORD_FILE" "$DJANGO_SECRET_KEY_FILE" \
         "$ROOT"|"$ROOT"/*) fail "secret files must be outside the checkout" ;;
     esac
 done
-
-python3 - "$POSTGRES_PASSWORD_FILE" "$DJANGO_SECRET_KEY_FILE" \
-    "$JUDGE_SERVER_TOKEN_FILE" "$INITIAL_ADMIN_PASSWORD_FILE" <<'PY' || fail "secret file destinations must be distinct"
+if [ "$AUTHENTIK_OIDC_ENABLED" = true ]; then
+    case "$AUTHENTIK_OIDC_CLIENT_SECRET_FILE" in
+        /*) ;;
+        *) fail "AUTHENTIK_OIDC_CLIENT_SECRET_FILE must be absolute" ;;
+    esac
+    case "$AUTHENTIK_OIDC_CLIENT_SECRET_FILE" in
+        "$ROOT"|"$ROOT"/*) fail "OIDC client secret must be outside the checkout" ;;
+    esac
+    python3 - "$POSTGRES_PASSWORD_FILE" "$DJANGO_SECRET_KEY_FILE" \
+        "$JUDGE_SERVER_TOKEN_FILE" "$INITIAL_ADMIN_PASSWORD_FILE" \
+        "$AUTHENTIK_OIDC_CLIENT_SECRET_FILE" <<'PY' || fail "secret file destinations must be distinct"
 import sys
 
 paths = sys.argv[1:]
 if len(paths) != len(set(paths)):
     raise SystemExit(1)
 PY
+else
+    python3 - "$POSTGRES_PASSWORD_FILE" "$DJANGO_SECRET_KEY_FILE" \
+        "$JUDGE_SERVER_TOKEN_FILE" "$INITIAL_ADMIN_PASSWORD_FILE" <<'PY' || fail "secret file destinations must be distinct"
+import sys
+
+paths = sys.argv[1:]
+if len(paths) != len(set(paths)):
+    raise SystemExit(1)
+PY
+fi
 
 case "$SECRET_PROVISION_MODE" in
     prompt|external) ;;
@@ -303,8 +382,14 @@ check_secret_set() {
     check_secret_file "$DJANGO_SECRET_KEY_FILE" "Django secret key" 32
     check_secret_file "$JUDGE_SERVER_TOKEN_FILE" "JudgeServer token" 32
     check_secret_file "$INITIAL_ADMIN_PASSWORD_FILE" "Initial administrator password" 12
-    python3 - "$POSTGRES_PASSWORD_FILE" "$DJANGO_SECRET_KEY_FILE" \
-        "$JUDGE_SERVER_TOKEN_FILE" "$INITIAL_ADMIN_PASSWORD_FILE" <<'PY' || fail "secret files must not be hard-linked aliases"
+    secret_args="$POSTGRES_PASSWORD_FILE $DJANGO_SECRET_KEY_FILE $JUDGE_SERVER_TOKEN_FILE $INITIAL_ADMIN_PASSWORD_FILE"
+    if [ "$AUTHENTIK_OIDC_ENABLED" = true ]; then
+        check_secret_file "$AUTHENTIK_OIDC_CLIENT_SECRET_FILE" "Authentik OIDC client secret" 16
+        secret_args="$secret_args $AUTHENTIK_OIDC_CLIENT_SECRET_FILE"
+    fi
+    # Word splitting is intentional: all paths have already been normalized and
+    # are restricted to operator-controlled absolute paths.
+    python3 - $secret_args <<'PY' || fail "secret files must not be hard-linked aliases"
 import os
 import sys
 
@@ -490,6 +575,9 @@ provision_secret_file "$POSTGRES_PASSWORD_FILE" "PostgreSQL password" 16
 provision_secret_file "$DJANGO_SECRET_KEY_FILE" "Django secret key" 32
 provision_secret_file "$JUDGE_SERVER_TOKEN_FILE" "JudgeServer token" 32
 provision_secret_file "$INITIAL_ADMIN_PASSWORD_FILE" "Initial administrator password" 12 1
+if [ "$AUTHENTIK_OIDC_ENABLED" = true ]; then
+    provision_secret_file "$AUTHENTIK_OIDC_CLIENT_SECRET_FILE" "Authentik OIDC client secret" 16
+fi
 check_secret_set
 
 attempt_dir="$RUNTIME_ROOT/deployments/history/attempt-$(date -u +%Y%m%dT%H%M%SZ)-$$"

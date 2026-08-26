@@ -120,5 +120,7 @@ export const m = {
   Welcome_to_Login: '欢迎登录 OnlineJudge 后台管理系统',
   GO: '登录',
   username: '用户名',
-  password: '密码'
+  password: '密码',
+  Login_with_Authentik: '使用 Authentik 登录',
+  Authentik_Account_Notice: '登录认证由 Authentik 统一管理。'
 }

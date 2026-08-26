@@ -53,8 +53,9 @@ class UserAdminSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "admin_type", "problem_permission", "real_name",
+        fields = ["id", "username", "email", "studio_account_id", "admin_type", "problem_permission", "real_name",
                   "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled"]
+        read_only_fields = ["studio_account_id"]
 
     def get_real_name(self, obj):
         return obj.userprofile.real_name
@@ -64,7 +65,8 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "username", "email", "admin_type", "problem_permission",
-                  "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled"]
+                  "studio_account_id", "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled"]
+        read_only_fields = ["studio_account_id"]
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
