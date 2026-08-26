@@ -146,3 +146,12 @@ coverage report
 - 为保持 Redis 4.0 运行兼容，requirements 显式固定 `redis==4.6.0`；未固定时 resolver 选出的 Redis 8 客户端会发送 RESP3 `HELLO`，导致现有 Redis 4 的 Session/cache 失败。
 - backend 镜像构建通过；隔离 PostgreSQL 10 + Redis 4.0 上完成 bootstrap、全量 migrate、JudgeServer token 一次性配置、初始管理员创建、重复 token 拒绝、showmigrations、migrate plan、makemigrations check、Redis cache probe，以及独立 API/Worker 容器启动和 `/api/website/` 200 冒烟。
 - 首次 app 测试暴露两类基线问题：未固定的 resolver 选择 Redis 8 客户端而旧 Redis 4 不支持 RESP3 `HELLO`；测试 fixture 仍引用已不在当前语言矩阵的 Python2，并有一处错误包装断言过时。固定 `redis==4.6.0` 后，未改业务 API/响应语义；仅同步测试 fixture 到当前既有语言矩阵和实际 `invalid-language` 响应，最终 119 个测试全部通过。Django 3.2 仍报告 15 个历史 PostgreSQL JSONField 弃用 warning，未升级框架或迁移。完整输出保留在本轮外部工作日志，阶段文档只记录脱敏根因。
+
+## 2026-08-26：huawei1 OIDC 生产部署验收
+
+- 发布提交：`719f2b7`；部署 attempt：`attempt-20260826T170547Z-162258`。部署命令显式跳过了无法稳定重建的 Postgres target，继续复用既有固定 Postgres digest；未执行删库、删卷或 destructive prune。
+- `deploy.sh` 结果：`services-ready`、HTTP smoke、Worker smoke、Judge `/ping` 全部通过；`current.json` 已写入 source commit `719f2b7`。backend/frontend/server 使用 `git-719f2b79d251` 镜像，Postgres/Redis 保持固定 digest。
+- huawei1 运行状态：backend-api、backend-worker、frontend、JudgeServer、PostgreSQL、Redis 均 `running healthy`；Compose 仅 frontend 发布宿主端口，`xju-oj_core`/`xju-oj_edge` 端点与拓扑符合合同。
+- OIDC 验收：本地和公网 `/api/auth/providers/` 均返回 200，`authentik.enabled=true`，`local.login_enabled=false`、`local.register_enabled=false`；OIDC login/logout endpoint 均返回 302；Authentik provider metadata 返回 200。
+- 注册边界：OJ 注册入口已统一指向 Authentik public registration flow，但 public registration gate 仍保持关闭，尚未宣称新用户注册完成。Studio 公网 Cloudflare 路由仍待外部配置，当前 `/register` 为 404、`/dashboard` 为 502。
+- 清理记录：huawei1 无残留 deploy/BuildKit 进程、无退出容器；仅清理约 2 GB 可回收 BuildKit 缓存，并执行了无可删除项的 Docker network prune；生产 volume、旧镜像和历史 attempt 日志保留用于回滚/诊断。
