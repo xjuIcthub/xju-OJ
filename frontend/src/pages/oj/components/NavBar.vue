@@ -52,7 +52,7 @@
                   shape="circle"
                   @click="handleBtnClick('login')">{{$t('m.Login')}}
           </LegacyButton>
-          <LegacyButton v-if="website.allow_register && authentikEnabled"
+          <LegacyButton v-if="authentikEnabled"
                   type="ghost"
                   shape="circle"
                   @click="goAuthentikRegister"

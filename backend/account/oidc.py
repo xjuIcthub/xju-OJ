@@ -423,8 +423,8 @@ def _username_candidate(claims):
     return candidate
 
 
-def _unique_username(candidate, subject):
-    if not User.objects.filter(username=candidate).exists():
+def _unique_username(candidate, subject, force_suffix=False):
+    if not force_suffix and not User.objects.filter(username=candidate).exists():
         return candidate
     suffix = hashlib.sha256(subject.encode("utf-8")).hexdigest()[:10]
     base = candidate[: 32 - len(suffix) - 1].rstrip(".-_") or "user"
@@ -476,91 +476,107 @@ def provision_or_get(claims, mode="login", linked_user_id=None):
     email = str(claims["email"]).strip().casefold()
     account_id = _account_id_from_claims(claims)
     stored_claims = _claims_for_storage(claims, email)
-    try:
-        with transaction.atomic():
-            identity = (
-                ExternalIdentity.objects.select_for_update()
-                .select_related("user")
-                .filter(provider=_PROVIDER, issuer=issuer, subject=subject)
-                .first()
-            )
-            if identity:
-                user = identity.user
-                if mode == "link" and linked_user_id and user.id != linked_user_id:
-                    raise OIDCError("identity_already_linked")
-                if user.is_disabled:
-                    raise OIDCError("account_disabled")
-                UserProfile.objects.get_or_create(user=user)
-                if user.studio_account_id and user.studio_account_id != account_id:
-                    raise OIDCError("account_claim_mismatch")
-                if not user.studio_account_id:
-                    user.studio_account_id = account_id
-                    user.save(update_fields=["studio_account_id"])
-                identity.email = email
-                identity.email_verified = True
-                identity.claims = stored_claims
-                identity.save(update_fields=["email", "email_verified", "claims", "last_login_at"])
-                if user.email != email:
-                    user.email = email
-                    user.save(update_fields=["email"])
-                _apply_admin_claims(user, claims)
-                return user
-            if mode == "link":
-                if not linked_user_id:
-                    raise OIDCError("link_login_required")
-                user = User.objects.select_for_update().get(id=linked_user_id)
-                if user.is_disabled:
-                    raise OIDCError("account_disabled")
-                UserProfile.objects.get_or_create(user=user)
-                if user.studio_account_id and user.studio_account_id != account_id:
-                    raise OIDCError("account_claim_mismatch")
-                if not user.studio_account_id:
-                    user.studio_account_id = account_id
-                    user.save(update_fields=["studio_account_id"])
-            else:
-                user = User.objects.select_for_update().filter(studio_account_id=account_id).first()
-                if user is not None:
-                    # A pre-existing local row must be linked explicitly; an
-                    # account ID is not permission to silently merge identities.
-                    if not ExternalIdentity.objects.filter(user=user, provider=_PROVIDER).exists():
-                        raise OIDCError("account_link_required")
+    for attempt in range(2):
+        try:
+            with transaction.atomic():
+                identity = (
+                    ExternalIdentity.objects.select_for_update()
+                    .select_related("user")
+                    .filter(provider=_PROVIDER, issuer=issuer, subject=subject)
+                    .first()
+                )
+                if identity:
+                    user = identity.user
+                    if mode == "link" and linked_user_id and user.id != linked_user_id:
+                        raise OIDCError("identity_already_linked")
+                    if user.is_disabled:
+                        raise OIDCError("account_disabled")
+                    UserProfile.objects.get_or_create(user=user)
+                    if user.studio_account_id and user.studio_account_id != account_id:
+                        raise OIDCError("account_claim_mismatch")
+                    if not user.studio_account_id:
+                        user.studio_account_id = account_id
+                        user.save(update_fields=["studio_account_id"])
+                    identity.email = email
+                    identity.email_verified = True
+                    identity.claims = stored_claims
+                    identity.save(update_fields=["email", "email_verified", "claims", "last_login_at"])
+                    if user.email != email:
+                        user.email = email
+                        user.save(update_fields=["email"])
+                    _apply_admin_claims(user, claims)
+                    return user
+                if mode == "link":
+                    if not linked_user_id:
+                        raise OIDCError("link_login_required")
+                    user = User.objects.select_for_update().get(id=linked_user_id)
+                    if user.is_disabled:
+                        raise OIDCError("account_disabled")
+                    UserProfile.objects.get_or_create(user=user)
+                    if user.studio_account_id and user.studio_account_id != account_id:
+                        raise OIDCError("account_claim_mismatch")
+                    if not user.studio_account_id:
+                        user.studio_account_id = account_id
+                        user.save(update_fields=["studio_account_id"])
                 else:
-                    if User.objects.filter(email__iexact=email).exists():
+                    user = User.objects.select_for_update().filter(studio_account_id=account_id).first()
+                    if user is not None:
+                        # The current (issuer, subject) was not found above. A
+                        # pre-existing local row therefore requires explicit
+                        # link, while an already-linked account ID must reject a
+                        # second subject instead of silently merging identities.
+                        if ExternalIdentity.objects.filter(user=user, provider=_PROVIDER).exists():
+                            raise OIDCError("account_claim_conflict")
                         raise OIDCError("account_link_required")
-                    username = _unique_username(_username_candidate(claims), account_id)
-                    user = User(username=username, email=email, studio_account_id=account_id)
-                    user.set_unusable_password()
-                    user.save()
-                    UserProfile.objects.create(user=user, oj_onboarding_completed=False)
-            _apply_admin_claims(user, claims)
-            ExternalIdentity.objects.create(
-                user=user,
-                provider=_PROVIDER,
-                issuer=issuer,
-                subject=subject,
-                email=email,
-                email_verified=True,
-                claims=stored_claims,
-            )
-            return user
-    except OIDCError:
-        raise
-    except User.DoesNotExist as exc:
-        raise OIDCError("account_missing") from exc
-    except IntegrityError as exc:
-        # A concurrent callback may have won the identity race. Re-read it without
-        # guessing by email or username.
-        identity = ExternalIdentity.objects.select_related("user").filter(
-            provider=_PROVIDER, issuer=issuer, subject=subject
-        ).first()
-        if (
-            identity
-            and not identity.user.is_disabled
-            and identity.user.studio_account_id == account_id
-        ):
-            return identity.user
-        logger.warning("Authentik OIDC provisioning race failed: %s", exc.__class__.__name__)
-        raise OIDCError("provisioning_failed") from exc
+                    else:
+                        if User.objects.filter(email__iexact=email).exists():
+                            raise OIDCError("account_link_required")
+                        username = _unique_username(
+                            _username_candidate(claims),
+                            subject,
+                            force_suffix=attempt > 0,
+                        )
+                        user = User(username=username, email=email, studio_account_id=account_id)
+                        user.set_unusable_password()
+                        user.save()
+                        UserProfile.objects.create(user=user, oj_onboarding_completed=False)
+                _apply_admin_claims(user, claims)
+                ExternalIdentity.objects.create(
+                    user=user,
+                    provider=_PROVIDER,
+                    issuer=issuer,
+                    subject=subject,
+                    email=email,
+                    email_verified=True,
+                    claims=stored_claims,
+                )
+                return user
+        except OIDCError:
+            raise
+        except User.DoesNotExist as exc:
+            raise OIDCError("account_missing") from exc
+        except IntegrityError as exc:
+            # A concurrent callback may have won the identity race. Re-read it
+            # without guessing by email or username. If the account ID already
+            # belongs to another subject, reject the collision; if only the
+            # display username collided, retry once with the subject suffix.
+            identity = ExternalIdentity.objects.select_related("user").filter(
+                provider=_PROVIDER, issuer=issuer, subject=subject
+            ).first()
+            if (
+                identity
+                and not identity.user.is_disabled
+                and identity.user.studio_account_id == account_id
+            ):
+                return identity.user
+            account_owner = User.objects.filter(studio_account_id=account_id).first()
+            if account_owner is not None:
+                logger.warning("Authentik OIDC account claim collision: %s", exc.__class__.__name__)
+                raise OIDCError("account_claim_conflict") from exc
+            if attempt == 0 and mode != "link":
+                continue
+            logger.warning("Authentik OIDC provisioning race failed: %s", exc.__class__.__name__)
+            raise OIDCError("provisioning_failed") from exc
 
 
 def complete(request, state, code):
