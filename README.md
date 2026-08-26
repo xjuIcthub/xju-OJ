@@ -84,6 +84,14 @@ DEPLOY_MODE=build
 
 完整字段和注释见 [`.env.example`](.env.example)。
 
+### 从 Authentik 主机安全注入 OIDC
+
+生产 OJ 不应把 Authentik client secret 贴入聊天、命令行或 `.env`。仓库提供
+`ops/configure-authentik-oidc.py`：可在 OJ 主机本地隐藏输入，也可接收 Authentik
+主机 root 环境通过 SSH 管道传来的两行值，并原子写入 `.env` 与 0600 secret 文件。
+脚本会固定 issuer、callback、public registration URL、`groups` scope，并关闭 OJ
+本地登录/注册。
+
 ## 域名与 HTTPS
 
 DNS 只能指向服务器 IP，不能指定 `18080` 端口。典型配置：
