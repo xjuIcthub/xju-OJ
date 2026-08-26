@@ -588,6 +588,40 @@ check_secret_set
 attempt_dir="$RUNTIME_ROOT/deployments/history/attempt-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 ensure_dir "$attempt_dir" 0700
 
+# Keep a complete copy of every command's output while also showing it in the
+# terminal.  Long BuildKit pulls and compose health waits used to look frozen
+# because their output was redirected to the attempt directory until the
+# command finished.  The status sidecar lets this remain POSIX-sh compatible
+# (unlike PIPESTATUS) and preserves the command's exit code through tee.
+stream_command() {
+    stream_log=$1
+    shift
+    stream_status="$stream_log.status"
+    rm -f "$stream_status"
+    printf '%s\n' "[deploy] logging command output to $stream_log"
+    (
+        set +e
+        "$@"
+        stream_rc=$?
+        printf '%s\n' "$stream_rc" > "$stream_status"
+        exit "$stream_rc"
+    ) 2>&1 | tee "$stream_log"
+    stream_tee_rc=$?
+    if [ "$stream_tee_rc" -ne 0 ]; then
+        rm -f "$stream_status"
+        return "$stream_tee_rc"
+    fi
+    if [ ! -s "$stream_status" ]; then
+        return 125
+    fi
+    stream_rc=$(cat "$stream_status")
+    rm -f "$stream_status"
+    case "$stream_rc" in
+        ''|*[!0-9]*) return 125 ;;
+    esac
+    return "$stream_rc"
+}
+
 on_exit() {
     rc=$?
     if [ "$rc" -ne 0 ]; then
@@ -604,7 +638,8 @@ run_step() {
     pattern=$2
     shift 2
     log="$attempt_dir/$name.log"
-    if "$@" >"$log" 2>&1; then
+    printf '%s\n' "[step] $name: START (log: $log)"
+    if stream_command "$log" "$@"; then
         printf '%s\n' "$name: PASS"
         if [ -n "$pattern" ]; then
             grep -nE "$pattern" "$log" | tail -20 || true
@@ -691,14 +726,17 @@ PY
                         ;;
                 esac
                 build_log="$attempt_dir/build-$build_target.log"
-                if ! BUILD_NETWORK="$build_network" GIT_SHA="$git_sha" BUILD_VERSION="$build_version" BUILD_CREATED="${BUILD_CREATED:-unknown}" \
+                printf '%s\n' "[build] $build_target: START (image: $target_ref; log: $build_log)"
+                if ! stream_command "$build_log" env \
+                    BUILD_NETWORK="$build_network" GIT_SHA="$git_sha" BUILD_VERSION="$build_version" \
+                    BUILD_CREATED="${BUILD_CREATED:-unknown}" \
                     docker buildx bake $build_allow --progress=plain --file "$ROOT/docker-bake.hcl" \
                     --set '*.platform=linux/amd64' \
                     --set "$build_target.args.HTTP_PROXY=$target_http_proxy" \
                     --set "$build_target.args.HTTPS_PROXY=$target_https_proxy" \
                     --set "$build_target.args.ALL_PROXY=$target_all_proxy" \
                     --set "$build_target.tags=$target_ref" \
-                    --load "$build_target" >"$build_log" 2>&1
+                    --load "$build_target"
                 then
                     printf '%s\n' "build chunk $build_target failed; key lines (full log: $build_log):" >&2
                     grep -nE 'ERROR|error|failed|ECONNREFUSED|CANCELED|cancelled' "$build_log" | tail -80 >&2 || true

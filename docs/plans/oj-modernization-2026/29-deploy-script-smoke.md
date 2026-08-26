@@ -28,6 +28,7 @@
 11. 启动 backend-api、worker、judge-server、frontend，使用 `up -d --remove-orphans --wait`。
 12. 执行 HTTP/API/Session/CSRF/public/Judge/Redis/Worker smoke。
 13. 只有全部成功才写 `deployments/current.json`，并把上一成功版本保存为 `previous.json`。
+14. 每个 build/compose/smoke 步骤的 stdout/stderr 必须实时显示在终端，同时完整写入本次 `runtime/deployments/history/attempt-*` 日志；通过独立状态文件保留原始退出码，不能因 `tee` 丢失失败状态。
 
 ## 明确禁止
 
