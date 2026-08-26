@@ -758,17 +758,28 @@ log_success() { printf '%s%s%s\n' "$color_green" "$*" "$color_reset"; }
 log_warn() { printf '%s%s%s\n' "$color_yellow" "$*" "$color_reset" >&2; }
 log_error() { printf '%s%s%s\n' "$color_red" "$*" "$color_reset" >&2; }
 
-# Keep a complete copy of every command's output while also showing it in the
-# terminal.  Long BuildKit pulls and compose health waits used to look frozen
-# because their output was redirected to the attempt directory until the
-# command finished.  The status sidecar lets this remain POSIX-sh compatible
-# (unlike PIPESTATUS) and preserves the command's exit code through tee.
+compact_build_output() {
+    while IFS= read -r stream_line; do
+        case "$stream_line" in
+            *" CACHED"*|*" DONE"*|*" ERROR"*|*"ERROR"*|*"error"*|*"failed"*|*"naming to "*|*"writing image "*|*"transferring context"*|*"load metadata"*|*"resolve image config"*|*"] RUN "*|*"] COPY "*|*"exporting"*)
+                printf '%s%s%s\n' "$color_cyan" "$stream_line" "$color_reset"
+                ;;
+        esac
+    done
+}
+
+# Keep a complete copy of every command's output in the attempt directory.
+# Interactive BuildKit output is summarized in the terminal to avoid a line
+# flood; non-build commands remain live. Status sidecars keep this POSIX-sh
+# compatible (unlike PIPESTATUS) and preserve exit codes through tee/filter.
 stream_command() {
     stream_log=$1
     shift
     stream_status="$stream_log.status"
+    stream_tee_status="$stream_log.tee-status"
     rm -f "$stream_status"
-    printf '%s\n' "[deploy] logging command output to $stream_log"
+    rm -f "$stream_tee_status"
+    log_info "[deploy] logging command output to $stream_log"
     stream_parent_pid=$$
     (
         stream_waited=0
@@ -777,24 +788,47 @@ stream_command() {
             kill -0 "$stream_parent_pid" 2>/dev/null || exit 0
             stream_waited=$((stream_waited + DEPLOY_HEARTBEAT_SECONDS))
             [ -s "$stream_status" ] && break
-            printf '%s\n' "[deploy] still running (${stream_waited}s): $stream_log" >&2
+            log_warn "[deploy] still running (${stream_waited}s): $stream_log"
         done
     ) &
     stream_watchdog_pid=$!
-    (
+    stream_compact=0
+    case "$stream_log" in
+        */build-*.log) [ -t 1 ] && stream_compact=1 ;;
+    esac
+    stream_run_command() {
         set +e
         "$@"
         stream_rc=$?
         printf '%s\n' "$stream_rc" > "$stream_status"
         exit "$stream_rc"
-    ) 2>&1 | tee "$stream_log"
-    stream_tee_rc=$?
+    }
+    stream_capture_output() {
+        set +e
+        tee "$stream_log"
+        stream_tee_rc=$?
+        printf '%s\n' "$stream_tee_rc" > "$stream_tee_status"
+        exit "$stream_tee_rc"
+    }
+    if [ "$stream_compact" -eq 1 ]; then
+        stream_run_command "$@" 2>&1 | stream_capture_output | compact_build_output
+    else
+        stream_run_command "$@" 2>&1 | stream_capture_output
+    fi
+    stream_pipeline_rc=$?
     kill "$stream_watchdog_pid" 2>/dev/null || true
     wait "$stream_watchdog_pid" 2>/dev/null || true
+    if [ ! -s "$stream_tee_status" ]; then
+        rm -f "$stream_status"
+        return 125
+    fi
+    stream_tee_rc=$(cat "$stream_tee_status")
+    rm -f "$stream_tee_status"
     if [ "$stream_tee_rc" -ne 0 ]; then
         rm -f "$stream_status"
         return "$stream_tee_rc"
     fi
+    [ "$stream_pipeline_rc" -eq 0 ] || { rm -f "$stream_status"; return 125; }
     if [ ! -s "$stream_status" ]; then
         return 125
     fi
