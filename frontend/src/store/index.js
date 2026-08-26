@@ -37,7 +37,6 @@ const useApplicationStore = defineStore('application', {
   }),
   getters: {
     profile: state => state.user.profile,
-    authProviders: state => state.authProviders,
     currentUser: state => state.user.profile.user || {},
     isAuthenticated () { return !!this.currentUser.id },
     isAdminRole () { return this.currentUser.admin_type === USER_TYPE.ADMIN || this.currentUser.admin_type === USER_TYPE.SUPER_ADMIN },
