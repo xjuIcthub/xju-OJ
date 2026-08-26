@@ -70,7 +70,7 @@ prepare_oidc_client_secret() {
 
     destination_dir=${destination_path%/*}
     mkdir -p "$destination_dir"
-    chown root:root "$destination_dir"
+    chown "$backend_user:$backend_user" "$destination_dir"
     chmod 700 "$destination_dir"
 
     secret_tmp="$destination_dir/.authentik_oidc_client_secret.$$"
