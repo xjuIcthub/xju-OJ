@@ -1,14 +1,18 @@
 # syntax=docker/dockerfile:1.7
 ARG BASE_IMAGE=python:3.10-slim-bookworm@sha256:7ed92b32353e8d8bd865b5ba811e0315d3999c3b57b1c2df2b504a359d4a1707
 ARG UV_VERSION=0.12.5
+ARG PYPI_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
 
 FROM ${BASE_IMAGE} AS backend-deps
 ARG TARGETARCH
 ARG TARGETVARIANT
 ARG UV_VERSION
+ARG PYPI_INDEX_URL
 ENV DEBIAN_FRONTEND=noninteractive \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
+    UV_INDEX_URL=${PYPI_INDEX_URL} \
+    UV_HTTP_TIMEOUT=60 \
     PATH=/root/.local/bin:$PATH
 WORKDIR /app
 
@@ -29,7 +33,10 @@ RUN --mount=type=cache,target=/var/cache/apt,id=backend-apt-${TARGETARCH}-${TARG
         libjpeg62-turbo-dev \
         libpq-dev \
         zlib1g-dev; \
-    python -m pip install --no-cache-dir "uv==${UV_VERSION}"
+    python -m pip install --no-cache-dir \
+        --index-url "${PYPI_INDEX_URL}" \
+        --timeout 60 --retries 5 \
+        "uv==${UV_VERSION}"
 
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv,id=backend-uv-${TARGETARCH}-${TARGETVARIANT}-py310,sharing=locked \
