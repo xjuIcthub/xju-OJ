@@ -41,3 +41,24 @@ class OIDCContractTests(SimpleTestCase):
         self.assertEqual(stored["icthub_account_id"], "12345678")
         self.assertNotIn("access_token", stored)
         self.assertNotIn("id_token", stored)
+
+    def test_admin_group_claim_maps_to_oj_super_admin(self):
+        user = type("User", (), {
+            "admin_type": oidc.AdminType.REGULAR_USER,
+            "problem_permission": oidc.ProblemPermission.NONE,
+            "save": lambda self, update_fields: setattr(self, "saved", update_fields),
+        })()
+        oidc._apply_admin_claims(user, {"groups": ["studio-users", "icthub-admins"]})
+        self.assertEqual(user.admin_type, oidc.AdminType.SUPER_ADMIN)
+        self.assertEqual(user.problem_permission, oidc.ProblemPermission.ALL)
+        self.assertEqual(user.saved, ["admin_type", "problem_permission"])
+
+    def test_non_admin_group_claim_does_not_retain_oj_admin_role(self):
+        user = type("User", (), {
+            "admin_type": oidc.AdminType.SUPER_ADMIN,
+            "problem_permission": oidc.ProblemPermission.ALL,
+            "save": lambda self, update_fields: setattr(self, "saved", update_fields),
+        })()
+        oidc._apply_admin_claims(user, {"groups": ["studio-users"]})
+        self.assertEqual(user.admin_type, oidc.AdminType.REGULAR_USER)
+        self.assertEqual(user.problem_permission, oidc.ProblemPermission.NONE)

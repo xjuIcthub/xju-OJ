@@ -24,7 +24,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
 from utils.api import APIView
-from .models import ExternalIdentity, User, UserProfile
+from .models import AdminType, ExternalIdentity, ProblemPermission, User, UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ _CANONICAL_ISSUER = "https://auth.icthub.top/application/o/xju-oj"
 _CANONICAL_REDIRECT_URI = "https://oj.icthub.top/api/auth/oidc/callback/"
 _CANONICAL_POST_LOGOUT_URI = "https://oj.icthub.top"
 _ALLOWED_NEXT_PATHS = frozenset({"/", "/user-home", "/setting/profile", "/setting/security"})
+_ADMIN_GROUP = "icthub-admins"
 
 
 class OIDCError(Exception):
@@ -431,13 +432,35 @@ def _unique_username(candidate, subject):
 
 
 def _claims_for_storage(claims, email):
+    groups = claims.get("groups", [])
+    if not isinstance(groups, list):
+        groups = []
     return {
         "preferred_username": _safe_claim(claims.get("preferred_username"), 128),
         "name": _safe_claim(claims.get("name"), 128),
         "email": email,
         "email_verified": True,
         "icthub_account_id": claims["icthub_account_id"],
+        "groups": [str(group)[:128] for group in groups if isinstance(group, str)][:64],
     }
+
+
+def _apply_admin_claims(user, claims):
+    """Make OJ admin authority follow the verified Studio admin group claim."""
+
+    groups = claims.get("groups", [])
+    is_studio_admin = isinstance(groups, list) and _ADMIN_GROUP in groups
+    next_admin_type = AdminType.SUPER_ADMIN if is_studio_admin else AdminType.REGULAR_USER
+    next_problem_permission = ProblemPermission.ALL if is_studio_admin else ProblemPermission.NONE
+    changed = []
+    if user.admin_type != next_admin_type:
+        user.admin_type = next_admin_type
+        changed.append("admin_type")
+    if user.problem_permission != next_problem_permission:
+        user.problem_permission = next_problem_permission
+        changed.append("problem_permission")
+    if changed:
+        user.save(update_fields=changed)
 
 
 def _account_id_from_claims(claims):
@@ -480,6 +503,7 @@ def provision_or_get(claims, mode="login", linked_user_id=None):
                 if user.email != email:
                     user.email = email
                     user.save(update_fields=["email"])
+                _apply_admin_claims(user, claims)
                 return user
             if mode == "link":
                 if not linked_user_id:
@@ -508,6 +532,7 @@ def provision_or_get(claims, mode="login", linked_user_id=None):
                     user.set_unusable_password()
                     user.save()
                     UserProfile.objects.create(user=user, oj_onboarding_completed=False)
+            _apply_admin_claims(user, claims)
             ExternalIdentity.objects.create(
                 user=user,
                 provider=_PROVIDER,
