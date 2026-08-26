@@ -600,6 +600,16 @@ stream_command() {
     rm -f "$stream_status"
     printf '%s\n' "[deploy] logging command output to $stream_log"
     (
+        stream_waited=0
+        while [ ! -s "$stream_status" ]; do
+            sleep 10
+            stream_waited=$((stream_waited + 10))
+            [ -s "$stream_status" ] && break
+            printf '%s\n' "[deploy] still running (${stream_waited}s): $stream_log" >&2
+        done
+    ) &
+    stream_watchdog_pid=$!
+    (
         set +e
         "$@"
         stream_rc=$?
@@ -607,6 +617,8 @@ stream_command() {
         exit "$stream_rc"
     ) 2>&1 | tee "$stream_log"
     stream_tee_rc=$?
+    kill "$stream_watchdog_pid" 2>/dev/null || true
+    wait "$stream_watchdog_pid" 2>/dev/null || true
     if [ "$stream_tee_rc" -ne 0 ]; then
         rm -f "$stream_status"
         return "$stream_tee_rc"
