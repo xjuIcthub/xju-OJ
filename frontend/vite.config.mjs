@@ -19,6 +19,7 @@ function copyStaticAssets () {
 export default defineConfig(({ mode }) => {
   const commit = process.env.GIT_COMMIT || 'unknown'
   const target = process.env.TARGET || 'http://127.0.0.1:8000'
+  const devHost = process.env.VITE_DEV_HOST || '127.0.0.1'
 
   return {
     plugins: [vue(), copyStaticAssets()],
@@ -46,7 +47,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     server: {
-      host: '0.0.0.0',
+      host: devHost,
       port: Number(process.env.PORT || 8080),
       proxy: {
         '/api': {

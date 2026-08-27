@@ -6,7 +6,7 @@
   "private": true,
   "packageManager": "pnpm@11.22.0",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite",
     "start": "pnpm run dev",
     "build": "vite build",
     "test:routes": "node tests/e2e/route_contract_test.js",

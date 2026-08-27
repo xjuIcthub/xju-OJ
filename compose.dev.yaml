@@ -1,0 +1,10 @@
+services:
+  # Development-only host bridge for Vite's /api and /public proxy.
+  # This file is loaded only by `./deploy.sh --dev frontend`; production
+  # Compose never publishes backend-api directly.
+  backend-api:
+    environment:
+      OJ_DEV_MODE: "1"
+      CSRF_TRUSTED_ORIGINS: "http://${DEV_FRONTEND_HOST:-127.0.0.1}:${DEV_FRONTEND_PORT:-5173}"
+    ports:
+      - "${DEV_BACKEND_BIND_ADDRESS:-127.0.0.1}:${DEV_BACKEND_PORT:-8000}:8000"

@@ -7,6 +7,8 @@ COMPOSE_FILE=${COMPOSE_FILE:-"$ROOT/compose.yaml"}
 DRY_RUN=0
 CONFIG_ONLY=0
 FRONTEND_ONLY=0
+DEV_MODE=0
+DEV_TARGET=
 
 # Never inherit workstation/server proxy variables. Optional download proxies are
 # accepted only through the explicit BUILD_*_PROXY settings and are never used
@@ -16,9 +18,11 @@ unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_prox
 usage() {
     cat <<'EOF'
 Usage: ./deploy.sh [--dry-run] [--config-only] [--frontend-only]
+       ./deploy.sh --dev frontend
 
 Modes:
   --frontend-only  build/release only frontend; keep all backend services running
+  --dev frontend    start backend services in Docker and run frontend with pnpm dev
 
 Environment:
   ENV_FILE       .env path (default: repository/.env)
@@ -32,9 +36,21 @@ for arg in "$@"; do
         --dry-run) DRY_RUN=1 ;;
         --config-only) CONFIG_ONLY=1 ;;
         --frontend-only) FRONTEND_ONLY=1 ;;
+        --dev) DEV_MODE=1 ;;
+        frontend)
+            [ "$DEV_MODE" -eq 1 ] || { printf '%s\n' "unexpected argument: frontend" >&2; usage >&2; exit 2; }
+            [ -z "$DEV_TARGET" ] || { printf '%s\n' "duplicate dev target: frontend" >&2; usage >&2; exit 2; }
+            DEV_TARGET=frontend
+            ;;
         *) printf '%s\n' "unknown option: $arg" >&2; usage >&2; exit 2 ;;
     esac
 done
+
+if [ "$DEV_MODE" -eq 1 ]; then
+    [ "$DEV_TARGET" = frontend ] || { printf '%s\n' "--dev requires the target: frontend" >&2; usage >&2; exit 2; }
+    [ "$FRONTEND_ONLY" -eq 0 ] || { printf '%s\n' "--dev frontend cannot be combined with --frontend-only" >&2; exit 2; }
+    [ "$CONFIG_ONLY" -eq 0 ] || { printf '%s\n' "--dev frontend cannot be combined with --config-only" >&2; exit 2; }
+fi
 
 fail() {
     printf '%s\n' "deploy: $*" >&2
@@ -79,6 +95,7 @@ name_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 var_re = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)")
 allowed = {
     "COMPOSE_PROJECT_NAME", "APP_DOMAIN", "PUBLIC_BASE_URL", "CSRF_TRUSTED_ORIGINS", "DEPLOY_HEARTBEAT_SECONDS",
+    "DEV_FRONTEND_HOST", "DEV_FRONTEND_PORT", "DEV_BACKEND_BIND_ADDRESS", "DEV_BACKEND_PORT",
     "HTTP_BIND_ADDRESS", "HTTP_PORT", "DEPLOY_ROOT", "RUNTIME_ROOT",
     "BACKUP_ROOT", "SECRET_ROOT", "DEPLOY_MODE", "SECRET_PROVISION_MODE",
     "GIT_COMMIT", "BUILD_VERSION", "BUILD_CREATED", "BUILD_TARGETS",
@@ -191,6 +208,10 @@ COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-xju-oj}
 APP_DOMAIN=${APP_DOMAIN:-localhost}
 PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://127.0.0.1:18080}
 CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-https://oj.icthub.top}
+DEV_FRONTEND_HOST=${DEV_FRONTEND_HOST:-127.0.0.1}
+DEV_FRONTEND_PORT=${DEV_FRONTEND_PORT:-5173}
+DEV_BACKEND_BIND_ADDRESS=${DEV_BACKEND_BIND_ADDRESS:-127.0.0.1}
+DEV_BACKEND_PORT=${DEV_BACKEND_PORT:-8000}
 HTTP_BIND_ADDRESS=${HTTP_BIND_ADDRESS:-127.0.0.1}
 HTTP_PORT=${HTTP_PORT:-18080}
 DEPLOY_MODE=${DEPLOY_MODE:-build}
@@ -201,6 +222,19 @@ case "$DEPLOY_HEARTBEAT_SECONDS" in
 esac
 [ "$DEPLOY_HEARTBEAT_SECONDS" -ge 10 ] && [ "$DEPLOY_HEARTBEAT_SECONDS" -le 3600 ] || \
     fail "DEPLOY_HEARTBEAT_SECONDS must be an integer between 10 and 3600"
+case "$DEV_FRONTEND_PORT:$DEV_BACKEND_PORT" in
+    ''|*[!0-9:]*|*:*:*) fail "DEV_*_PORT values must be numeric" ;;
+esac
+[ "$DEV_FRONTEND_PORT" -ge 1 ] && [ "$DEV_FRONTEND_PORT" -le 65535 ] || fail "DEV_FRONTEND_PORT must be between 1 and 65535"
+[ "$DEV_BACKEND_PORT" -ge 1 ] && [ "$DEV_BACKEND_PORT" -le 65535 ] || fail "DEV_BACKEND_PORT must be between 1 and 65535"
+case "$DEV_FRONTEND_HOST" in
+    127.0.0.1|localhost) ;;
+    *) fail "DEV_FRONTEND_HOST must be localhost or 127.0.0.1" ;;
+esac
+case "$DEV_BACKEND_BIND_ADDRESS" in
+    127.0.0.1|localhost) ;;
+    *) fail "DEV_BACKEND_BIND_ADDRESS must be localhost or 127.0.0.1" ;;
+esac
 
 DEPLOY_ROOT=$(absolute_path "${DEPLOY_ROOT:-../xju-oj-data}")
 RUNTIME_ROOT=$(absolute_path "${RUNTIME_ROOT:-$DEPLOY_ROOT/runtime}")
@@ -217,6 +251,12 @@ judge_image_ref_input=${JUDGE_IMAGE_REF-}
 judge_toolchain_image_ref_input=${JUDGE_TOOLCHAIN_IMAGE_REF-}
 postgres_image_ref_input=${POSTGRES_IMAGE_REF-}
 build_targets=${BUILD_TARGETS:-"postgres frontend backend judge-toolchain server"}
+if [ "$DEV_MODE" -eq 1 ]; then
+    build_targets=${BUILD_TARGETS:-"postgres backend judge-toolchain server"}
+    case " $build_targets " in
+        *" frontend "*) fail "--dev frontend cannot build the Docker frontend; remove frontend from BUILD_TARGETS" ;;
+    esac
+fi
 if [ "$FRONTEND_ONLY" -eq 1 ]; then
     if [ -n "${BUILD_TARGETS:-}" ] && [ "${BUILD_TARGETS}" != "frontend" ]; then
         fail "--frontend-only requires BUILD_TARGETS=frontend when BUILD_TARGETS is set"
@@ -274,7 +314,9 @@ if [ "$AUTHENTIK_OIDC_ENABLED" = true ] && {
     fail "OIDC rollout requires AUTHENTIK_LOCAL_LOGIN_ENABLED=false and AUTHENTIK_LOCAL_REGISTER_ENABLED=false"
 fi
 
-export COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL CSRF_TRUSTED_ORIGINS HTTP_BIND_ADDRESS HTTP_PORT
+export COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL CSRF_TRUSTED_ORIGINS
+export DEV_FRONTEND_HOST DEV_FRONTEND_PORT DEV_BACKEND_BIND_ADDRESS DEV_BACKEND_PORT
+export HTTP_BIND_ADDRESS HTTP_PORT
 export DEPLOY_ROOT RUNTIME_ROOT BACKUP_ROOT SECRET_ROOT DEPLOY_MODE SECRET_PROVISION_MODE
 export FRONTEND_IMAGE_REF FRONTEND_BASE_IMAGE BACKEND_IMAGE_REF JUDGE_IMAGE_REF JUDGE_TOOLCHAIN_IMAGE_REF
 export POSTGRES_IMAGE_REF REDIS_IMAGE_REF GIT_COMMIT BUILD_VERSION BUILD_CREATED
@@ -532,7 +574,11 @@ provision_secret_file() {
 }
 
 compose() {
-    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+    if [ "$DEV_MODE" -eq 1 ]; then
+        docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -f "$ROOT/compose.dev.yaml" "$@"
+    else
+        docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+    fi
 }
 
 release_dir="$RUNTIME_ROOT/deployments"
@@ -728,7 +774,7 @@ config_json=$(mktemp)
 cleanup_config() { rm -f "$config_json"; }
 trap cleanup_config 0
 compose config --format json > "$config_json"
-python3 - "$config_json" <<'PY'
+python3 - "$config_json" "$DEV_MODE" <<'PY'
 import json
 import sys
 
@@ -739,8 +785,9 @@ published = []
 for name, service in config.get("services", {}).items():
     if service.get("ports"):
         published.append(name)
-if published != ["frontend"]:
-    raise SystemExit("only frontend may publish host ports: " + ",".join(published))
+expected = ["backend-api", "frontend"] if sys.argv[2] == "1" else ["frontend"]
+if published != expected:
+    raise SystemExit("unexpected host-published services: " + ",".join(published))
 PY
 rm -f "$config_json"
 trap - 0
@@ -1140,11 +1187,20 @@ else
         run_step backend-create-admin 'administrator|created|ignored' compose --profile init run --rm --no-deps backend-create-admin
     fi
 
-    run_step services-ready 'Healthy|healthy' compose up -d --remove-orphans --wait
-    http_smoke() {
-        frontend_http_smoke
-    }
-    run_step http-smoke 'PASS' http_smoke
+    if [ "$DEV_MODE" -eq 1 ]; then
+        run_step services-ready 'Healthy|healthy' compose up -d --wait postgres redis backend-api backend-worker judge-server
+        dev_backend_http_smoke() {
+            curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 \
+                "http://${DEV_BACKEND_BIND_ADDRESS}:${DEV_BACKEND_PORT}/api/website/" >/dev/null
+        }
+        run_step dev-backend-http-smoke '.*' dev_backend_http_smoke
+    else
+        run_step services-ready 'Healthy|healthy' compose up -d --remove-orphans --wait
+        http_smoke() {
+            frontend_http_smoke
+        }
+        run_step http-smoke 'PASS' http_smoke
+    fi
 
     run_step runtime-worker-smoke 'passed|PASS' compose exec -T backend-api python deploy/worker_smoke.py
     run_step runtime-judge-smoke 'passed|PASS' compose exec -T judge-server python -c '
@@ -1169,6 +1225,22 @@ print("Judge /ping passed")
         heartbeat_attempt=$((heartbeat_attempt + 1))
     done
     [ "$heartbeat_ok" -eq 1 ] || fail "JudgeServer heartbeat was not observed"
+fi
+
+if [ "$DEV_MODE" -eq 1 ]; then
+    command -v pnpm >/dev/null 2>&1 || fail "pnpm is required for --dev frontend"
+    [ -f "$ROOT/frontend/package.json" ] || fail "frontend/package.json is missing"
+    if [ ! -x "$ROOT/frontend/node_modules/.bin/vite" ]; then
+        log_info "[dev] frontend dependencies missing; running pnpm install --frozen-lockfile"
+        (cd "$ROOT/frontend" && pnpm install --frozen-lockfile)
+    fi
+    dev_backend_url="http://${DEV_BACKEND_BIND_ADDRESS}:${DEV_BACKEND_PORT}"
+    log_success "[dev] backend services are ready; starting Vite at http://${DEV_FRONTEND_HOST}:${DEV_FRONTEND_PORT}"
+    log_info "[dev] Vite /api and /public proxy target: $dev_backend_url"
+    log_info "[dev] Ctrl-C stops Vite only; Docker backend services remain running"
+    cd "$ROOT/frontend"
+    exec env TARGET="$dev_backend_url" PORT="$DEV_FRONTEND_PORT" VITE_DEV_HOST="$DEV_FRONTEND_HOST" \
+        GIT_COMMIT="$GIT_COMMIT" pnpm dev
 fi
 
 release_dir="$RUNTIME_ROOT/deployments"

@@ -29,10 +29,16 @@ def _csrf_trusted_origins():
     origins = [item.strip().rstrip("/") for item in raw_origins.split(",") if item.strip()]
     if not origins:
         raise RuntimeError("CSRF_TRUSTED_ORIGINS must contain at least one HTTPS origin")
+    dev_mode = get_env("OJ_DEV_MODE", "0") == "1"
     for origin in origins:
         parsed = urlsplit(origin)
-        if parsed.scheme != "https" or not parsed.netloc or parsed.path or parsed.query or parsed.fragment:
-            raise RuntimeError("CSRF_TRUSTED_ORIGINS must contain strict HTTPS origins")
+        insecure_loopback = (
+            dev_mode
+            and parsed.scheme == "http"
+            and parsed.hostname in {"127.0.0.1", "localhost"}
+        )
+        if (parsed.scheme != "https" and not insecure_loopback) or not parsed.netloc or parsed.path or parsed.query or parsed.fragment:
+            raise RuntimeError("CSRF_TRUSTED_ORIGINS must contain strict HTTPS origins (or a dev loopback HTTP origin)")
     return origins
 
 

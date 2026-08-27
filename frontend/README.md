@@ -43,9 +43,34 @@ pnpm run test:routes
 pnpm run build
 
 # the Vite dev-server requires a backend target and keeps /api + /public same-origin
-export TARGET=http://Your-backend
+export TARGET=http://127.0.0.1:8000
 pnpm run dev
 ```
+
+## 推荐的全栈前端开发模式
+
+从仓库根目录执行：
+
+```bash
+./deploy.sh --dev frontend
+```
+
+该命令会启动 PostgreSQL、Redis、backend-api、backend-worker 和 judge-server
+容器，但不会启动 Docker frontend；随后在本机前台运行 `frontend/pnpm dev`。
+Vite 默认监听 `127.0.0.1:5173`，把 `/api` 和 `/public` 代理到
+`127.0.0.1:8000`。首次运行若没有 `frontend/node_modules`，会自动执行
+`pnpm install --frozen-lockfile`。按 Ctrl-C 只停止 Vite，Docker 后端服务继续运行。
+
+可通过以下环境变量调整本机端口，但仍只允许绑定 loopback：
+
+```bash
+DEV_FRONTEND_HOST=127.0.0.1 DEV_FRONTEND_PORT=5173 \
+DEV_BACKEND_BIND_ADDRESS=127.0.0.1 DEV_BACKEND_PORT=8000 \
+./deploy.sh --dev frontend
+```
+
+生产部署仍使用普通 `./deploy.sh`；`compose.dev.yaml` 只在上述开发模式显式加载，
+不会让生产 Compose 直接发布 backend-api。
 
 Vue 2、Vuex、Element UI/iView、CodeMirror 5、Simditor、Webpack/Babel 6 和 Yarn Classic 已从最终源码与锁文件移除。
 
