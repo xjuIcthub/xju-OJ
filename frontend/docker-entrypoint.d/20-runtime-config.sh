@@ -18,6 +18,7 @@ window.__XJU_RUNTIME_CONFIG__ = {
   APP_DOMAIN: "${app_domain}",
   PUBLIC_BASE_URL: "${public_base_url}",
   VERSION: "${version}",
+  OJ_FRONTEND_DEV_MODE: false,
   AUTHENTIK_OIDC_ENABLED: ${authentik_enabled},
   AUTHENTIK_OIDC_REGISTER_URL: "${authentik_register_url}",
   AUTHENTIK_LOCAL_LOGIN_ENABLED: ${local_login_enabled},

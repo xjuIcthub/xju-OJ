@@ -2,7 +2,7 @@
   <section class="rank-page">
     <div class="rank-heading">
       <h1>{{$t('m.ACM_Ranklist')}}</h1>
-      <span>ACM standings</span>
+      <span>{{$t('m.ACM_Standings')}}</span>
     </div>
     <Table class="rank-table" :data="dataRank" :columns="columns" :loading="loadingTable" size="large"></Table>
     <Pagination :total="total" :page-size="limit" @update:page-size="limit = $event" :current="page" @update:current="page = $event"

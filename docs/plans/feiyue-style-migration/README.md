@@ -117,6 +117,19 @@
 
 ## 6. 本轮计划状态
 
-本轮已完成视觉迁移和本地演示数据验收。新增 Feiyue 令牌/全局样式、Element Plus 主题映射、Lucide 兼容层、用户端与 admin 壳层、首页信息看板和 Problem 提交状态样式；Rank 页面使用无卡片直出表格，并加入仅在 API 空数据时启用的题目、比赛和虚拟用户 fixtures。开发数据库中补充了 1001/1002/1003 三道带完整题面与样例的公开题目，包含可编译的 Special Judge；比赛 101/102 分别索引两道真实题目，前端详情页显示可跳转的题目 ID。首页右栏 Notice Board 下方增加 User Ranking，Upcoming Contests 日期强制单行显示。已在 5173 对关键路由执行 Chrome headless 截图烟测。`lint:modern`、`test:routes`、`build`、`git diff --check` 与 `sh -n deploy.sh` 均通过。额外补上了只作用于 Vite dev server 的 admin history fallback，直接访问 `/admin/login` 现可加载 admin 入口。
+本轮已完成视觉迁移和本地演示数据验收。新增 Feiyue 令牌/全局样式、Element Plus 主题映射、Lucide 兼容层、用户端与 admin 壳层、首页信息看板和 Problem 提交状态样式；Rank 页面使用无卡片直出表格。题目、比赛和虚拟用户 fixtures 现在只在 `OJ_FRONTEND_DEV_MODE=true` 且通过 Vite development 模式启动时进入前端依赖图，正式构建改用空 fixtures 模块。开发数据库中补充了 1001/1002/1003 三道带完整题面与样例的公开题目，包含可编译的 Special Judge；比赛 101/102 分别索引两道真实题目，前端详情页显示可跳转的题目 ID。首页右栏 Notice Board 下方增加 User Ranking，Upcoming Contests 日期强制单行显示。已在 5173 对关键路由执行 Chrome headless 截图烟测。`lint:modern`、`test:routes`、`build`、`git diff --check` 与 `sh -n deploy.sh` 均通过。额外补上了只作用于 Vite dev server 的 admin history fallback，直接访问 `/admin/login` 现可加载 admin 入口。
 
 本地数据库题目、比赛和 `/data/test_case` 测试点属于开发环境运行时种子，不写入仓库迁移文件，也不会改变生产 API、数据库 schema 或鉴权合同；换环境时需重新导入同等演示数据才会看到相同内容。
+
+## 7. 2026-08-27 跟进修复计划与结果
+
+| 顺序 | 修复项 | 实施结果 |
+| --- | --- | --- |
+| 1 | 全局布局与中文文案 | 导航和内容统一使用 1400px 上限及 20px gutter；首页、比赛、题目、排名与设置页补齐三语文案，简体难度统一为“简单/中等/困难” |
+| 2 | Status 结果展示 | 判题状态改为 Feiyue 语义胶囊，表格列宽和 cell padding 收紧；Pending/Judging/Submitting 存在时静默轮询并在完成后自动停止 |
+| 3 | Contests/Problems/Problem | 比赛筛选与状态胶囊继续统一；题名左对齐、侧栏 tag 按内容自适应；题目详情的最近提交区域取消 hover 变色并补齐中文空状态 |
+| 4 | 头像上传 | 裁剪结果在浏览器压缩为 WebP，再调用原头像上传端点；成功后重新读取 profile，后端仅扩展 WebP 后缀白名单 |
+| 5 | 开发/生产隔离 | 新增 `OJ_FRONTEND_DEV_MODE`；生产禁止开启并使用空 fixtures，开发开启时关闭 OIDC 跳转、启用本地登录并提供 admin 快速登录 |
+| 6 | 验证 | `sh -n deploy.sh`、`lint:modern`、`test:routes`、production build、`git diff --check` 通过；production dist 未检出开发 fixture 标识字符串 |
+
+本次没有改变题目、比赛、提交或用户 API 的路径/请求字段，没有修改路由表、CSRF/Session 合同、提交 payload 或 CodeMirror 编辑行为。头像接口只增加 `.webp` 文件格式支持。

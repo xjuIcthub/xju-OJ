@@ -1,18 +1,18 @@
 <template>
   <div class="setting-main">
     <Alert v-if="onboardingRequired" type="warning" show-icon>
-      OJ profile fields are optional. You can save now and complete them later. Your Studio username, email and password remain managed by Authentik.
+      {{ $t('m.Profile_Onboarding_Notice') }}
     </Alert>
     <div class="section-title">{{$t('m.Avatar_Setting')}}</div>
     <template v-if="!avatarOption.imgSrc">
       <Upload type="drag"
               class="mini-container"
-              accept=".jpg,.jpeg,.png,.bmp,.gif"
+              accept=".jpg,.jpeg,.png,.bmp,.gif,.webp"
               action=""
               :before-upload="handleSelectFile">
         <div style="padding: 30px 0">
           <Icon type="ios-cloud-upload" size="52" style="color: #3399ff"></Icon>
-          <p>Drop here, or click to select manually</p>
+          <p>{{ $t('m.Drop_or_Select_Avatar') }}</p>
         </div>
       </Upload>
     </template>
@@ -55,13 +55,13 @@
       </div>
     </template>
     <Modal v-model="uploadModalVisible"
-           title="Upload the avatar">
+           :title="$t('m.Upload_Avatar')">
       <div class="upload-modal">
-        <p class="notice">Your avatar will be set to:</p>
+        <p class="notice">{{ $t('m.Avatar_Will_Be_Set') }}</p>
         <img :src="uploadImgSrc"/>
       </div>
       <template #footer><div >
-        <LegacyButton @click="uploadAvatar" :loading="loadingUploadBtn">upload</LegacyButton>
+        <LegacyButton type="primary" @click="uploadAvatar" :loading="loadingUploadBtn">{{ $t('m.Upload') }}</LegacyButton>
       </div></template>
     </Modal>
 
@@ -69,33 +69,33 @@
     <Form ref="formProfile" :model="formProfile">
       <Row type="flex" :gutter="30" justify="space-around">
         <Col :span="11">
-          <FormItem label="Real Name">
+          <FormItem :label="$t('m.Real_Name')">
             <Input v-model="formProfile.real_name"/>
           </FormItem>
-          <Form-item label="School">
+          <Form-item :label="$t('m.School')">
             <Input v-model="formProfile.school"/>
           </Form-item>
-          <Form-item label="Major">
+          <Form-item :label="$t('m.Major')">
             <Input v-model="formProfile.major"/>
           </Form-item>
-          <FormItem label="Language">
+          <FormItem :label="$t('m.Interface_Language')">
             <Select v-model="formProfile.language">
               <Option v-for="lang in languages" :key="lang.value" :value="lang.value">{{lang.label}}</Option>
             </Select>
           </FormItem>
           <Form-item>
-            <LegacyButton type="primary" @click="updateProfile" :loading="loadingSaveBtn">Save All</LegacyButton>
+            <LegacyButton type="primary" @click="updateProfile" :loading="loadingSaveBtn">{{ $t('m.Save_All') }}</LegacyButton>
           </Form-item>
         </Col>
 
         <Col :span="11">
-          <Form-item label="Mood">
+          <Form-item :label="$t('m.Mood')">
             <Input v-model="formProfile.mood"/>
           </Form-item>
-          <Form-item label="Blog">
+          <Form-item :label="$t('m.Blog')">
             <Input v-model="formProfile.blog"/>
           </Form-item>
-          <Form-item label="Github">
+          <Form-item :label="$t('m.Github')">
             <Input v-model="formProfile.github"/>
           </Form-item>
         </Col>
@@ -121,10 +121,11 @@
         uploadModalVisible: false,
         preview: {},
         uploadImgSrc: '',
+        uploadBlob: null,
         avatarOption: {
           imgSrc: '',
-          size: 0.8,
-          outputType: 'png'
+          size: 0.86,
+          outputType: 'webp'
         },
         languages: languages,
         formProfile: {
@@ -146,29 +147,34 @@
         }
       })
     },
+    beforeUnmount () {
+      this.clearUploadPreview()
+    },
     methods: {
       checkFileType (file) {
-        if (!/\.(gif|jpg|jpeg|png|bmp|GIF|JPG|PNG)$/.test(file.name)) {
+        if (!/\.(gif|jpg|jpeg|png|bmp|webp)$/i.test(file.name)) {
           this.$Notice.warning({
-            title: 'File type not support',
-            desc: 'The format of ' + file.name + ' is incorrect ，please choose image only.'
+            title: this.$t('m.Unsupported_File_Type'),
+            desc: this.$t('m.Select_Image_File')
           })
           return false
         }
         return true
       },
       checkFileSize (file) {
-        // max size is 2MB
-        if (file.size > 2 * 1024 * 1024) {
+        // The selected source may be larger; the cropped result is compressed
+        // to a small WebP before it is sent to the 2 MB backend endpoint.
+        if (file.size > 12 * 1024 * 1024) {
           this.$Notice.warning({
-            title: 'Exceed max size limit',
-            desc: 'File ' + file.name + ' is too big, you can upload a image up to 2MB in size'
+            title: this.$t('m.Image_Too_Large'),
+            desc: this.$t('m.Avatar_Source_Size_Limit')
           })
           return false
         }
         return true
       },
       handleSelectFile (file) {
+        this.clearUploadPreview()
         let isOk = this.checkFileType(file) && this.checkFileSize(file)
         if (!isOk) {
           return false
@@ -192,35 +198,70 @@
       },
       reselect () {
         this.$Modal.confirm({
-          content: 'Are you sure to disgard the changes?',
+          content: this.$t('m.Discard_Avatar_Changes'),
           onOk: () => {
+            this.clearUploadPreview()
             this.avatarOption.imgSrc = ''
           }
         })
       },
       finishCrop () {
-        this.$refs.cropper.getCropData(data => {
-          this.uploadImgSrc = data
-          this.uploadModalVisible = true
+        this.$refs.cropper.getCropBlob(async blob => {
+          try {
+            this.clearUploadPreview()
+            this.uploadBlob = await this.compressAvatar(blob)
+            this.uploadImgSrc = URL.createObjectURL(this.uploadBlob)
+            this.uploadModalVisible = true
+          } catch (_) {
+            this.$error(this.$t('m.Avatar_Compression_Failed'))
+          }
         })
       },
-      uploadAvatar () {
-        this.$refs.cropper.getCropBlob(blob => {
-          let form = new window.FormData()
-          let file = new window.File([blob], 'avatar.' + this.avatarOption.outputType)
-          form.append('image', file)
-          this.loadingUploadBtn = true
-          api.uploadAvatar(form).then(res => {
-            this.loadingUploadBtn = false
-            this.$success('Successfully set new avatar')
-            this.uploadModalVisible = false
-            this.avatarOption.imgSrc = ''
-            this.uploadImgSrc = ''
-            this.$store.dispatch('getProfile')
-          }, () => {
-            this.loadingUploadBtn = false
-          })
+      compressAvatar (blob) {
+        return new Promise((resolve, reject) => {
+          const sourceUrl = URL.createObjectURL(blob)
+          const image = new window.Image()
+          image.onload = () => {
+            const maxSide = 512
+            const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight))
+            const canvas = document.createElement('canvas')
+            canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+            canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+            const context = canvas.getContext('2d')
+            context.imageSmoothingEnabled = true
+            context.imageSmoothingQuality = 'high'
+            context.drawImage(image, 0, 0, canvas.width, canvas.height)
+            URL.revokeObjectURL(sourceUrl)
+            canvas.toBlob(result => result ? resolve(result) : reject(new Error('WebP encoding failed')), 'image/webp', 0.82)
+          }
+          image.onerror = () => {
+            URL.revokeObjectURL(sourceUrl)
+            reject(new Error('Image decoding failed'))
+          }
+          image.src = sourceUrl
         })
+      },
+      clearUploadPreview () {
+        if (this.uploadImgSrc && this.uploadImgSrc.startsWith('blob:')) URL.revokeObjectURL(this.uploadImgSrc)
+        this.uploadImgSrc = ''
+        this.uploadBlob = null
+      },
+      async uploadAvatar () {
+        if (!this.uploadBlob) return
+        const form = new window.FormData()
+        const file = new window.File([this.uploadBlob], 'avatar.webp', { type: 'image/webp' })
+        form.append('image', file)
+        this.loadingUploadBtn = true
+        try {
+          await api.uploadAvatar(form)
+          await this.$store.dispatch('getProfile')
+          this.$success(this.$t('m.Avatar_Updated'))
+          this.uploadModalVisible = false
+          this.avatarOption.imgSrc = ''
+          this.clearUploadPreview()
+        } finally {
+          this.loadingUploadBtn = false
+        }
       },
       updateProfile () {
         this.loadingSaveBtn = true

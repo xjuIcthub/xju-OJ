@@ -36,6 +36,8 @@
   --font-sans: 'Inter Tight', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: 'Source Serif 4', 'Noto Serif SC', Georgia, serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --layout-max-width: 1400px;
+  --layout-gutter: 20px;
   --oj-success: var(--cat-tools);
   --oj-warning: var(--cat-course);
   --oj-danger: var(--cat-research);

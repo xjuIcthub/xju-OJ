@@ -49,6 +49,7 @@
   import { mapGetters, mapActions } from '@/store/compat'
   import api from '@oj/api'
   import { FormMixin } from '@oj/components/mixins'
+  import runtime from '@/utils/runtime'
 
   export default {
     mixins: [FormMixin],
@@ -66,8 +67,8 @@
         tfaRequired: false,
         btnLoginLoading: false,
         formLogin: {
-          username: '',
-          password: '',
+          username: runtime.OJ_FRONTEND_DEV_MODE ? runtime.DEV_LOGIN_USERNAME : '',
+          password: runtime.OJ_FRONTEND_DEV_MODE ? runtime.DEV_LOGIN_PASSWORD : '',
           tfa_code: ''
         },
         ruleLogin: {

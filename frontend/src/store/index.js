@@ -76,6 +76,7 @@ const useApplicationStore = defineStore('application', {
   actions: {
     async getWebsiteConfig () { const res = await api.getWebsiteConf(); this.website = res.data.data },
     async getAuthProviders () {
+      if (runtime.OJ_FRONTEND_DEV_MODE) return
       try {
         const res = await api.getAuthProviders()
         if (res.data.data) this.authProviders = res.data.data

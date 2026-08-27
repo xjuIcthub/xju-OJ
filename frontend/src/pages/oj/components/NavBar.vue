@@ -11,9 +11,9 @@
         <Submenu name="about"><template #title><Icon type="information-circled" />{{$t('m.About')}}</template><Menu-item name="/about">{{$t('m.Judger')}}</Menu-item><Menu-item name="/faq">{{$t('m.FAQ')}}</Menu-item></Submenu>
       </Menu>
       <div class="nav-actions">
-        <div class="nav-search"><Input v-model="searchKeyword" placeholder="Search problems" @on-enter="handleSearch"><template #prefix><Icon type="search" /></template></Input></div>
+        <div class="nav-search"><Input v-model="searchKeyword" :placeholder="$t('m.Search_Problems')" @on-enter="handleSearch"><template #prefix><Icon type="search" /></template></Input></div>
         <template v-if="!isAuthenticated">
-          <LegacyButton type="ghost" ref="loginBtn" @click="handleBtnClick('login')">{{$t('m.Login')}}</LegacyButton>
+          <LegacyButton type="ghost" ref="loginBtn" :loading="devLoginLoading" @click="handleBtnClick('login')">{{$t('m.Login')}}</LegacyButton>
           <LegacyButton v-if="authentikEnabled" type="ghost" @click="goAuthentikRegister">{{$t('m.Register')}}</LegacyButton>
           <LegacyButton v-else-if="website.allow_register && localRegisterEnabled" type="ghost" @click="handleBtnClick('register')">{{$t('m.Register')}}</LegacyButton>
         </template>
@@ -30,12 +30,30 @@
 import { mapGetters, mapActions } from '@/store/compat'
 import login from '@oj/views/user/Login'
 import register from '@oj/views/user/Register'
+import api from '@oj/api'
+import runtime from '@/utils/runtime'
 export default {
-  components: { login, register }, data () { return { searchKeyword: '' } }, mounted () { this.getProfile() },
+  components: { login, register }, data () { return { searchKeyword: '', devLoginLoading: false } }, mounted () { this.getProfile() },
   methods: {
     ...mapActions(['getProfile', 'changeModalStatus']),
     handleRoute (route) { if (route && route.indexOf('admin') < 0) this.$router.push(route); else window.open('/admin/') },
-    handleBtnClick (mode) { this.changeModalStatus({ visible: true, mode }) },
+    async handleBtnClick (mode) {
+      if (mode === 'login' && runtime.OJ_FRONTEND_DEV_MODE) {
+        this.devLoginLoading = true
+        try {
+          await api.login({ username: runtime.DEV_LOGIN_USERNAME, password: runtime.DEV_LOGIN_PASSWORD })
+          await this.getProfile()
+          this.$success(this.$t('m.Welcome_back'))
+          return
+        } catch (_) {
+          // Keep a pre-filled local form available if the development account
+          // has not been initialized yet or requires TFA.
+        } finally {
+          this.devLoginLoading = false
+        }
+      }
+      this.changeModalStatus({ visible: true, mode })
+    },
     handleSearch () { const keyword = this.searchKeyword.trim(); this.$router.push({ path: '/problem', query: keyword ? { keyword } : {} }) },
     goAuthentikRegister () { const url = this.authProviders.authentik && this.authProviders.authentik.register_url; if (url) window.location.assign(url) }
   },
@@ -56,7 +74,7 @@ export default {
 </script>
 <style lang="less" scoped>
 #header { min-width: 320px; position: fixed; inset: 0 0 auto; height: 56px; z-index: 1000; background: var(--color-bg); border-bottom: 1px solid var(--color-border); }
-.nav-inner { display: flex; align-items: center; max-width: 1400px; height: 56px; margin: 0 auto; padding: 0 24px; overflow: hidden; }
+.nav-inner { display: flex; align-items: center; max-width: var(--layout-max-width); height: 56px; margin: 0 auto; padding: 0 var(--layout-gutter); overflow: hidden; box-sizing: border-box; }
 .oj-menu { flex: 1; min-width: 0; min-height: 56px; height: 56px; border-right: 0 !important; border-bottom: 0; background: var(--color-bg); overflow: hidden; }
 .logo { display: inline-flex; align-items: center; gap: 9px; margin: 0 20px 0 0; height: 56px; font-size: 17px; font-weight: 700; color: var(--color-text); white-space: nowrap; }
 .brand-mark { display: inline-grid; width: 30px; height: 30px; place-items: center; border-radius: var(--radius-sm); background: var(--color-text); color: #fff; font-size: 11px; letter-spacing: .06em; }

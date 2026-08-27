@@ -26,7 +26,7 @@
                  class="keyword-filter"
                  @on-enter="filterByKeyword"
                  @on-click="filterByKeyword"
-                 placeholder="keyword"
+                 :placeholder="$t('m.Search_Problems')"
                  icon="ios-search-strong"/>
           <button type="button" class="filter-control reset-filter" @click="onReset">
             <Icon type="refresh"></Icon>
@@ -108,23 +108,16 @@
           },
           {
             title: this.$t('m.Title'),
+            align: 'left',
             width: 400,
             render: (h, params) => {
-              return h('Button', {
-                props: {
-                  type: 'text',
-                  size: 'large'
-                },
+              return h('button', {
+                attrs: { type: 'button' },
+                class: 'problem-title-link',
                 on: {
                   click: () => {
                     this.$router.push({name: 'problem-details', params: {problemID: params.row._id}})
                   }
-                },
-                style: {
-                  padding: '2px 0',
-                  overflowX: 'auto',
-                  textAlign: 'left',
-                  width: '100%'
                 }
               }, params.row.title)
             }
@@ -246,11 +239,11 @@
         this.pushRouter()
       },
       handleTagsVisible (value) {
+        if (Boolean(value) === this.tagsVisible) return
         this.tagsVisible = Boolean(value)
         const tagsColumnIndex = this.problemTableColumns.findIndex(column => column.key === 'tags')
         if (this.tagsVisible && tagsColumnIndex === -1) {
-          this.problemTableColumns.push(
-            {
+          this.problemTableColumns = this.problemTableColumns.concat({
               key: 'tags',
               title: this.$t('m.Tags'),
               align: 'center',
@@ -265,7 +258,7 @@
               }
             })
         } else if (!this.tagsVisible && tagsColumnIndex !== -1) {
-          this.problemTableColumns.splice(tagsColumnIndex, 1)
+          this.problemTableColumns = this.problemTableColumns.filter((column, index) => index !== tagsColumnIndex)
         }
       },
       onReset () {
@@ -343,18 +336,18 @@
     margin: 0;
   }
 
-  .tag-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .tag-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .tag-btn {
     appearance: none;
-    min-width: 0;
-    min-height: 32px;
+    min-width: max-content;
+    min-height: 30px;
     overflow: hidden;
-    padding: 5px 4px;
+    padding: 4px 9px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     background: var(--color-bg);
     color: var(--color-text-muted);
-    font-size: 11px;
+    font-size: 13px;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
@@ -368,12 +361,14 @@
   }
   .pick-one-button :deep(> span) { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 
-  :deep(.difficulty-badge) { display: inline-flex; width: 58px; height: 24px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 5px; font-size: 12px; font-weight: 600; line-height: 1; }
+  :deep(.difficulty-badge) { display: inline-flex; width: 58px; height: 24px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; line-height: 1; }
+  :deep(.problem-title-link) { appearance: none; display: block; width: 100%; overflow: hidden; padding: 2px 0; border: 0; background: transparent; color: var(--color-text); font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  :deep(.problem-title-link:hover) { color: var(--color-link); }
   :deep(.difficulty-low) { border-color: color-mix(in srgb, var(--cat-tools) 20%, transparent); background: var(--tag-tools-bg); color: var(--cat-tools); }
   :deep(.difficulty-mid) { border-color: color-mix(in srgb, var(--cat-kaggle) 20%, transparent); background: var(--tag-kaggle-bg); color: var(--cat-kaggle); }
   :deep(.difficulty-high) { border-color: color-mix(in srgb, var(--cat-research) 20%, transparent); background: var(--tag-research-bg); color: var(--cat-research); }
   :deep(.table-tag-list) { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 8px 0; }
-  :deep(.table-tag-chip) { display: inline-flex; min-height: 24px; align-items: center; padding: 3px 8px; border-radius: 5px; background: var(--color-bg-subtle); color: var(--color-text-muted); font-size: 12px; }
+  :deep(.table-tag-chip) { display: inline-flex; min-height: 24px; align-items: center; padding: 3px 8px; border-radius: var(--radius-sm); background: var(--color-bg-subtle); color: var(--color-text-muted); font-size: 13px; }
 
   @media (max-width: 1100px) {
     .problem-list-panel :deep(.el-card__header) { align-items: flex-start; flex-direction: column; }

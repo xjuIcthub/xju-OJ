@@ -159,7 +159,7 @@
   .no-announcement {
     text-align: center;
     font-size: 16px;
-  }changeLocale
+  }
 
   .announcement-animate-enter-active {
     animation: fadeIn 1s;

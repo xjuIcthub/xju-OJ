@@ -25,14 +25,18 @@ function envBoolean (name, fallback) {
 }
 
 function devRuntimeConfig () {
+  const frontendDevMode = envBoolean('OJ_FRONTEND_DEV_MODE', false)
   return {
     APP_DOMAIN: process.env.APP_DOMAIN || '',
     PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || '/public',
     VERSION: process.env.GIT_COMMIT || 'dev',
-    AUTHENTIK_OIDC_ENABLED: envBoolean('AUTHENTIK_OIDC_ENABLED', false),
+    OJ_FRONTEND_DEV_MODE: frontendDevMode,
+    DEV_LOGIN_USERNAME: frontendDevMode ? (process.env.OJ_DEV_ADMIN_USERNAME || 'admin') : '',
+    DEV_LOGIN_PASSWORD: frontendDevMode ? (process.env.OJ_DEV_ADMIN_PASSWORD || '12345678') : '',
+    AUTHENTIK_OIDC_ENABLED: frontendDevMode ? false : envBoolean('AUTHENTIK_OIDC_ENABLED', false),
     AUTHENTIK_OIDC_REGISTER_URL: process.env.AUTHENTIK_OIDC_REGISTER_URL || DEFAULT_AUTHENTIK_REGISTER_URL,
-    AUTHENTIK_LOCAL_LOGIN_ENABLED: envBoolean('AUTHENTIK_LOCAL_LOGIN_ENABLED', true),
-    AUTHENTIK_LOCAL_REGISTER_ENABLED: envBoolean('AUTHENTIK_LOCAL_REGISTER_ENABLED', true)
+    AUTHENTIK_LOCAL_LOGIN_ENABLED: frontendDevMode ? true : envBoolean('AUTHENTIK_LOCAL_LOGIN_ENABLED', true),
+    AUTHENTIK_LOCAL_REGISTER_ENABLED: frontendDevMode ? true : envBoolean('AUTHENTIK_LOCAL_REGISTER_ENABLED', true)
   }
 }
 
@@ -65,6 +69,7 @@ export default defineConfig(({ mode }) => {
   const commit = process.env.GIT_COMMIT || 'unknown'
   const target = process.env.TARGET || 'http://127.0.0.1:8000'
   const devHost = process.env.VITE_DEV_HOST || '127.0.0.1'
+  const useDevelopmentFixtures = mode === 'development' && envBoolean('OJ_FRONTEND_DEV_MODE', false)
 
   return {
     plugins: [devRuntimeConfigPlugin(), vue(), copyStaticAssets()],
@@ -72,6 +77,7 @@ export default defineConfig(({ mode }) => {
     publicDir: false,
     resolve: {
       alias: {
+        '@oj/mocks/fixtures': resolve(useDevelopmentFixtures ? 'src/pages/oj/mocks/fixtures.js' : 'src/pages/oj/mocks/empty-fixtures.js'),
         '@': resolve('src'),
         '@oj': resolve('src/pages/oj'),
         '@admin': resolve('src/pages/admin'),

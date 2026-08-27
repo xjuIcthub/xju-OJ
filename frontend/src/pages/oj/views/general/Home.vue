@@ -3,52 +3,52 @@
     <section class="home-columns">
       <div class="home-left-column">
         <div class="home-section">
-          <div class="section-heading"><h2>Upcoming Contests</h2><a href="/contest" @click.prevent="go('/contest')">View all</a></div>
+          <div class="section-heading"><h2>{{ $t('m.Upcoming_Contests') }}</h2><a href="/contest" @click.prevent="go('/contest')">{{ $t('m.View_All') }}</a></div>
           <div v-if="contests.length" class="contest-list">
             <button v-for="contest in contests" :key="contest.id" class="contest-card" @click="goContest(contest)">
-              <span class="contest-date">{{ $filters.localtime(contest.start_time, 'MMM D') }}</span>
-              <span class="contest-main"><strong>{{ contest.title }}</strong><small>{{ getDuration(contest.start_time, contest.end_time) }} · {{ contest.rule_type }} · {{ (contest.problem_ids || contest.problems || []).length }} problems</small></span>
+              <span class="contest-date">{{ formatContestDate(contest.start_time) }}</span>
+              <span class="contest-main"><strong>{{ contest.title }}</strong><small>{{ getDuration(contest.start_time, contest.end_time) }} · {{ contest.rule_type }} · {{ (contest.problem_ids || contest.problems || []).length }} {{ $t('m.Problems') }}</small></span>
               <Icon type="arrow-down-b" class="contest-arrow" />
             </button>
           </div>
-          <div v-else class="empty-card">No upcoming contests yet.</div>
+          <div v-else class="empty-card">{{ $t('m.No_Upcoming_Contests') }}</div>
         </div>
         <div class="home-section problems-section">
-          <div class="section-heading"><h2>Problems Set</h2><a href="/problem" @click.prevent="go('/problem')">View all</a></div>
+          <div class="section-heading"><h2>{{ $t('m.Problems_Set') }}</h2><a href="/problem" @click.prevent="go('/problem')">{{ $t('m.View_All') }}</a></div>
           <div v-if="problems.length" class="problem-list">
             <button v-for="problem in problems" :key="problem._id" class="problem-card" @click="goProblem(problem)">
               <span class="problem-id">#{{ problem._id }}</span>
-              <span class="problem-main"><strong>{{ problem.title }}</strong><small>{{ problem.submission_number || 0 }} submissions · {{ formatDifficulty(problem.difficulty) }}</small></span>
+              <span class="problem-main"><strong>{{ problem.title }}</strong><small>{{ problem.submission_number || 0 }} {{ $t('m.Submissions') }} · {{ formatDifficulty(problem.difficulty) }}</small></span>
               <Icon type="arrow-down-b" class="problem-arrow" />
             </button>
           </div>
-          <div v-else class="empty-card">No problems yet.</div>
+          <div v-else class="empty-card">{{ $t('m.No_Problems_Yet') }}</div>
         </div>
       </div>
       <div class="home-right-column">
         <div class="home-section announcement-section">
-          <div class="section-heading"><h2>Notice board</h2><a href="/faq" @click.prevent="go('/faq')">Help &amp; FAQ</a></div>
+          <div class="section-heading"><h2>{{ $t('m.Notice_Board') }}</h2><a href="/faq" @click.prevent="go('/faq')">{{ $t('m.Help_and_FAQ') }}</a></div>
           <div class="announcement-board">
-            <div class="notice-board-header"><span class="notice-icon"><Icon type="megaphone" /></span><span><strong>Latest notices</strong><small>Updates from XJU-OJ</small></span></div>
+            <div class="notice-board-header"><span class="notice-icon"><Icon type="megaphone" /></span><span><strong>{{ $t('m.Latest_Notices') }}</strong><small>{{ $t('m.Updates_from_XJU_OJ') }}</small></span></div>
             <Announcements />
           </div>
         </div>
         <div class="home-section user-ranking-section">
-          <div class="section-heading"><h2>User Ranking</h2></div>
+          <div class="section-heading"><h2>{{ $t('m.User_Ranking') }}</h2></div>
           <div class="ranking-board">
             <button class="ranking-link" @click="go('/acm-rank')">
               <span class="ranking-icon"><Icon type="check-circle" /></span>
-              <span><strong>A题数 <b v-if="acceptedLeaders.length">{{ acceptedLeaders[0].accepted_number }}</b></strong><small>{{ getLeaderSummary() }}</small></span>
+              <span><strong>{{ $t('m.Accepted_Count') }} <b v-if="acceptedLeaders.length">{{ acceptedLeaders[0].accepted_number }}</b></strong><small>{{ getLeaderSummary() }}</small></span>
               <Icon type="arrow-down-b" class="ranking-arrow" />
             </button>
             <button class="ranking-link" @click="go('/acm-rank')">
               <span class="ranking-icon"><Icon type="trophy" /></span>
-              <span><strong>ACM Ranklist</strong><small>ACM standings</small></span>
+              <span><strong>{{ $t('m.ACM_Ranklist') }}</strong><small>{{ $t('m.ACM_Standings') }}</small></span>
               <Icon type="arrow-down-b" class="ranking-arrow" />
             </button>
             <button class="ranking-link" @click="go('/oi-rank')">
               <span class="ranking-icon"><Icon type="stats-bars" /></span>
-              <span><strong>OI Ranklist</strong><small>OI score standings</small></span>
+              <span><strong>{{ $t('m.OI_Ranklist') }}</strong><small>{{ $t('m.OI_Score_Standings') }}</small></span>
               <Icon type="arrow-down-b" class="ranking-arrow" />
             </button>
           </div>
@@ -60,7 +60,6 @@
 <script>
 import Announcements from './Announcements.vue'
 import api from '@oj/api'
-import time from '@/utils/time'
 import { CONTEST_STATUS, RULE_TYPE } from '@/utils/constants'
 import { cloneFixtures, filterMockContests, filterMockProblems, MOCK_ACM_RANK, MOCK_CONTESTS } from '@oj/mocks/fixtures'
 
@@ -89,8 +88,15 @@ export default {
     }).catch(() => {})
   },
   methods: {
-    getDuration (startTime, endTime) { return time.duration(startTime, endTime) },
-    formatDifficulty (difficulty) { return difficulty ? this.$t('m.' + difficulty) : 'Practice' },
+    getDuration (startTime, endTime) {
+      const hours = Math.abs(new Date(endTime) - new Date(startTime)) / 3600000
+      if (hours >= 24) return this.$t('m.Duration_Days', { count: Math.round(hours / 24) })
+      return this.$t('m.Duration_Hours', { count: Number(hours.toFixed(1)) })
+    },
+    formatContestDate (value) {
+      return new Intl.DateTimeFormat(this.$i18n.locale, { month: 'short', day: 'numeric' }).format(new Date(value))
+    },
+    formatDifficulty (difficulty) { return difficulty ? this.$t('m.' + difficulty) : this.$t('m.Practice') },
     getLeaderSummary () { return this.acceptedLeaders.map(item => `${item.user.username} ${item.accepted_number}`).join(' · ') },
     withContestProblems (contests) {
       return contests.map(contest => {
@@ -105,7 +111,7 @@ export default {
 }
 </script>
 <style lang="less" scoped>
-.home-page { max-width: 1120px; margin: 0 auto; padding: 30px 0 24px; }
+.home-page { width: 100%; margin: 0; padding: 30px 0 24px; }
 .home-section { padding-top: 30px; }
 .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .section-heading h2 { margin: 0; font: 600 24px/1.2 var(--font-serif); }

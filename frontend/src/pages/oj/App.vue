@@ -25,7 +25,7 @@ export default {
 }
 </script>
 <style lang="less">
-.content-app { max-width: 1240px; width: 100%; margin: 0 auto; padding: 80px 24px 0; }
+.content-app { max-width: var(--layout-max-width); width: 100%; margin: 0 auto; padding: 80px var(--layout-gutter) 0; box-sizing: border-box; }
 .footer { margin: 48px auto 18px; padding-top: 18px; border-top: 1px solid var(--color-border); text-align: center; color: var(--color-text-faint); font-size: 12px; }
 .footer p { margin: 4px 0; }
 .footer a { color: inherit; }

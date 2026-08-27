@@ -84,7 +84,7 @@
 
           <Col :span="12" class="submit-controls">
             <div v-if="captchaRequired" class="captcha-container">
-              <Tooltip content="Click to refresh" placement="top"><img :src="captchaSrc" @click="getCaptchaSrc"/></Tooltip>
+              <Tooltip :content="$t('m.Click_to_Refresh')" placement="top"><img :src="captchaSrc" @click="getCaptchaSrc"/></Tooltip>
               <Input v-model="captchaCode" class="captcha-code" />
             </div>
             <LegacyButton type="primary" @click="submitCode"
@@ -121,7 +121,7 @@
             </span>
             <time>{{formatSubmissionTime(submission.create_time)}}</time>
           </div>
-          <div v-if="!recentSubmissions.length" class="recent-submission-empty">No recent submissions</div>
+          <div v-if="!recentSubmissions.length" class="recent-submission-empty">{{ $t('m.No_Recent_Submissions') }}</div>
         </div>
       </section>
 
@@ -180,8 +180,8 @@
             <span class="info-value">{{problem.total_score}}</span>
           </li>
           <li v-if="problem.spj">
-            <span class="info-label">Judge</span>
-            <span class="info-value">Special Judge</span>
+            <span class="info-label">{{ $t('m.Judge') }}</span>
+            <span class="info-value">{{ $t('m.Special_Judge') }}</span>
           </li>
           <li>
             <span class="info-label">{{$t('m.Tags')}}</span>
@@ -201,7 +201,7 @@
         <template #title><div >
           <Icon type="ios-analytics"></Icon>
           <span class="card-title">{{$t('m.Statistic')}}</span>
-          <LegacyButton type="ghost" size="small" id="detail" @click="graphVisible = !graphVisible">Details</LegacyButton>
+          <LegacyButton type="ghost" size="small" id="detail" @click="graphVisible = !graphVisible">{{ $t('m.Details') }}</LegacyButton>
         </div></template>
         <div class="echarts">
           <ECharts :options="pie"></ECharts>
@@ -697,7 +697,7 @@
     cursor: pointer;
     transition: color var(--transition), background-color var(--transition);
   }
-  .recent-submission-header:hover { background: var(--bg-hover); color: var(--color-text); }
+  .recent-submission-header:hover, .recent-submission-header:focus-visible { background: var(--color-bg); color: var(--color-text-muted); }
   .recent-submission-heading { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
   .recent-submission-heading :deep(.legacy-icon) { display: inline-flex; align-items: center; }
   .recent-submission-arrow { color: var(--color-text-faint); transform: rotate(-90deg); }

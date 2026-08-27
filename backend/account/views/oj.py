@@ -82,7 +82,7 @@ class AvatarUploadAPI(APIView):
         if avatar.size > 2 * 1024 * 1024:
             return self.error("Picture is too large")
         suffix = os.path.splitext(avatar.name)[-1].lower()
-        if suffix not in [".gif", ".jpg", ".jpeg", ".bmp", ".png"]:
+        if suffix not in [".gif", ".jpg", ".jpeg", ".bmp", ".png", ".webp"]:
             return self.error("Unsupported file format")
 
         name = rand_str(10) + suffix

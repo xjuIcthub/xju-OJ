@@ -27,8 +27,8 @@
             <Dropdown-item name="-1">{{$t('m.Ended')}}</Dropdown-item>
           </Dropdown-menu></template>
         </Dropdown>
-        <Input id="keyword" class="contest-keyword" @on-enter="changeRoute" @on-click="changeRoute" v-model="query.keyword"
-               icon="ios-search-strong" placeholder="Keyword"/>
+          <Input id="keyword" class="contest-keyword" @on-enter="changeRoute" @on-click="changeRoute" v-model="query.keyword"
+               icon="ios-search-strong" :placeholder="$t('m.Search_Contests')"/>
       </div></template>
       <p id="no-contest" v-if="contests.length == 0">{{$t('m.No_contest')}}</p>
       <ol id="contest-list">
@@ -61,7 +61,6 @@
   import { mapGetters } from '@/store/compat'
   import utils from '@/utils/utils'
   import Pagination from '@/pages/oj/components/Pagination'
-  import time from '@/utils/time'
   import { CONTEST_STATUS_REVERSE, CONTEST_TYPE } from '@/utils/constants'
   import { cloneFixtures, filterMockContests, MOCK_CONTESTS } from '@oj/mocks/fixtures'
 
@@ -147,7 +146,9 @@
       },
 
       getDuration (startTime, endTime) {
-        return time.duration(startTime, endTime)
+        const hours = Math.abs(new Date(endTime) - new Date(startTime)) / 3600000
+        if (hours >= 24) return this.$t('m.Duration_Days', { count: Math.round(hours / 24) })
+        return this.$t('m.Duration_Hours', { count: Number(hours.toFixed(1)) })
       },
       statusLabel (status) {
         const item = CONTEST_STATUS_REVERSE[String(status)]
@@ -293,7 +294,7 @@
           display: inline-flex;
           flex: none;
           min-width: 88px;
-          height: 28px;
+          height: 26px;
           align-items: center;
           justify-content: center;
           padding: 0 10px;
@@ -302,9 +303,9 @@
           font-weight: 600;
           white-space: nowrap;
         }
-        .status-not-started { background: var(--tag-tools-bg); color: var(--cat-tools); }
-        .status-ended { background: var(--tag-kaggle-bg); color: var(--cat-kaggle); }
-        .status-underway { background: var(--color-bg-subtle); color: var(--color-text-muted); }
+        .status-not-started { background: var(--tag-tools-bg); color: var(--cat-tools); text-decoration: none; }
+        .status-ended { background: var(--tag-kaggle-bg); color: var(--cat-kaggle); text-decoration: none; }
+        .status-underway { background: var(--color-bg-subtle); color: var(--color-text-muted); text-decoration: none; }
       }
     }
   }

@@ -30,7 +30,7 @@
             <Icon type="refresh"></Icon>
           </button>
         </div></template>
-        <Table stripe :disabled-hover="true" :columns="columns" :data="submissions" :loading="loadingTable"></Table>
+        <Table class="submission-table" stripe :disabled-hover="true" :columns="columns" :data="submissions" :loading="loadingTable"></Table>
         <Pagination :total="total" :page-size="limit" @on-change="changeRoute" :current="page" @update:current="page = $event"></Pagination>
       </Panel>
     </div>
@@ -43,6 +43,11 @@
   import utils from '@/utils/utils'
   import time from '@/utils/time'
   import Pagination from '@/pages/oj/components/Pagination'
+
+  const DISPLAY_JUDGE_STATUS = Object.keys(JUDGE_STATUS).reduce((result, status) => {
+    if (status !== '9' && status !== '2') result[status] = JUDGE_STATUS[status]
+    return result
+  }, {})
 
   export default {
     name: 'submissionList',
@@ -59,6 +64,7 @@
         columns: [
           {
             title: this.$t('m.When'),
+            width: 152,
             align: 'center',
             render: (h, params) => {
               return h('span', time.utcToLocal(params.row.create_time))
@@ -66,6 +72,7 @@
           },
           {
             title: this.$t('m.ID'),
+            width: 126,
             align: 'center',
             render: (h, params) => {
               if (params.row.show_link) {
@@ -87,17 +94,17 @@
           },
           {
             title: this.$t('m.Status'),
+            width: 132,
             align: 'center',
             render: (h, params) => {
-              return h('Tag', {
-                props: {
-                  color: JUDGE_STATUS[params.row.result].color
-                }
-              }, this.$t('m.' + JUDGE_STATUS[params.row.result].name.replace(/ /g, '_')))
+              const status = JUDGE_STATUS[String(params.row.result)] || JUDGE_STATUS['6']
+              const label = this.$t('m.' + status.name.replace(/ /g, '_'))
+              return h('span', { class: ['judge-status-badge', `is-${status.type || 'info'}`] }, label)
             }
           },
           {
             title: this.$t('m.Problem'),
+            width: 92,
             align: 'center',
             render: (h, params) => {
               return h('span',
@@ -125,6 +132,7 @@
           },
           {
             title: this.$t('m.Time'),
+            width: 88,
             align: 'center',
             render: (h, params) => {
               return h('span', utils.submissionTimeFormat(params.row.statistic_info.time_cost))
@@ -132,6 +140,7 @@
           },
           {
             title: this.$t('m.Memory'),
+            width: 98,
             align: 'center',
             render: (h, params) => {
               return h('span', utils.submissionMemoryFormat(params.row.statistic_info.memory_cost))
@@ -139,11 +148,13 @@
           },
           {
             title: this.$t('m.Language'),
+            width: 106,
             align: 'center',
             key: 'language'
           },
           {
             title: this.$t('m.Author'),
+            width: 116,
             align: 'center',
             render: (h, params) => {
               return h('a', {
@@ -172,16 +183,17 @@
         contestID: '',
         problemID: '',
         routeName: '',
-        JUDGE_STATUS: '',
-        rejudge_column: false
+        JUDGE_STATUS: DISPLAY_JUDGE_STATUS,
+        rejudge_column: false,
+        refreshTimer: null,
+        requestInFlight: false
       }
     },
     mounted () {
       this.init()
-      this.JUDGE_STATUS = Object.assign({}, JUDGE_STATUS)
-      // 去除submitting的状态 和 两个
-      delete this.JUDGE_STATUS['9']
-      delete this.JUDGE_STATUS['2']
+    },
+    beforeUnmount () {
+      this.clearStatusRefresh()
     },
     methods: {
       init () {
@@ -206,13 +218,27 @@
           page: this.page
         }
       },
-      getSubmissions () {
+      clearStatusRefresh () {
+        if (this.refreshTimer) {
+          clearTimeout(this.refreshTimer)
+          this.refreshTimer = null
+        }
+      },
+      scheduleStatusRefresh (results) {
+        this.clearStatusRefresh()
+        const hasPending = results.some(item => ['6', '7', '9'].includes(String(item.result)))
+        if (!hasPending || document.visibilityState === 'hidden') return
+        this.refreshTimer = setTimeout(() => this.getSubmissions({ silent: true }), 2200)
+      },
+      getSubmissions ({ silent = false } = {}) {
+        if (this.requestInFlight) return
         let params = this.buildQuery()
         params.contest_id = this.contestID
         params.problem_id = this.problemID
         let offset = (this.page - 1) * this.limit
         let func = this.contestID ? 'getContestSubmissionList' : 'getSubmissionList'
-        this.loadingTable = true
+        this.requestInFlight = true
+        if (!silent) this.loadingTable = true
         api[func](offset, this.limit, params).then(res => {
           let data = res.data.data
           for (let v of data.results) {
@@ -222,9 +248,11 @@
           this.loadingTable = false
           this.submissions = data.results
           this.total = data.total
+          this.scheduleStatusRefresh(data.results)
         }).catch(() => {
           this.loadingTable = false
-        })
+          this.clearStatusRefresh()
+        }).finally(() => { this.requestInFlight = false })
       },
       // 改变route， 通过监听route变化请求数据，这样可以产生route history， 用户返回时就会保存之前的状态
       changeRoute () {
@@ -315,6 +343,7 @@
     watch: {
       '$route' (newVal, oldVal) {
         if (newVal !== oldVal) {
+          this.clearStatusRefresh()
           this.init()
         }
       },
@@ -346,6 +375,13 @@
       .reset-filter:hover { background: var(--bg-hover); }
       .refresh-control { min-width: 34px; width: 34px; padding: 0; }
       :deep(.legacy-icon) { display: inline-flex; }
+      :deep(.submission-table .el-table__cell) { padding: 8px 0; }
+      :deep(.submission-table .cell) { padding: 0 7px; white-space: nowrap; }
+      :deep(.judge-status-badge) { display: inline-flex; min-width: 76px; height: 24px; align-items: center; justify-content: center; padding: 0 9px; border-radius: var(--radius-pill); font-size: 12px; font-weight: 600; line-height: 1; }
+      :deep(.judge-status-badge.is-success) { color: var(--cat-tools); background: var(--tag-tools-bg); }
+      :deep(.judge-status-badge.is-error) { color: var(--cat-research); background: var(--tag-research-bg); }
+      :deep(.judge-status-badge.is-warning) { color: var(--cat-course); background: var(--tag-course-bg); }
+      :deep(.judge-status-badge.is-info) { color: var(--cat-kaggle); background: var(--tag-kaggle-bg); }
     }
     #contest-menu {
       flex: none;

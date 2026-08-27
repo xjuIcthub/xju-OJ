@@ -18,13 +18,13 @@ const languageFor = (mode = '') => {
   return cpp()
 }
 
-const syntaxFor = (theme) => {
+const syntaxFor = () => {
+  // The three legacy theme choices are retained for compatibility, but the
+  // Feiyue editor stays transparent and uses one stable syntax palette so a
+  // theme selection never unexpectedly recolors the code surface.
   const colors = {
-    solarized: { keyword: '#859900', atom: '#b58900', string: '#2aa198', comment: '#93a1a1', variable: '#268bd2', type: '#b58900', number: '#d33682', operator: '#657b83' },
-    monokai: { keyword: '#f92672', atom: '#ae81ff', string: '#e6db74', comment: '#75715e', variable: '#a6e22e', type: '#66d9ef', number: '#ae81ff', operator: '#f8f8f2' },
-    material: { keyword: '#c792ea', atom: '#f78c6c', string: '#c3e88d', comment: '#7f848e', variable: '#82aaff', type: '#ffcb6b', number: '#f78c6c', operator: '#89ddff' }
-  }[theme] || {
-    keyword: '#586069', atom: '#b08800', string: '#22863a', comment: '#6a737d', variable: '#005cc5', type: '#6f42c1', number: '#005cc5', operator: '#24292e'
+    keyword: '#9a3d3d', atom: '#9a6b1f', string: '#26756d', comment: '#8b8983',
+    variable: '#2f6f9f', type: '#73528f', number: '#9a4f83', operator: '#5f625e'
   }
   return syntaxHighlighting(HighlightStyle.define([
     { tag: tags.keyword, color: colors.keyword },
@@ -41,13 +41,7 @@ const syntaxFor = (theme) => {
 const editorThemeFor = (theme) => {
   const themes = {
     solarized: {
-      background: 'transparent', foreground: '#586e75', gutter: 'transparent', gutterText: '#839496', gutterBorder: 'var(--color-border)', selection: 'rgba(35, 131, 226, .16)', activeLine: 'rgba(247, 246, 243, .82)'
-    },
-    monokai: {
-      background: 'transparent', foreground: '#37352f', gutter: 'transparent', gutterText: '#9b9a97', gutterBorder: 'var(--color-border)', selection: 'rgba(35, 131, 226, .16)', activeLine: 'rgba(241, 241, 239, .82)'
-    },
-    material: {
-      background: 'transparent', foreground: '#37352f', gutter: 'transparent', gutterText: '#9b9a97', gutterBorder: 'var(--color-border)', selection: 'rgba(35, 131, 226, .16)', activeLine: 'rgba(247, 246, 243, .82)'
+      background: 'transparent', foreground: '#37352f', gutter: 'transparent', gutterText: '#787774', gutterBorder: 'var(--color-border)', selection: 'rgba(35, 131, 226, .16)', activeLine: 'rgba(247, 246, 243, .72)'
     }
   }
   const palette = themes[theme] || themes.solarized
@@ -86,7 +80,7 @@ export default {
           lineNumbers(), keymap.of([...defaultKeymap, indentWithTab]),
           this.languageSlot.of(languageFor(this.mode)),
           this.editableSlot.of(EditorView.editable.of(!this.readOnly)),
-          this.themeSlot.of([editorThemeFor(this.theme), syntaxFor(this.theme)]),
+          this.themeSlot.of([editorThemeFor(this.theme), syntaxFor()]),
           this.lineWrapping ? EditorView.lineWrapping : [],
           EditorView.updateListener.of(update => {
             if (!update.docChanged) return
@@ -108,7 +102,7 @@ export default {
       this.view.dispatch({ changes: { from: 0, to: this.view.state.doc.length, insert: value || '' } })
     },
     mode (value) { this.reconfigure(this.languageSlot.reconfigure(languageFor(value))) },
-    theme (value) { this.reconfigure(this.themeSlot.reconfigure([editorThemeFor(value), syntaxFor(value)])) },
+    theme (value) { this.reconfigure(this.themeSlot.reconfigure([editorThemeFor(value), syntaxFor()])) },
     readOnly (value) { this.reconfigure(this.editableSlot.reconfigure(EditorView.editable.of(!value))) }
   },
   methods: {
