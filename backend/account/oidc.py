@@ -62,6 +62,12 @@ def _issuer():
     return value
 
 
+def _issuer_document():
+    """Return the exact issuer URL form used in discovery and ID tokens."""
+
+    return f"{_issuer()}/"
+
+
 def _safe_next(value, default="/"):
     if not value:
         return default
@@ -162,7 +168,7 @@ def discovery(force=False):
         "discovery_unavailable",
         force=force,
     )
-    if str(metadata.get("issuer", "")).rstrip("/") != issuer:
+    if metadata.get("issuer") != _issuer_document():
         raise OIDCError("issuer_mismatch")
     required = ("authorization_endpoint", "token_endpoint", "jwks_uri")
     if any(not _endpoint_is_safe(metadata.get(key, "")) for key in required):
@@ -342,7 +348,7 @@ def _verify_id_token(encoded, metadata, nonce, force=False):
             encoded,
             key,
             claims_options={
-                "iss": {"essential": True, "value": _issuer()},
+                "iss": {"essential": True, "value": _issuer_document()},
                 "sub": {"essential": True},
                 "aud": {"essential": True, "value": settings.AUTHENTIK_OIDC_CLIENT_ID},
                 "exp": {"essential": True},

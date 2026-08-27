@@ -27,6 +27,12 @@ class OIDCContractTests(SimpleTestCase):
         ):
             self.assertFalse(oidc._redirect_uri_is_safe(value))
 
+    def test_issuer_document_uses_authentik_wire_form(self):
+        self.assertEqual(
+            oidc._issuer_document(),
+            "https://auth.icthub.top/application/o/xju-oj/",
+        )
+
     def test_claim_storage_contains_no_token_fields(self):
         stored = oidc._claims_for_storage(
             {
