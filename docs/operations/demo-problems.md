@@ -9,7 +9,7 @@
 | `demo-ab` | A+B | ACM 标准输出 | 20 | `1 2` → `3`；`-100 58` → `-42` |
 | `demo-spj` | Special Judge：合法排列 | ACM + C SPJ | 20 | `n=5` → `1 2 3 4 5`；`n=4` → `4 1 3 2` |
 
-两题都使用当前 OJ 配置的全部语言、Standard IO、Low difficulty 和 `demo` tag。题目由 `winbeau` 创建，直接作为 standalone visible problem 出现在题目列表中。
+两题都使用当前 OJ 配置的全部语言、Standard IO、Low difficulty 和 `demo` tag。题目由 `SEED_DEMO_PROBLEMS_CREATOR` 指定的 OJ 管理员创建，直接作为 standalone visible problem 出现在题目列表中。当前 huawei1 使用已有的 `admin` 超级管理员；待 `winbeau` 首次完成 OIDC 登录并 provision 到 OJ 后，也可以改用 `winbeau`。
 
 ## 测试点设计
 
@@ -62,12 +62,14 @@ SPJ 检查：
 cd /home/winbeau/xju-OJ
 
 docker compose exec -T backend-api \
+  env SEED_DEMO_PROBLEMS_CREATOR=admin \
   python manage.py shell -c \
   'exec(compile(__import__("sys").stdin.read(), "<seed-demo-problems>", "exec"))' \
   < deploy/ops/seed-demo-problems.py
 
 docker compose exec -T backend-api \
   env DEMO_PROBLEMS_MODE=apply \
+      SEED_DEMO_PROBLEMS_CREATOR=admin \
   python manage.py shell -c \
   'exec(compile(__import__("sys").stdin.read(), "<seed-demo-problems>", "exec"))' \
   < deploy/ops/seed-demo-problems.py
