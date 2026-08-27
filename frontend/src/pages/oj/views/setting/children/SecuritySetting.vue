@@ -26,10 +26,10 @@
           </div></template>
           <Form :label-width="100">
             <FormItem label="OS :" class="item">
-              {{ $filters.platform(session.user_agent) }}
+              {{ platformForSession(session) }}
             </FormItem>
             <FormItem label="Browser :" class="item">
-              {{ $filters.browser(session.user_agent) }}
+              {{ browserForSession(session) }}
             </FormItem>
             <FormItem label="Last Activity :" class="item">
               {{ $filters.localtime(session.last_activity) }}
@@ -77,19 +77,7 @@
 <script>
   import api from '@oj/api'
   import {mapGetters, mapActions} from '@/store/compat'
-  import browserDetector from 'browser-detect'
-
-  const browsers = {}
-  const loadBrowser = (userAgent) => {
-    let browser = {}
-    if (userAgent in Object.keys(browsers)) {
-      browser = browsers[userAgent]
-    } else {
-      browser = browserDetector(userAgent)
-      browsers[userAgent] = browser
-    }
-    return browser
-  }
+  import { detectCurrentPlatform, formatBrowser, formatPlatform } from '@/utils/device'
 
   export default {
     data () {
@@ -100,14 +88,16 @@
         formTwoFactor: {
           code: ''
         },
-        sessions: []
+        sessions: [],
+        currentPlatform: ''
       }
     },
-    mounted () {
+    async mounted () {
       this.getSessions()
       if (!this.TFAOpened) {
         this.getAuthImg()
       }
+      this.currentPlatform = await detectCurrentPlatform()
     },
     methods: {
       ...mapActions(['getProfile']),
@@ -136,6 +126,14 @@
           })
           this.sessions = sessions
         })
+      },
+      platformForSession (session) {
+        return session.current_session && this.currentPlatform
+          ? this.currentPlatform
+          : formatPlatform(session.user_agent)
+      },
+      browserForSession (session) {
+        return formatBrowser(session.user_agent)
       },
       deleteSession (sessionKey) {
         this.$Modal.confirm({
@@ -192,20 +190,6 @@
       },
       TFAOpened () {
         return this.user && this.user.two_factor_auth
-      }
-    },
-    filters: {
-      browser (value) {
-        let b = loadBrowser(value)
-        if (b.name && b.version) {
-          return b.name + ' ' + b.version
-        } else {
-          return 'Unknown'
-        }
-      },
-      platform (value) {
-        let b = loadBrowser(value)
-        return b.os ? b.os : 'Unknown'
       }
     }
   }

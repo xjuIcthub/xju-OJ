@@ -132,8 +132,8 @@ class UserProfile(models.Model):
     # for OI
     total_score = models.BigIntegerField(default=0)
     submission_number = models.IntegerField(default=0)
-    # Existing local users are considered complete; new Studio/OIDC users must
-    # fill product-specific fields before continuing past first login.
+    # Existing local users are considered complete; new Studio/OIDC users are
+    # prompted to add product-specific fields, but those fields remain optional.
     oj_onboarding_completed = models.BooleanField(default=True)
 
     def add_accepted_problem_number(self):

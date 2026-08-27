@@ -1,7 +1,7 @@
 <template>
   <div class="setting-main">
     <Alert v-if="onboardingRequired" type="warning" show-icon>
-      Complete the OJ profile fields below before continuing. Your Studio username, email and password remain managed by Authentik.
+      OJ profile fields are optional. You can save now and complete them later. Your Studio username, email and password remain managed by Authentik.
     </Alert>
     <div class="section-title">{{$t('m.Avatar_Setting')}}</div>
     <template v-if="!avatarOption.imgSrc">
@@ -210,16 +210,12 @@
           let file = new window.File([blob], 'avatar.' + this.avatarOption.outputType)
           form.append('image', file)
           this.loadingUploadBtn = true
-          this.$http({
-            method: 'post',
-            url: 'upload_avatar',
-            data: form,
-            headers: {'content-type': 'multipart/form-data'}
-          }).then(res => {
+          api.uploadAvatar(form).then(res => {
             this.loadingUploadBtn = false
             this.$success('Successfully set new avatar')
             this.uploadModalVisible = false
             this.avatarOption.imgSrc = ''
+            this.uploadImgSrc = ''
             this.$store.dispatch('getProfile')
           }, () => {
             this.loadingUploadBtn = false
@@ -227,13 +223,6 @@
         })
       },
       updateProfile () {
-        if (this.onboardingRequired) {
-          const required = ['real_name', 'school', 'major', 'language']
-          if (required.some(field => !String(this.formProfile[field] || '').trim())) {
-            this.$Notice.warning({title: 'Complete your OJ profile', desc: 'Real name, school, major and language are required.'})
-            return
-          }
-        }
         this.loadingSaveBtn = true
         let updateData = utils.filterEmptyValue(Object.assign({}, this.formProfile))
         api.updateProfile(updateData).then(res => {

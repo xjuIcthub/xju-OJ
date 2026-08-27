@@ -12,7 +12,7 @@ from utils.api.tests import APIClient, APITestCase
 from utils.shortcuts import rand_str
 from options.options import SysOptions
 
-from .models import AdminType, ProblemPermission, User
+from .models import AdminType, ExternalIdentity, ProblemPermission, User
 from utils.constants import ContestRuleType
 
 
@@ -259,6 +259,26 @@ class UserProfileAPITest(APITestCase):
         self.assertEqual(data["real_name"], "zemal")
         self.assertEqual(data["submission_number"], 0)
         self.assertEqual(data["language"], "en-US")
+
+    def test_oidc_onboarding_save_all_allows_empty_profile(self):
+        user = self.create_user("studio-user", "test123")
+        profile = user.userprofile
+        profile.oj_onboarding_completed = False
+        profile.save(update_fields=["oj_onboarding_completed"])
+        ExternalIdentity.objects.create(
+            user=user,
+            provider="authentik",
+            issuer="https://auth.icthub.top/application/o/xju-oj/",
+            subject="studio-subject",
+            email="studio-user@example.com",
+            email_verified=True,
+        )
+
+        resp = self.client.put(self.url, data={}, format="json")
+
+        self.assertSuccess(resp)
+        profile.refresh_from_db()
+        self.assertTrue(profile.oj_onboarding_completed)
 
 
 class TwoFactorAuthAPITest(APITestCase):

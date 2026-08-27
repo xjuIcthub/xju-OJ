@@ -187,3 +187,10 @@
 - frontend-only 路径跳过 Secret provisioning/check、数据库 bootstrap/migration、Judge token/admin 初始化、全栈 `up`、Worker/Judge smoke；只检查 backend-api 可达，使用 `--no-deps --force-recreate` 替换 frontend，并执行静态、SPA、runtime-config 和 API 代理 smoke。
 - 本地验证：`sh -n deploy.sh`、`git diff --check`、`./deploy.sh --help` 和临时 env 的 `--frontend-only --config-only` 通过；未触碰 huawei1 生产服务或数据。
 - 日常命令见 `31-frontend-fast-iteration.md`；前端-only 不能用于首次安装、Compose/环境/backend/OIDC/migration/Judge 变更。
+
+### 2026-08-26 — OJ profile/session fixes
+
+- 修复个人设置头像上传：`ProfileSetting.vue` 改用 OJ API client 的 multipart 请求，不再调用不存在的旧 `$http` 实例；上传成功后刷新全局 profile 并清理预览状态。
+- 修复设备显示：历史 User-Agent 的 Windows NT 10.0 统一显示 `Windows 10/11`；当前 Chromium 浏览器优先读取 User-Agent Client Hints 的 `platformVersion`，可将 Windows 11 显示为 `Windows 11`，并规范化 macOS、iOS、Android、ChromeOS、Linux。
+- 放宽 OJ 首次登录资料保存：真实姓名、学校、专业、语言不再是必填项；OIDC 用户点击 Save All（包括空表单）即可完成 onboarding，后续仍可补充资料。Studio 身份、密码和邮箱继续由 Authentik 管理。
+- 验证：frontend modern scan、route contract、Vite production build、Python compileall 通过；Django 定向测试因本地 `127.0.0.1:5435` PostgreSQL 测试库连接异常未能启动，需在有测试数据库的部署环境重跑。

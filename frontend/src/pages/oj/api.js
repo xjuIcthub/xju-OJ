@@ -83,6 +83,11 @@ export default {
   getSessions () {
     return ajax('sessions', 'get')
   },
+  uploadAvatar (formData) {
+    return ajax('upload_avatar', 'post', {
+      data: formData
+    })
+  },
   deleteSession (sessionKey) {
     return ajax('sessions', 'delete', {
       params: {

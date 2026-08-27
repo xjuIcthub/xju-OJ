@@ -59,13 +59,9 @@ class UserProfileAPI(APIView):
             not user_profile.oj_onboarding_completed
             and ExternalIdentity.objects.filter(user=request.user, provider="authentik").exists()
         ):
-            required_fields = ("real_name", "school", "major", "language")
-            merged = {
-                field: data.get(field, getattr(user_profile, field))
-                for field in required_fields
-            }
-            if any(not str(merged[field] or "").strip() for field in required_fields):
-                return self.error("Please complete your OJ profile before continuing")
+            # OJ profile fields are optional. Saving any valid payload completes
+            # the first-login handoff without making product-specific metadata
+            # a prerequisite for access.
             user_profile.oj_onboarding_completed = True
         for k, v in data.items():
             setattr(user_profile, k, v)
