@@ -647,10 +647,13 @@ target_unchanged_since_release() {
     previous_commit=$(release_source_commit 2>/dev/null || true)
     [ -n "$previous_commit" ] || return 1
     git -C "$ROOT" cat-file -e "$previous_commit^{commit}" >/dev/null 2>&1 || return 1
-    target_paths "$1" | while IFS= read -r target_path; do
-        git -C "$ROOT" diff --quiet "$previous_commit" -- "$target_path" || exit 1
-        git -C "$ROOT" status --porcelain --untracked-files=all -- "$target_path" | grep -q . && exit 1
+    target_path_list=$(target_paths "$1") || return 1
+    for target_path in $target_path_list; do
+        git -C "$ROOT" diff --quiet "$previous_commit" -- "$target_path" || return 1
+        target_status=$(git -C "$ROOT" status --porcelain --untracked-files=all -- "$target_path")
+        [ -z "$target_status" ] || return 1
     done
+    return 0
 }
 
 set_target_ref_from_release() {

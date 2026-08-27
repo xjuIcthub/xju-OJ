@@ -74,6 +74,8 @@ docker compose up -d --remove-orphans --wait
 5. 只执行 backend-api 可达检查、`docker compose up -d --no-deps --force-recreate --wait frontend`，以及 frontend root/admin/runtime-config/API 反向代理 smoke。
 6. 成功后仍写入完整 release metadata 与 `previous.json`；失败保留现场，不停止其他服务，不删除旧 image/volume/runtime。
 
+镜像复用判断必须将干净工作树视为成功：不要直接把 `git status | grep -q .` 的非零结果作为函数退出码，否则前端/后端变更会误触发 PostgreSQL、Judge 等未变化镜像的重建和外部依赖下载。
+
 推荐命令：
 
 ```bash

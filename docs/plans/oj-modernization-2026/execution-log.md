@@ -194,3 +194,8 @@
 - 修复设备显示：历史 User-Agent 的 Windows NT 10.0 统一显示 `Windows 10/11`；当前 Chromium 浏览器优先读取 User-Agent Client Hints 的 `platformVersion`，可将 Windows 11 显示为 `Windows 11`，并规范化 macOS、iOS、Android、ChromeOS、Linux。
 - 放宽 OJ 首次登录资料保存：真实姓名、学校、专业、语言不再是必填项；OIDC 用户点击 Save All（包括空表单）即可完成 onboarding，后续仍可补充资料。Studio 身份、密码和邮箱继续由 Authentik 管理。
 - 验证：frontend modern scan、route contract、Vite production build、Python compileall 通过；Django 定向测试因本地 `127.0.0.1:5435` PostgreSQL 测试库连接异常未能启动，需在有测试数据库的部署环境重跑。
+
+### 2026-08-27 — deploy image reuse regression fix
+
+- 修复 `deploy.sh` 的 unchanged-target 判断：干净 `git status` 不再因 `grep` 的返回码被误判为变更。前端/后端/OIDC 变更时会正确复用上一成功 release 的 PostgreSQL、Judge toolchain 和 server 镜像，避免无意义的 gosu/GitHub 下载。
+- 保留安全边界：目标目录有 diff、未跟踪文件、上一 release 缺失或镜像不存在时仍拒绝复用并走显式构建；没有放宽固定 digest 或 source 校验。
