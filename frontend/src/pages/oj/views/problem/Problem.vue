@@ -174,7 +174,7 @@
             <span class="info-value" :title="problem.created_by.username">{{problem.created_by.username}}</span></li>
           <li v-if="problem.difficulty">
             <span class="info-label">{{$t('m.Level')}}</span>
-            <span class="info-value">{{$t('m.' + problem.difficulty)}}</span></li>
+            <span class="info-value">{{$t('m.Difficulty_' + problem.difficulty)}}</span></li>
           <li v-if="problem.total_score">
             <span class="info-label">{{$t('m.Score')}}</span>
             <span class="info-value">{{problem.total_score}}</span>

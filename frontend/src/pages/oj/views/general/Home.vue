@@ -96,7 +96,7 @@ export default {
     formatContestDate (value) {
       return new Intl.DateTimeFormat(this.$i18n.locale, { month: 'short', day: 'numeric' }).format(new Date(value))
     },
-    formatDifficulty (difficulty) { return difficulty ? this.$t('m.' + difficulty) : this.$t('m.Practice') },
+    formatDifficulty (difficulty) { return difficulty ? this.$t('m.Difficulty_' + difficulty) : this.$t('m.Practice') },
     getLeaderSummary () { return this.acceptedLeaders.map(item => `${item.user.username} ${item.accepted_number}`).join(' · ') },
     withContestProblems (contests) {
       return contests.map(contest => {

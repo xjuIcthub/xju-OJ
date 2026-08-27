@@ -7,14 +7,14 @@
         <div class="problem-filters">
           <Dropdown @on-click="filterByDifficulty">
               <button type="button" class="filter-control difficulty-filter">
-                <span>{{query.difficulty === '' ? this.$t('m.Difficulty') : this.$t('m.' + query.difficulty)}}</span>
+                <span>{{query.difficulty === '' ? this.$t('m.Difficulty') : difficultyLabel(query.difficulty)}}</span>
                 <Icon type="arrow-down-b"></Icon>
               </button>
               <template #list><Dropdown-menu >
                 <Dropdown-item name="">{{$t('m.All')}}</Dropdown-item>
-                <Dropdown-item name="Low">{{$t('m.Low')}}</Dropdown-item>
-                <Dropdown-item name="Mid" >{{$t('m.Mid')}}</Dropdown-item>
-                <Dropdown-item name="High">{{$t('m.High')}}</Dropdown-item>
+                <Dropdown-item name="Low">{{$t('m.Difficulty_Low')}}</Dropdown-item>
+                <Dropdown-item name="Mid" >{{$t('m.Difficulty_Mid')}}</Dropdown-item>
+                <Dropdown-item name="High">{{$t('m.Difficulty_High')}}</Dropdown-item>
               </Dropdown-menu></template>
           </Dropdown>
           <button type="button" class="filter-control tags-toggle" :class="{'is-active': tagsVisible}"
@@ -128,7 +128,7 @@
               const difficulty = params.row.difficulty || ''
               return h('span', {
                 class: ['difficulty-badge', `difficulty-${difficulty.toLowerCase()}`]
-              }, difficulty ? this.$t('m.' + difficulty) : '—')
+              }, difficulty ? this.difficultyLabel(difficulty) : '—')
             }
           },
           {
@@ -164,6 +164,9 @@
       this.init()
     },
     methods: {
+      difficultyLabel (difficulty) {
+        return this.$t('m.Difficulty_' + difficulty)
+      },
       init (simulate = false) {
         this.routeName = this.$route.name
         let query = this.$route.query
