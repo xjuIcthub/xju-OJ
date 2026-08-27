@@ -78,7 +78,7 @@ path = sys.argv[1]
 name_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 var_re = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)")
 allowed = {
-    "COMPOSE_PROJECT_NAME", "APP_DOMAIN", "PUBLIC_BASE_URL", "DEPLOY_HEARTBEAT_SECONDS",
+    "COMPOSE_PROJECT_NAME", "APP_DOMAIN", "PUBLIC_BASE_URL", "CSRF_TRUSTED_ORIGINS", "DEPLOY_HEARTBEAT_SECONDS",
     "HTTP_BIND_ADDRESS", "HTTP_PORT", "DEPLOY_ROOT", "RUNTIME_ROOT",
     "BACKUP_ROOT", "SECRET_ROOT", "DEPLOY_MODE", "SECRET_PROVISION_MODE",
     "GIT_COMMIT", "BUILD_VERSION", "BUILD_CREATED", "BUILD_TARGETS",
@@ -190,6 +190,7 @@ fi
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-xju-oj}
 APP_DOMAIN=${APP_DOMAIN:-localhost}
 PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://127.0.0.1:18080}
+CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-https://oj.icthub.top}
 HTTP_BIND_ADDRESS=${HTTP_BIND_ADDRESS:-127.0.0.1}
 HTTP_PORT=${HTTP_PORT:-18080}
 DEPLOY_MODE=${DEPLOY_MODE:-build}
@@ -273,7 +274,7 @@ if [ "$AUTHENTIK_OIDC_ENABLED" = true ] && {
     fail "OIDC rollout requires AUTHENTIK_LOCAL_LOGIN_ENABLED=false and AUTHENTIK_LOCAL_REGISTER_ENABLED=false"
 fi
 
-export COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL HTTP_BIND_ADDRESS HTTP_PORT
+export COMPOSE_PROJECT_NAME APP_DOMAIN PUBLIC_BASE_URL CSRF_TRUSTED_ORIGINS HTTP_BIND_ADDRESS HTTP_PORT
 export DEPLOY_ROOT RUNTIME_ROOT BACKUP_ROOT SECRET_ROOT DEPLOY_MODE SECRET_PROVISION_MODE
 export FRONTEND_IMAGE_REF FRONTEND_BASE_IMAGE BACKEND_IMAGE_REF JUDGE_IMAGE_REF JUDGE_TOOLCHAIN_IMAGE_REF
 export POSTGRES_IMAGE_REF REDIS_IMAGE_REF GIT_COMMIT BUILD_VERSION BUILD_CREATED
@@ -326,6 +327,19 @@ if "openid" not in scopes.split():
     raise SystemExit(1)
 PY
 fi
+
+python3 - "$CSRF_TRUSTED_ORIGINS" <<'PY' || fail "invalid CSRF_TRUSTED_ORIGINS"
+import sys
+from urllib.parse import urlsplit
+
+origins = [item.strip().rstrip("/") for item in sys.argv[1].split(",") if item.strip()]
+if not origins:
+    raise SystemExit(1)
+for origin in origins:
+    parsed = urlsplit(origin)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.path or parsed.query or parsed.fragment:
+        raise SystemExit(1)
+PY
 
 for path_name in DEPLOY_ROOT RUNTIME_ROOT BACKUP_ROOT SECRET_ROOT; do
     eval "path_value=\${$path_name}"

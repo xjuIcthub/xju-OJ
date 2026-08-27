@@ -55,6 +55,7 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      CSRF_TRUSTED_ORIGINS: "${CSRF_TRUSTED_ORIGINS:-https://oj.icthub.top}"
       NO_PROXY: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
       no_proxy: "localhost,127.0.0.1,backend-api,judge-server,postgres,redis"
       DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
