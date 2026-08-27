@@ -11,14 +11,13 @@
         <el-table-column
           type="expand">
           <template #default="props">
-            <p>{{$t('m.IP')}}:
-              <el-tag type="success">{{ props.row.ip }}</el-tag>&nbsp;&nbsp;
-              {{$t('m.Judger_Version')}}:
-              <el-tag type="success">{{ props.row.judger_version }}</el-tag>
-            </p>
-            <p>{{$t('m.Service_URL')}}: <code>{{ props.row.service_url }}</code></p>
-            <p>{{$t('m.Last_Heartbeat')}}: {{ $filters.localtime(props.row.last_heartbeat) }}</p>
-            <p>{{$t('m.Create_Time')}}: {{ $filters.localtime(props.row.create_time) }}</p>
+            <div class="server-details">
+              <div class="server-detail"><span>{{$t('m.IP')}}</span><el-tag type="success">{{ props.row.ip }}</el-tag></div>
+              <div class="server-detail"><span>{{$t('m.Judger_Version')}}</span><el-tag type="success">{{ props.row.judger_version }}</el-tag></div>
+              <div class="server-detail is-wide"><span>{{$t('m.Service_URL')}}</span><code>{{ props.row.service_url }}</code></div>
+              <div class="server-detail"><span>{{$t('m.Last_Heartbeat')}}</span><strong>{{ $filters.localtime(props.row.last_heartbeat) }}</strong></div>
+              <div class="server-detail"><span>{{$t('m.Create_Time')}}</span><strong>{{ $filters.localtime(props.row.create_time) }}</strong></div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column
@@ -60,7 +59,8 @@
         </el-table-column>
         <el-table-column
           fixed="right"
-          label="Options">
+          label="Options"
+          width="96">
           <template #default="scope">
             <icon-btn name="Delete" icon="trash" @click="deleteJudgeServer(scope.row.hostname)"></icon-btn>
           </template>
@@ -119,3 +119,12 @@
     }
   }
 </script>
+<style scoped lang="less">
+.server-details { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 10px 24px; padding: 4px 0; }
+.server-detail { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.server-detail > span { flex: 0 0 112px; color: var(--color-text-faint); font-size: 12px; }
+.server-detail strong, .server-detail code { color: var(--color-text); font-weight: 600; }
+.server-detail.is-wide { grid-column: 1 / -1; }
+:deep(.el-table__expanded-cell) { padding: 14px 18px !important; background: var(--color-bg-subtle); }
+@media (max-width: 1080px) { .server-details { grid-template-columns: 1fr; } .server-detail.is-wide { grid-column: auto; } }
+</style>

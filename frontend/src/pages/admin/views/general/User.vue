@@ -5,12 +5,12 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-button v-show="selectedUsers.length"
-                       type="warning" icon="el-icon-fa-trash"
-                       @click="deleteUsers(selectedUserIDs)">Delete
+                       type="warning"
+                       @click="deleteUsers(selectedUserIDs)"><Icon type="trash" />Delete
             </el-button>
           </el-col>
           <el-col :span="selectedUsers.length ? 16: 24">
-            <el-input v-model="keyword" prefix-icon="el-icon-search" placeholder="Keywords"></el-input>
+            <el-input v-model="keyword" placeholder="Keywords"><template #prefix><Icon type="search" /></template></el-input>
           </el-col>
         </el-row>
       </div></template>
@@ -49,7 +49,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column fixed="right" label="Option" width="200">
+        <el-table-column fixed="right" label="Option" width="96">
           <template #default="{row}">
             <icon-btn name="Edit" icon="edit" @click="openUserDialog(row.id)"></icon-btn>
             <icon-btn name="Delete" icon="trash" @click="deleteUsers([row.id])"></icon-btn>
@@ -72,7 +72,7 @@
         <el-popover placement="right" trigger="hover">
           <p>Only support csv file without headers, check the <a
             href="http://docs.onlinejudge.me/#/onlinejudge/guide/import_users">link</a> for details</p>
-          <template #reference><i  class="el-icon-fa-question-circle import-user-icon"></i></template>
+          <template #reference><Icon type="question-circle" class="import-user-icon" /></template>
         </el-popover>
       </span></template>
       <el-upload v-if="!uploadUsers.length"
@@ -80,7 +80,7 @@
                  :show-file-list="false"
                  accept=".csv"
                  :before-upload="handleUsersCSV">
-        <el-button size="small" icon="el-icon-fa-upload" type="primary">Choose File</el-button>
+        <el-button size="small" type="primary"><Icon type="upload" />Choose File</el-button>
       </el-upload>
       <template v-else>
         <el-table :data="uploadUsersPage">
@@ -107,12 +107,10 @@
         </el-table>
         <div class="panel-options">
           <el-button type="primary" size="small"
-                     icon="el-icon-fa-upload"
-                     @click="handleUsersUpload">Import All
+                     @click="handleUsersUpload"><Icon type="upload" />Import All
           </el-button>
           <el-button type="warning" size="small"
-                     icon="el-icon-fa-undo"
-                     @click="handleResetData">Reset Data
+                     @click="handleResetData"><Icon type="undo" />Reset Data
           </el-button>
           <el-pagination
             class="page"
@@ -157,7 +155,7 @@
         </el-row>
 
         <el-form-item>
-          <el-button type="primary" @click="generateUser" icon="el-icon-fa-users" :loading="loadingGenerate">Generate & Export
+          <el-button type="primary" @click="generateUser" :loading="loadingGenerate"><Icon type="users" />Generate & Export
           </el-button>
           <span class="userPreview" v-if="formGenerateUser.number_from && formGenerateUser.number_to &&
                                           formGenerateUser.number_from <= formGenerateUser.number_to">

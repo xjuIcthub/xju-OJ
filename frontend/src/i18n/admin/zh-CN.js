@@ -14,7 +14,7 @@ export const m = {
   Problem_List: '问题列表',
   Create_Problem: '增加题目',
   Export_Import_Problem: '导入导出题目',
-  Contest: '比赛&练习',
+  Contest: '比赛',
   Contest_List: '比赛列表',
   Create_Contest: '创建比赛',
   // User.vue
@@ -91,9 +91,9 @@ export const m = {
   Source: '来源',
   Edit_Problem: '编辑问题',
   Add_Problem: '添加问题',
-  High: '高',
-  Mid: '中',
-  Low: '低',
+  High: '困难',
+  Mid: '中等',
+  Low: '简单',
   Tag: '标签',
   New_Tag: '新增标签',
   // ProblemList.vue

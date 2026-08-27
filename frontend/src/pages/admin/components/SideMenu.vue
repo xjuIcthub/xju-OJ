@@ -7,7 +7,6 @@
       <template #title><Icon type="menu" />{{$t('m.General')}}</template>
       <el-menu-item index="/user">{{$t('m.User')}}</el-menu-item>
       <el-menu-item index="/announcement">{{$t('m.Announcement')}}</el-menu-item>
-      <el-menu-item index="/conf">{{$t('m.System_Config')}}</el-menu-item>
       <el-menu-item index="/judge-server">{{$t('m.Judge_Server')}}</el-menu-item>
       <el-menu-item index="/prune-test-case">{{$t('m.Prune_Test_Case')}}</el-menu-item>
     </el-submenu>
@@ -59,8 +58,8 @@
     .logo { display: flex; align-items: center; gap: 9px; margin: 0; padding: 18px 16px 20px; color: var(--color-text); }
     .logo strong { font-size: 17px; }.logo small { margin-left: auto; color: var(--color-text-faint); font-size: 11px; }
     .brand-mark { display: inline-grid; width: 30px; height: 30px; place-items: center; border-radius: var(--radius-sm); background: var(--color-text); color: #fff; font-size: 11px; }
-    :deep(.el-menu-item), :deep(.el-sub-menu__title) { min-height: 40px; height: 40px; line-height: 40px; margin: 2px 10px; padding: 0 12px !important; border-radius: var(--radius-sm); }
+    :deep(.el-menu-item), :deep(.el-sub-menu__title) { display: flex; align-items: center; min-height: 40px; height: 40px; line-height: 1; margin: 2px 10px; padding: 0 12px !important; border-radius: var(--radius-sm); }
     :deep(.el-menu-item.is-active) { background: var(--color-bg-subtle); }
-    :deep(.legacy-icon), :deep(.el-icon) { margin-right: 8px; vertical-align: -2px; }
+    :deep(.legacy-icon), :deep(.el-icon) { display: inline-flex; flex: none; align-items: center; justify-content: center; margin-right: 8px; vertical-align: middle; }
   }
 </style>

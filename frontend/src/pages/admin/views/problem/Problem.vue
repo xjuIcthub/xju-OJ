@@ -115,9 +115,7 @@
         <div>
           <el-form-item v-for="(sample, index) in problem.samples" :key="'sample'+index">
             <Accordion :title="'Sample' + (index + 1)">
-              <template #header><el-button type="warning" size="small" icon="el-icon-delete"  @click="deleteSample(index)">
-                Delete
-              </el-button></template>
+              <template #header><icon-btn name="Delete sample" icon="trash" @click="deleteSample(index)"></icon-btn></template>
               <el-row :gutter="20">
                 <el-col :span="12">
                   <el-form-item :label="$t('m.Input_Samples')" required>
@@ -144,7 +142,7 @@
           </el-form-item>
         </div>
         <div class="add-sample-btn">
-          <button type="button" class="add-samples" @click="addSample()"><i class="el-icon-plus"></i>{{$t('m.Add_Sample')}}
+          <button type="button" class="add-samples" @click="addSample()"><Icon type="plus" />{{$t('m.Add_Sample')}}
           </button>
         </div>
         <el-form-item style="margin-top: 20px" :label="$t('m.Hint')">
@@ -177,8 +175,9 @@
                   <el-radio :label="lang.name">{{ lang.name }}</el-radio>
                 </el-tooltip>
               </el-radio-group>
-              <el-button type="primary" size="small" icon="el-icon-fa-random" @click="compileSPJ"
+              <el-button type="primary" size="small" @click="compileSPJ"
                          :loading="loadingCompile">
+                <Icon type="shuffle" />
                 {{$t('m.Compile')}}
               </el-button>
             </template>
@@ -203,7 +202,7 @@
                 :show-file-list="true"
                 :on-success="uploadSucceeded"
                 :on-error="uploadFailed">
-                <el-button size="small" type="primary" icon="el-icon-fa-upload">Choose File</el-button>
+                <el-button size="small" type="primary"><Icon type="upload" />Choose File</el-button>
               </el-upload>
             </el-form-item>
           </el-col>

@@ -2,8 +2,8 @@
   <div>
     <el-input
       v-model="keyword"
-      placeholder="Keywords"
-      prefix-icon="el-icon-search">
+      placeholder="Keywords">
+      <template #prefix><Icon type="search" /></template>
     </el-input>
     <el-table :data="problems" v-loading="loading">
       <el-table-column

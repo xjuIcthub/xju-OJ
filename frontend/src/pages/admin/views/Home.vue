@@ -4,14 +4,23 @@
       <SideMenu></SideMenu>
     </div>
     <div id="header">
-      <Icon type="file-text" class="katex-editor" @click="katexVisible=true" />
-      <screen-full :width="14" :height="14" class="screen-full"></screen-full>
-      <el-dropdown @command="handleCommand">
-        <span class="admin-user"><span class="user-avatar">{{ (user.username || '?').slice(0, 1).toUpperCase() }}</span>{{user.username}}<Icon type="arrow-down-b" /></span>
-        <template #dropdown><el-dropdown-menu >
-          <el-dropdown-item command="logout">Logout</el-dropdown-item>
-        </el-dropdown-menu></template>
-      </el-dropdown>
+      <div class="header-actions">
+        <el-tooltip content="LaTeX editor" placement="bottom">
+          <button type="button" class="admin-icon-button katex-editor" aria-label="LaTeX editor" @click="katexVisible=true">
+            <Icon type="file-text" />
+          </button>
+        </el-tooltip>
+        <el-dropdown @command="handleCommand">
+          <button type="button" class="admin-user" aria-label="User menu">
+            <span class="user-avatar">{{ (user.username || '?').slice(0, 1).toUpperCase() }}</span>
+            <span>{{user.username}}</span>
+            <Icon type="arrow-down-b" />
+          </button>
+          <template #dropdown><el-dropdown-menu >
+            <el-dropdown-item command="logout">Logout</el-dropdown-item>
+          </el-dropdown-menu></template>
+        </el-dropdown>
+      </div>
     </div>
     <div class="content-app">
       <router-view v-slot="{ Component }">
@@ -33,7 +42,6 @@
   import store, { types } from '@/store'
   import { mapGetters } from '@/store/compat'
   import SideMenu from '../components/SideMenu.vue'
-  import ScreenFull from '@admin/components/ScreenFull.vue'
   import KatexEditor from '@admin/components/KatexEditor.vue'
   import api from '../api'
 
@@ -47,8 +55,7 @@
     },
     components: {
       SideMenu,
-      KatexEditor,
-      ScreenFull
+      KatexEditor
     },
     async beforeRouteEnter () {
       const res = await api.getProfile()
@@ -89,7 +96,7 @@
     height: 100%;
     -webkit-font-smoothing: antialiased;
     background-color: var(--color-bg);
-    overflow-y: scroll;
+    overflow-y: auto;
     min-width: 760px;
   }
 
@@ -98,16 +105,14 @@
   }
 
   #header {
-    text-align: right;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     padding-left: 210px;
     padding-right: 30px;
-    line-height: 50px;
     height: 50px;
     background: var(--color-bg);
     border-bottom: 1px solid var(--color-border);
-    .screen-full {
-      margin-right: 8px;
-    }
   }
 
   .content-app {
@@ -138,12 +143,11 @@
     animation: fadeInUp 220ms ease both;
   }
 
-  .katex-editor {
-    margin-right: 5px;
-    cursor: pointer;
-  }
-
-  .admin-user { display: inline-flex; align-items: center; gap: 7px; color: var(--color-text); }
+  .header-actions { display: inline-flex; align-items: center; gap: 10px; height: 100%; }
+  .admin-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-muted); cursor: pointer; transition: color var(--transition), background-color var(--transition), border-color var(--transition); }
+  .admin-icon-button:hover { color: var(--color-text); background: var(--color-bg-subtle); border-color: var(--color-border); }
+  .admin-user { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); cursor: pointer; transition: color var(--transition), background-color var(--transition), border-color var(--transition); }
+  .admin-user:hover { background: var(--color-bg-subtle); border-color: var(--color-border); }
   .user-avatar { display: inline-grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: var(--color-bg-subtle); font-size: 12px; font-weight: 600; }
   @media (max-width: 760px) { .container { min-width: 0; } #header { padding-left: 180px; padding-right: 14px; } .content-app { padding-left: 180px; } }
 

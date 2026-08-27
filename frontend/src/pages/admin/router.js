@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 // 引入 view 组件
-import { Announcement, Conf, Contest, ContestList, Home, JudgeServer, Login,
+import { Announcement, Contest, ContestList, Home, JudgeServer, Login,
   Problem, ProblemList, User, PruneTestCase, Dashboard, ProblemImportOrExport } from './views'
 export default createRouter({
   history: createWebHistory('/admin/'),
@@ -29,11 +29,6 @@ export default createRouter({
           path: '/user',
           name: 'user',
           component: User
-        },
-        {
-          path: '/conf',
-          name: 'conf',
-          component: Conf
         },
         {
           path: '/judge-server',

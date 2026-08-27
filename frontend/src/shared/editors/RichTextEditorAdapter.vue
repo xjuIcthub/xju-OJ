@@ -106,7 +106,9 @@ export default {
 </script>
 <style>
 .rich-editor-adapter { border: 1px solid var(--el-border-color); }
-.rich-editor-toolbar { padding: 8px; border-bottom: 1px solid var(--el-border-color); }
-.rich-editor-toolbar button { margin-right: 6px; }
+.rich-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 8px; border-bottom: 1px solid var(--el-border-color); }
+.rich-editor-toolbar button { appearance: none; margin: 0; padding: 4px 7px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-muted); cursor: pointer; line-height: 1.2; transition: color var(--transition), background-color var(--transition), border-color var(--transition); }
+.rich-editor-toolbar button:hover, .rich-editor-toolbar button:focus-visible { border-color: var(--color-border); background: var(--color-bg-subtle); color: var(--color-text); }
+.rich-editor-toolbar input[type='color'] { width: 28px; height: 26px; padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: transparent; }
 .rich-editor-adapter .tiptap { min-height: 180px; padding: 12px; outline: none; }
 </style>

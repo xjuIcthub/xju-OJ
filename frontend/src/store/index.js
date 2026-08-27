@@ -17,7 +17,9 @@ const useApplicationStore = defineStore('application', {
     website: {},
     authProviders: {
       authentik: {
-        enabled: runtime.AUTHENTIK_OIDC_ENABLED,
+        // In local frontend dev mode the Authentik-styled entry remains
+        // visible, but its click handler uses the local admin quick login.
+        enabled: runtime.AUTHENTIK_OIDC_ENABLED || runtime.OJ_FRONTEND_DEV_MODE,
         login_url: '/api/auth/oidc/login/?next=/',
         register_url: runtime.AUTHENTIK_OIDC_REGISTER_URL,
         link_url: '/api/auth/oidc/link/?next=/setting/security',

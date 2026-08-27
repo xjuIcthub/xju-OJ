@@ -1,13 +1,11 @@
 <template>
   <div>
-    <div style="padding-bottom: 10px;">
-    </div>
     <panel title="Export Problems (beta)">
       <template #header><div >
         <el-input
           v-model="keyword"
-          prefix-icon="el-icon-search"
           placeholder="Keywords">
+          <template #prefix><Icon type="search" /></template>
         </el-input>
       </div></template>
       <el-table :data="problems"
@@ -45,7 +43,7 @@
 
       <div class="panel-options">
         <el-button type="primary" size="small" v-show="selected_problems.length"
-                   @click="exportProblems" icon="el-icon-fa-arrow-down">Export
+                   @click="exportProblems"><Icon type="arrow-down" />Export
         </el-button>
         <el-pagination
           class="page"
@@ -57,7 +55,7 @@
       </div>
     </panel>
     <panel title="Import QDUOJ Problems (beta)">
-      <el-upload
+      <el-upload class="import-upload"
         ref="QDU"
         action="/api/admin/import_problem"
         name="file"
@@ -69,13 +67,13 @@
         :auto-upload="false"
         :on-success="uploadSucceeded"
         :on-error="uploadFailed">
-        <template #trigger><el-button size="small" type="primary" icon="el-icon-fa-upload" >Choose File</el-button></template>
-        <el-button style="margin-left: 10px;" size="small" type="success" @click="submitUpload('QDU')">Upload</el-button>
+        <template #trigger><el-button size="small" type="primary"><Icon type="upload" />Choose File</el-button></template>
+        <el-button size="small" type="success" @click="submitUpload('QDU')"><Icon type="upload" />Upload</el-button>
       </el-upload>
     </panel>
 
     <panel title="Import FPS Problems (beta)">
-      <el-upload
+      <el-upload class="import-upload"
         ref="FPS"
         action="/api/admin/import_fps"
         name="file"
@@ -87,8 +85,8 @@
         :auto-upload="false"
         :on-success="uploadSucceeded"
         :on-error="uploadFailed">
-        <template #trigger><el-button size="small" type="primary" icon="el-icon-fa-upload" >Choose File</el-button></template>
-        <el-button style="margin-left: 10px;" size="small" type="success" @click="submitUpload('FPS')">Upload</el-button>
+        <template #trigger><el-button size="small" type="primary"><Icon type="upload" />Choose File</el-button></template>
+        <el-button size="small" type="success" @click="submitUpload('FPS')"><Icon type="upload" />Upload</el-button>
       </el-upload>
     </panel>
   </div>
@@ -171,5 +169,14 @@
 </script>
 
 <style scoped lang="less">
-
+  :deep(.import-upload) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  :deep(.import-upload .el-upload-list) {
+    flex: 0 0 100%;
+    margin: 4px 0 0;
+  }
 </style>

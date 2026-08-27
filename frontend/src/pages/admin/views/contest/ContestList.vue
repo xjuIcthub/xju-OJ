@@ -4,8 +4,8 @@
       <template #header><div >
         <el-input
           v-model="keyword"
-          prefix-icon="el-icon-search"
           placeholder="Keywords">
+          <template #prefix><Icon type="search" /></template>
         </el-input>
       </div></template>
       <el-table
@@ -34,9 +34,7 @@
         <el-table-column
           label="Rule Type"
           width="130">
-          <template #default="scope">
-            <el-tag type="gray">{{scope.row.rule_type}}</el-tag>
-          </template>
+          <template #default="scope"><span class="contest-rule" :class="'is-' + String(scope.row.rule_type || '').toLowerCase()">{{scope.row.rule_type}}</span></template>
         </el-table-column>
         <el-table-column
           label="Contest Type"
@@ -70,7 +68,7 @@
         </el-table-column>
         <el-table-column
           fixed="right"
-          width="250"
+          width="168"
           label="Operation">
           <template #default="scope"><div >
             <icon-btn name="Edit" icon="edit" @click="goEdit(scope.row.id)"></icon-btn>
@@ -175,3 +173,8 @@
     }
   }
 </script>
+<style scoped lang="less">
+.contest-rule { font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+.contest-rule.is-oi { color: #7656c9; }
+.contest-rule.is-acm { color: #b7791f; }
+</style>

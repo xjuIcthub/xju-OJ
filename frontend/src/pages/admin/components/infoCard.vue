@@ -2,7 +2,7 @@
   <el-card :body-style="{padding: 0, height: '100%'}" class="info-card">
     <el-row type="flex" class="info-card-container">
       <el-col :span="8" :style="{'background-color': color}" class="height-100">
-        <i :class="['info-card-icon', icon]" :style="{'font-size': iconSize}"></i>
+        <Icon :type="icon" :size="iconPixelSize" class="info-card-icon"></Icon>
       </el-col>
       <el-col :span="16" class="info-card-text">
         <p :style="textStyle">{{value}}</p>
@@ -34,6 +34,9 @@
       }
     },
     computed: {
+      iconPixelSize () {
+        return Number.parseInt(this.iconSize, 10) || 30
+      },
       textStyle () {
         return {
           'font-size': this.countSize,
@@ -65,6 +68,9 @@
       justify-content: center;
     }
     &-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       line-height: @card-height;
       color: white;
     }

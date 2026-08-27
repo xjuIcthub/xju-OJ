@@ -4,7 +4,7 @@
       <template #title><span >{{$t('m.Test_Case_Prune_Test_Case')}}
         <el-popover placement="right" trigger="hover">
           These test cases are not owned by any problem, you can clean them safely.
-          <template #reference><i  class="el-icon-fa-question-circle import-user-icon"></i></template>
+          <template #reference><Icon type="question-circle" class="import-user-icon" /></template>
         </el-popover>
       </span></template>
       <el-table :data="data">
@@ -21,7 +21,7 @@
         <el-table-column
           label="Option"
           fixed="right"
-          width="200">
+          width="72">
           <template #default="{row}">
             <icon-btn name="Delete" icon="trash" @click="deleteTestCase(row.id)"></icon-btn>
           </template>
@@ -30,8 +30,7 @@
       <div class="panel-options" v-show="data.length > 0">
         <el-button type="warning" size="small"
                    :loading="loading"
-                   icon="el-icon-fa-trash"
-                   @click="deleteTestCase()">Delete All
+                   @click="deleteTestCase()"><Icon type="trash" />Delete All
         </el-button>
       </div>
     </panel>

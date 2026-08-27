@@ -82,15 +82,16 @@
   .panel-options {
     background-color: transparent;
     position: relative;
-    height: 50px;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     button {
-      margin-top: 18px;
-      margin-right: 10px;
+      margin: 0;
     }
     > .page {
-      position: absolute;
-      right:20px;
-      top: 20px;
+      position: static;
+      margin-left: auto;
     }
   }
 </style>

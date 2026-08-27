@@ -9,7 +9,7 @@
     <div class="body" v-show="isOpen">
       <slot></slot>
     </div>
-    <footer @click="isOpen = !isOpen"><i :class="{'rotate': !isOpen}" class="el-icon-caret-top"></i></footer>
+    <footer @click="isOpen = !isOpen"><Icon type="arrow-down-b" :class="{'rotate': isOpen}" /></footer>
   </div>
 </template>
 
@@ -68,9 +68,8 @@
     &:hover{
     background-color: var(--color-bg-subtle);
     }
-    .rotate{
-      transform: rotate(180deg);
-    }
+    :deep(.legacy-icon) { transition: transform var(--transition); }
+    .rotate{ transform: rotate(180deg); }
   }
 }
 </style>

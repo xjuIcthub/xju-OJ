@@ -3,7 +3,7 @@
     <div class="brand-mark">XJ</div>
     <h3 class="title">{{$t('m.Welcome_to_Login')}}</h3>
     <p v-if="authentikEnabled" class="auth-copy">{{$t('m.Authentik_Account_Notice')}}</p>
-    <el-button v-if="authentikEnabled" type="primary" class="auth-button" @click="startAuthentikLogin">
+    <el-button v-if="authentikEnabled" type="primary" class="auth-button" :loading="logining" @click="startAuthentikLogin">
       {{$t('m.Login_with_Authentik')}}
     </el-button>
     <div v-if="authentikEnabled && localLoginEnabled" class="auth-divider"><span>or</span></div>
@@ -48,7 +48,7 @@
     },
     computed: {
       authentikEnabled () {
-        return runtime.AUTHENTIK_OIDC_ENABLED
+        return runtime.AUTHENTIK_OIDC_ENABLED || runtime.OJ_FRONTEND_DEV_MODE
       },
       localLoginEnabled () {
         return runtime.AUTHENTIK_LOCAL_LOGIN_ENABLED !== false
@@ -56,6 +56,15 @@
     },
     methods: {
       startAuthentikLogin () {
+        if (runtime.OJ_FRONTEND_DEV_MODE) {
+          this.logining = true
+          api.getProfile().then(() => api.login(runtime.DEV_LOGIN_USERNAME, runtime.DEV_LOGIN_PASSWORD)).then(() => {
+            this.$router.push({name: 'dashboard'})
+          }, () => {}).finally(() => {
+            this.logining = false
+          })
+          return
+        }
         const url = new URL('/api/auth/oidc/login/', window.location.origin)
         url.searchParams.set('next', '/admin/')
         window.location.assign(url.toString())
@@ -64,7 +73,7 @@
         this.$refs.ruleForm2.validate((valid) => {
           if (valid) {
             this.logining = true
-            api.login(this.ruleForm2.account, this.ruleForm2.password).then(data => {
+            api.getProfile().then(() => api.login(this.ruleForm2.account, this.ruleForm2.password)).then(data => {
               this.logining = false
               this.$router.push({name: 'dashboard'})
             }, () => {

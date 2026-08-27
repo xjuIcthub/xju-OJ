@@ -38,8 +38,8 @@
           </el-col>
           <el-col :span="8">
             <el-form-item :label="$t('m.Contest_Rule_Type')">
-              <el-radio class="radio" v-model="contest.rule_type" label="ACM" :disabled="disableRuleType">ACM</el-radio>
-              <el-radio class="radio" v-model="contest.rule_type" label="OI" :disabled="disableRuleType">OI</el-radio>
+              <el-radio class="radio rule-type-acm" v-model="contest.rule_type" label="ACM" :disabled="disableRuleType">ACM</el-radio>
+              <el-radio class="radio rule-type-oi" v-model="contest.rule_type" label="OI" :disabled="disableRuleType">OI</el-radio>
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -68,8 +68,8 @@
                     <el-input v-model="range.value" :placeholder="$t('m.CIDR_Network')"></el-input>
                   </el-col>
                   <el-col :span="10">
-                    <el-button plain icon="el-icon-fa-plus" @click="addIPRange"></el-button>
-                    <el-button plain icon="el-icon-fa-trash" @click="removeIPRange(range)"></el-button>
+                    <icon-btn name="Add IP range" icon="plus" @click="addIPRange"></icon-btn>
+                    <icon-btn name="Remove IP range" icon="trash" @click="removeIPRange(range)"></icon-btn>
                   </el-col>
                 </el-row>
               </div>
@@ -157,3 +157,8 @@
     }
   }
 </script>
+
+<style scoped lang="less">
+:deep(.rule-type-acm .el-radio__label) { color: #b7791f; font-weight: 700; }
+:deep(.rule-type-oi .el-radio__label) { color: #7656c9; font-weight: 700; }
+</style>

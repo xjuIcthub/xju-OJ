@@ -4,7 +4,8 @@
       <el-card class="admin-info">
         <el-row :gutter="20">
           <el-col :span="10">
-            <img class="avatar" :src="profile.avatar"/>
+            <img v-if="profile.avatar && !avatarFailed" class="avatar" :src="profile.avatar" @error="avatarFailed = true"/>
+            <div v-else class="avatar avatar-fallback">{{ (user.username || '?').slice(0, 1).toUpperCase() }}</div>
           </el-col>
           <el-col :span="14">
             <p class="admin-info-name">{{user.username}}</p>
@@ -52,39 +53,26 @@
 
     <el-col :md="14" :lg="16" v-if="isSuperAdmin">
       <div class="info-container">
-        <info-card color="#909399" icon="el-icon-fa-users" message="Total Users" iconSize="30px" class="info-item"
+        <info-card color="#78736a" icon="users" message="Total Users" iconSize="30px" class="info-item"
                    :value="infoData.user_count"></info-card>
-        <info-card color="#67C23A" icon="el-icon-fa-list" message="Today Submissions" class="info-item"
+        <info-card color="#0f7b6c" icon="bars" message="Today Submissions" class="info-item"
                    :value="infoData.today_submission_count"></info-card>
-        <info-card color="#409EFF" icon="el-icon-fa-trophy" message="Recent Contests" class="info-item"
+        <info-card color="#b7791f" icon="trophy" message="Recent Contests" class="info-item"
                    :value="infoData.recent_contest_count"></info-card>
       </div>
       <panel style="margin-top: 5px">
-        <template #title><span  v-loading="loadingReleases">Release Notes
-        <el-popover placement="right" trigger="hover">
-          <template #reference><i  class="el-icon-fa-question-circle import-user-icon"></i></template>
-          <p>Please upgrade to the latest version to enjoy the new features. </p>
-          <p>Reference: <a href="http://docs.onlinejudge.me/#/onlinejudge/guide/upgrade" target="_blank">
-          http://docs.onlinejudge.me/#/onlinejudge/guide/upgrade</a>
-          </p>
-        </el-popover>
-        </span></template>
+        <template #title><span>XJU-OJ Release Notes</span></template>
 
         <el-collapse v-model="activeNames" v-for="(release, index) of releases" :key="'release' + index">
           <el-collapse-item :name="index+1">
             <template #title>
-              <div v-if="release.new_version">{{release.title}}
-                <el-tag size="mini" type="success">New Version</el-tag>
+              <div v-if="release.current">{{release.title}}
+                <el-tag size="small" type="success">Current</el-tag>
               </div>
               <span v-else>{{release.title}}</span>
             </template>
-            <p>Level: {{release.level}}</p>
-            <p>Details: </p>
-            <div class="release-body">
-              <ul v-for="detail in release.details" :key="detail">
-                <li v-html="detail"></li>
-              </ul>
-            </div>
+            <p class="release-meta">{{release.date}} · {{release.level}}</p>
+            <div class="release-body"><ul><li v-for="detail in release.details" :key="detail">{{detail}}</li></ul></div>
           </el-collapse-item>
         </el-collapse>
       </panel>
@@ -113,8 +101,31 @@
         },
         activeNames: [1],
         session: {},
-        loadingReleases: true,
-        releases: []
+        avatarFailed: false,
+        releases: [
+          {
+            title: 'Version 0.2.0 · Feiyue visual migration',
+            date: '2026-08',
+            level: 'Current stable iteration',
+            current: true,
+            details: [
+              'Unified the public OJ and admin console with the XJU-Feiyue design system.',
+              'Added Lucide icon compatibility, responsive navigation, refined tables, dialogs and submission states.',
+              'Modernized the Vue 3, Element Plus, Vite and local frontend development workflow.'
+            ]
+          },
+          {
+            title: 'Version 0.1.0 · XJU-OJ platform modernization',
+            date: '2026-07',
+            level: 'Foundation iteration',
+            current: false,
+            details: [
+              'Upgraded the application runtime, deployment pipeline and dual-entry frontend build.',
+              'Introduced Authentik integration, stricter CSRF boundaries and reproducible container builds.',
+              'Preserved the existing judge, contest, submission and editor behavior during migration.'
+            ]
+          }
+        ]
       }
     },
     mounted () {
@@ -125,22 +136,6 @@
       api.getSessions().then(resp => {
         this.parseSession(resp.data.data)
       }, () => {
-      })
-      api.getReleaseNotes().then(resp => {
-        this.loadingReleases = false
-        let data = resp.data.data
-        if (!data) {
-          return
-        }
-        let currentVersion = data.local_version
-        data.update.forEach(release => {
-          if (release.version > currentVersion) {
-            release.new_version = true
-          }
-        })
-        this.releases = data.update
-      }, () => {
-        this.loadingReleases = false
       })
     },
     methods: {
@@ -193,6 +188,17 @@
     .avatar {
       max-width: 100%;
     }
+    .avatar-fallback {
+      display: grid;
+      width: 92px;
+      height: 92px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--color-bg-subtle);
+      color: var(--color-text);
+      font-size: 30px;
+      font-weight: 700;
+    }
     .last-info {
       &-title {
         font-size: 16px;
@@ -214,6 +220,17 @@
       min-width: 200px;
       margin-bottom: 10px;
     }
+  }
+
+  .release-meta {
+    margin: 4px 0 8px;
+    color: var(--color-text-faint);
+    font-size: 12px;
+  }
+
+  .release-body ul {
+    margin: 6px 0;
+    padding-left: 20px;
   }
 
 </style>

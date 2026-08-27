@@ -46,6 +46,12 @@ function devRuntimeConfigPlugin () {
     configureServer (server) {
       server.middlewares.use((req, res, next) => {
         const pathname = (req.url || '').split('?', 1)[0]
+        if (pathname === '/admin') {
+          res.statusCode = 301
+          res.setHeader('Location', '/admin/')
+          res.end()
+          return
+        }
         // Vite's default SPA fallback serves the first HTML entry for direct
         // history requests. Keep the admin entry isolated in dev so
         // `/admin/login` behaves like the production double-entry build.

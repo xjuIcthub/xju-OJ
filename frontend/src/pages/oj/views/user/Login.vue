@@ -3,7 +3,7 @@
     <div v-if="authentikEnabled" class="sso-card">
       <div class="sso-eyebrow">AUTHENTIK</div>
       <p class="sso-copy">{{$t('m.Authentik_Account_Notice')}}</p>
-      <LegacyButton type="primary" long class="sso-button" @click="startAuthentikLogin">
+      <LegacyButton type="primary" long class="sso-button" :loading="btnLoginLoading" @click="startAuthentikLogin">
         {{$t('m.Login_with_Authentik')}}
       </LegacyButton>
       <a class="sso-register" @click.stop="goAuthentikRegister">
@@ -112,6 +112,20 @@
         this.$router.push({name: 'apply-reset-password'})
       },
       startAuthentikLogin () {
+        if (runtime.OJ_FRONTEND_DEV_MODE) {
+          this.btnLoginLoading = true
+          api.login({
+            username: runtime.DEV_LOGIN_USERNAME,
+            password: runtime.DEV_LOGIN_PASSWORD
+          }).then(() => {
+            this.changeModalStatus({visible: false})
+            this.getProfile()
+            this.$success(this.$t('m.Welcome_back'))
+          }, () => {}).finally(() => {
+            this.btnLoginLoading = false
+          })
+          return
+        }
         const url = new URL('/api/auth/oidc/login/', window.location.origin)
         url.searchParams.set('next', '/')
         window.location.assign(url.toString())

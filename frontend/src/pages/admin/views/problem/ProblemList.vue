@@ -4,8 +4,8 @@
       <template #header><div >
         <el-input
           v-model="keyword"
-          prefix-icon="el-icon-search"
           placeholder="Keywords">
+          <template #prefix><Icon type="search" /></template>
         </el-input>
       </div></template>
       <el-table
@@ -68,7 +68,7 @@
         <el-table-column
           fixed="right"
           label="Operation"
-          width="250">
+          width="168">
           <template #default="scope"><div >
             <icon-btn name="Edit" icon="edit" @click="goEdit(scope.row.id)"></icon-btn>
             <icon-btn v-if="contestId" name="Make Public" icon="clone"
@@ -82,11 +82,11 @@
       </el-table>
       <div class="panel-options">
         <el-button type="primary" size="small"
-                   @click="goCreateProblem" icon="el-icon-plus">Create
+                   @click="goCreateProblem"><Icon type="plus" />Create
         </el-button>
         <el-button v-if="contestId" type="primary"
-                   size="small" icon="el-icon-plus"
-                   @click="addProblemDialogVisible = true">Add From Public Problem
+                   size="small"
+                   @click="addProblemDialogVisible = true"><Icon type="plus" />Add From Public Problem
         </el-button>
         <el-pagination
           class="page"

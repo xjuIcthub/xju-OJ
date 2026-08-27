@@ -50,7 +50,7 @@
           <el-table-column
             fixed="right"
             label="Option"
-            width="200">
+            width="96">
             <template #default="scope"><div >
               <icon-btn name="Edit" icon="edit" @click="openAnnouncementDialog(scope.row.id)"></icon-btn>
               <icon-btn name="Delete" icon="trash" @click="deleteAnnouncement(scope.row.id)"></icon-btn>
@@ -58,7 +58,7 @@
           </el-table-column>
         </el-table>
         <div class="panel-options">
-          <el-button type="primary" size="small" @click="openAnnouncementDialog(null)" icon="el-icon-plus">Create</el-button>
+          <el-button type="primary" size="small" @click="openAnnouncementDialog(null)"><Icon type="plus" />Create</el-button>
           <el-pagination
             v-if="!contestID"
             class="page"
