@@ -32,7 +32,7 @@
 
 <style lang="less" scoped>
 .accordion{
-  border: 1px solid #eaeefb;
+  border: 1px solid var(--color-border);
   header{
     position: relative;
     h2{
@@ -47,26 +47,26 @@
     }
   }
   .body{
-    background-color: #f9fafc;
-    border-top: 1px solid #eaeefb;
+    background-color: var(--color-bg-subtle);
+    border-top: 1px solid var(--color-border);
     clear: both;
     overflow: hidden;
     padding: 15px 10px;
   }
   footer{
-    border-top: 1px solid #eaeefb;
+    border-top: 1px solid var(--color-border);
     height: 36px;
     box-sizing: border-box;
     background-color: #fff;
-    border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
     text-align: center;
     margin-top: -1px;
-    color: #d3dce6;
+    color: var(--color-text-faint);
     cursor: pointer;
     transition: .2s;
     &:hover{
-      background-color: #f9fafc;
+    background-color: var(--color-bg-subtle);
     }
     .rotate{
       transform: rotate(180deg);

@@ -1,43 +1,38 @@
 <template>
-  <Row type="flex" :gutter="18">
-    <Col :span=19>
-    <Panel shadow>
+  <Row type="flex" :gutter="18" class="problem-list-layout">
+    <Col :span=19 class="problem-list-main">
+    <Panel shadow class="problem-list-panel">
       <template #title><div >{{$t('m.Problem_List')}}</div></template>
       <template #extra><div >
-        <ul class="filter">
-          <li>
-            <Dropdown @on-click="filterByDifficulty">
-              <span>{{query.difficulty === '' ? this.$t('m.Difficulty') : this.$t('m.' + query.difficulty)}}
+        <div class="problem-filters">
+          <Dropdown @on-click="filterByDifficulty">
+              <button type="button" class="filter-control difficulty-filter">
+                <span>{{query.difficulty === '' ? this.$t('m.Difficulty') : this.$t('m.' + query.difficulty)}}</span>
                 <Icon type="arrow-down-b"></Icon>
-              </span>
+              </button>
               <template #list><Dropdown-menu >
                 <Dropdown-item name="">{{$t('m.All')}}</Dropdown-item>
                 <Dropdown-item name="Low">{{$t('m.Low')}}</Dropdown-item>
                 <Dropdown-item name="Mid" >{{$t('m.Mid')}}</Dropdown-item>
                 <Dropdown-item name="High">{{$t('m.High')}}</Dropdown-item>
               </Dropdown-menu></template>
-            </Dropdown>
-          </li>
-          <li>
-            <i-switch size="large" @on-change="handleTagsVisible">
-              <template #open><span >{{$t('m.Tags')}}</span></template>
-              <template #close><span >{{$t('m.Tags')}}</span></template>
-            </i-switch>
-          </li>
-          <li>
-            <Input v-model="query.keyword"
-                   @on-enter="filterByKeyword"
-                   @on-click="filterByKeyword"
-                   placeholder="keyword"
-                   icon="ios-search-strong"/>
-          </li>
-          <li>
-            <LegacyButton type="info" @click="onReset">
-              <Icon type="refresh"></Icon>
-              {{$t('m.Reset')}}
-            </LegacyButton>
-          </li>
-        </ul>
+          </Dropdown>
+          <button type="button" class="filter-control tags-toggle" :class="{'is-active': tagsVisible}"
+                  :aria-pressed="tagsVisible" @click="handleTagsVisible(!tagsVisible)">
+            <Icon type="tag"></Icon>
+            <span>{{$t('m.Tags')}}</span>
+          </button>
+          <Input v-model="query.keyword"
+                 class="keyword-filter"
+                 @on-enter="filterByKeyword"
+                 @on-click="filterByKeyword"
+                 placeholder="keyword"
+                 icon="ios-search-strong"/>
+          <button type="button" class="filter-control reset-filter" @click="onReset">
+            <Icon type="refresh"></Icon>
+            <span>{{$t('m.Reset')}}</span>
+          </button>
+        </div>
       </div></template>
       <Table style="width: 100%; font-size: 16px;"
              :columns="problemTableColumns"
@@ -50,21 +45,22 @@
 
     </Col>
 
-    <Col :span="5">
-    <Panel :padding="10">
+    <Col :span="5" class="problem-tag-sidebar">
+    <Panel :padding="10" class="tag-panel">
       <template #title><div  class="taglist-title">{{$t('m.Tags')}}</div></template>
-      <LegacyButton v-for="tag in tagList"
-              :key="tag.name"
-              @click="filterByTag(tag.name)"
-              type="ghost"
-              :disabled="query.tag === tag.name"
-              shape="circle"
-              class="tag-btn">{{tag.name}}
-      </LegacyButton>
+      <div class="tag-grid">
+        <button v-for="tag in tagList"
+                :key="tag.name"
+                type="button"
+                @click="filterByTag(tag.name)"
+                :class="['tag-btn', {'is-selected': query.tag === tag.name}]"
+                :aria-pressed="query.tag === tag.name">{{tag.name}}
+        </button>
+      </div>
 
-      <LegacyButton long id="pick-one" @click="pickone">
+      <LegacyButton long id="pick-one" @click="pickone" class="pick-one-button">
         <Icon type="shuffle"></Icon>
-        {{$t('m.Pick_One')}}
+        <span>{{$t('m.Pick_One')}}</span>
       </LegacyButton>
     </Panel>
     <Spin v-if="loadings.tag" fix size="large"></Spin>
@@ -77,6 +73,7 @@
   import utils from '@/utils/utils'
   import { ProblemMixin } from '@oj/components/mixins'
   import Pagination from '@oj/components/Pagination'
+  import { cloneFixtures, filterMockProblems } from '@oj/mocks/fixtures'
 
   export default {
     name: 'ProblemList',
@@ -135,15 +132,10 @@
           {
             title: this.$t('m.Level'),
             render: (h, params) => {
-              let t = params.row.difficulty
-              let color = 'blue'
-              if (t === 'Low') color = 'green'
-              else if (t === 'High') color = 'yellow'
-              return h('Tag', {
-                props: {
-                  color: color
-                }
-              }, this.$t('m.' + params.row.difficulty))
+              const difficulty = params.row.difficulty || ''
+              return h('span', {
+                class: ['difficulty-badge', `difficulty-${difficulty.toLowerCase()}`]
+              }, difficulty ? this.$t('m.' + difficulty) : '—')
             }
           },
           {
@@ -171,7 +163,8 @@
           tag: '',
           page: 1,
           limit: 10
-        }
+        },
+        tagsVisible: false
       }
     },
     mounted () {
@@ -205,25 +198,41 @@
         this.loadings.table = true
         api.getProblemList(offset, this.limit, this.query).then(res => {
           this.loadings.table = false
-          this.total = res.data.data.total
-          this.problemList = res.data.data.results
+          const payload = res.data.data || {}
+          const results = payload.results || []
+          const fallback = filterMockProblems(this.query)
+          this.total = payload.total || (results.length ? results.length : fallback.length)
+          this.problemList = results.length ? results : cloneFixtures(fallback)
           if (this.isAuthenticated) {
-            this.addStatusColumn(this.problemTableColumns, res.data.data.results)
+            this.addStatusColumn(this.problemTableColumns, this.problemList)
           }
         }, res => {
           this.loadings.table = false
+          const fallback = filterMockProblems(this.query)
+          this.total = fallback.length
+          this.problemList = cloneFixtures(fallback)
         })
       },
       getTagList () {
         api.getProblemTagList().then(res => {
-          this.tagList = res.data.data
+          this.tagList = res.data.data && res.data.data.length ? res.data.data : this.getMockTags()
           this.loadings.tag = false
         }, res => {
+          this.tagList = this.getMockTags()
           this.loadings.tag = false
         })
       },
+      getMockTags () {
+        return [
+          { name: 'math' },
+          { name: 'beginner' },
+          { name: 'precision' },
+          { name: 'special-judge' },
+          { name: 'constructive' }
+        ]
+      },
       filterByTag (tagName) {
-        this.query.tag = tagName
+        this.query.tag = this.query.tag === tagName ? '' : tagName
         this.query.page = 1
         this.pushRouter()
       },
@@ -237,25 +246,26 @@
         this.pushRouter()
       },
       handleTagsVisible (value) {
-        if (value) {
+        this.tagsVisible = Boolean(value)
+        const tagsColumnIndex = this.problemTableColumns.findIndex(column => column.key === 'tags')
+        if (this.tagsVisible && tagsColumnIndex === -1) {
           this.problemTableColumns.push(
             {
+              key: 'tags',
               title: this.$t('m.Tags'),
               align: 'center',
               render: (h, params) => {
-                let tags = []
-                params.row.tags.forEach(tag => {
-                  tags.push(h('Tag', {}, tag))
+                const tags = (params.row.tags || []).map(tag => {
+                  const label = typeof tag === 'string' ? tag : tag.name
+                  return h('span', { class: 'table-tag-chip' }, label)
                 })
                 return h('div', {
-                  style: {
-                    margin: '8px 0'
-                  }
+                  class: 'table-tag-list'
                 }, tags)
               }
             })
-        } else {
-          this.problemTableColumns.splice(this.problemTableColumns.length - 1, 1)
+        } else if (!this.tagsVisible && tagsColumnIndex !== -1) {
+          this.problemTableColumns.splice(tagsColumnIndex, 1)
         }
       },
       onReset () {
@@ -287,17 +297,96 @@
 </script>
 
 <style scoped lang="less">
-  .taglist-title {
-    margin-left: -10px;
-    margin-bottom: -10px;
+  .problem-list-panel :deep(.el-card__header) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
   }
 
-  .tag-btn {
-    margin-right: 5px;
-    margin-bottom: 10px;
+  .problem-list-panel :deep(.panel-title) { flex: none; }
+  .problem-list-panel :deep(.panel-extra) { min-width: 0; flex: 1; line-height: normal; }
+
+  .problem-filters {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    white-space: nowrap;
   }
+
+  .filter-control {
+    appearance: none;
+    display: inline-flex;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 11px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition), background-color var(--transition);
+  }
+
+  .filter-control:hover { border-color: var(--line-strong); background: var(--color-bg-subtle); color: var(--color-text); }
+  .filter-control.is-active { border-color: color-mix(in srgb, var(--cat-kaggle) 28%, var(--color-border)); background: var(--tag-kaggle-bg); color: var(--cat-kaggle); }
+  .difficulty-filter { min-width: 104px; justify-content: space-between; }
+  .keyword-filter { width: 230px; }
+  .reset-filter { color: var(--color-text); background: var(--color-bg-subtle); }
+  .reset-filter:hover { background: var(--bg-hover); }
+
+  .taglist-title {
+    margin: 0;
+  }
+
+  .tag-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .tag-btn {
+    appearance: none;
+    min-width: 0;
+    min-height: 32px;
+    overflow: hidden;
+    padding: 5px 4px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition), background-color var(--transition);
+  }
+  .tag-btn:hover { border-color: var(--line-strong); background: var(--color-bg-subtle); color: var(--color-text); }
+  .tag-btn.is-selected { border-color: color-mix(in srgb, var(--cat-tools) 30%, var(--color-border)); background: var(--tag-tools-bg); color: var(--cat-tools); font-weight: 600; }
 
   #pick-one {
-    margin-top: 10px;
+    margin-top: 12px;
+  }
+  .pick-one-button :deep(> span) { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+
+  :deep(.difficulty-badge) { display: inline-flex; width: 58px; height: 24px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 5px; font-size: 12px; font-weight: 600; line-height: 1; }
+  :deep(.difficulty-low) { border-color: color-mix(in srgb, var(--cat-tools) 20%, transparent); background: var(--tag-tools-bg); color: var(--cat-tools); }
+  :deep(.difficulty-mid) { border-color: color-mix(in srgb, var(--cat-kaggle) 20%, transparent); background: var(--tag-kaggle-bg); color: var(--cat-kaggle); }
+  :deep(.difficulty-high) { border-color: color-mix(in srgb, var(--cat-research) 20%, transparent); background: var(--tag-research-bg); color: var(--cat-research); }
+  :deep(.table-tag-list) { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 8px 0; }
+  :deep(.table-tag-chip) { display: inline-flex; min-height: 24px; align-items: center; padding: 3px 8px; border-radius: 5px; background: var(--color-bg-subtle); color: var(--color-text-muted); font-size: 12px; }
+
+  @media (max-width: 1100px) {
+    .problem-list-panel :deep(.el-card__header) { align-items: flex-start; flex-direction: column; }
+    .problem-list-panel :deep(.panel-extra) { width: 100%; }
+    .problem-filters { justify-content: flex-start; flex-wrap: wrap; }
+  }
+
+  @media (max-width: 900px) {
+    .problem-list-main, .problem-tag-sidebar { width: 100%; max-width: 100%; flex: 0 0 100%; }
+    .problem-tag-sidebar { margin-top: 18px; }
+  }
+
+  @media (max-width: 560px) {
+    .keyword-filter { order: 5; width: 100%; }
   }
 </style>

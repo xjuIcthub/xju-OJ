@@ -3,37 +3,32 @@
     <div id="main">
       <Panel shadow>
         <template #title><div >{{title}}</div></template>
-        <template #extra><div >
-          <ul class="filter">
-            <li>
-              <Dropdown @on-click="handleResultChange">
-                <span>{{status}}
-                  <Icon type="arrow-down-b"></Icon>
-                </span>
-                <template #list><Dropdown-menu >
-                  <Dropdown-item name="">{{$t('m.All')}}</Dropdown-item>
-                  <Dropdown-item v-for="status in Object.keys(JUDGE_STATUS)" :key="status" :name="status">
-                    {{$t('m.' + JUDGE_STATUS[status].name.replace(/ /g, "_"))}}
-                  </Dropdown-item>
-                </Dropdown-menu></template>
-              </Dropdown>
-            </li>
-
-
-            <li>
-              <i-switch size="large" v-model="formFilter.myself" @on-change="handleQueryChange">
-                <template #open><span >{{$t('m.Mine')}}</span></template>
-                <template #close><span >{{$t('m.All')}}</span></template>
-              </i-switch>
-            </li>
-            <li>
-              <Input v-model="formFilter.username" :placeholder="$t('m.Search_Author')" @on-enter="handleQueryChange"/>
-            </li>
-
-            <li>
-              <LegacyButton type="info" icon="refresh" @click="getSubmissions">{{$t('m.Refresh')}}</LegacyButton>
-            </li>
-          </ul>
+        <template #extra><div class="submission-filters">
+          <Dropdown @on-click="handleResultChange">
+            <button type="button" class="filter-control status-filter">
+              <span>{{status}}</span>
+              <Icon type="arrow-down-b"></Icon>
+            </button>
+            <template #list><Dropdown-menu>
+              <Dropdown-item name="">{{$t('m.All')}}</Dropdown-item>
+              <Dropdown-item v-for="status in Object.keys(JUDGE_STATUS)" :key="status" :name="status">
+                {{$t('m.' + JUDGE_STATUS[status].name.replace(/ /g, "_"))}}
+              </Dropdown-item>
+            </Dropdown-menu></template>
+          </Dropdown>
+          <button type="button" class="filter-control mine-toggle" :class="{'is-active': formFilter.myself}"
+                  :aria-pressed="formFilter.myself" @click="formFilter.myself = !formFilter.myself; handleQueryChange()">
+            <Icon type="user"></Icon>
+            <span>{{formFilter.myself ? $t('m.Mine') : $t('m.All')}}</span>
+          </button>
+          <Input v-model="formFilter.username" class="keyword-filter" :placeholder="$t('m.Search_Author')" @on-enter="handleQueryChange"/>
+          <button type="button" class="filter-control reset-filter" @click="onReset">
+            <Icon type="refresh"></Icon>
+            <span>{{$t('m.Reset')}}</span>
+          </button>
+          <button type="button" class="filter-control refresh-control" :aria-label="$t('m.Refresh')" :title="$t('m.Refresh')" @click="getSubmissions">
+            <Icon type="refresh"></Icon>
+          </button>
         </div></template>
         <Table stripe :disabled-hover="true" :columns="columns" :data="submissions" :loading="loadingTable"></Table>
         <Pagination :total="total" :page-size="limit" @on-change="changeRoute" :current="page" @update:current="page = $event"></Pagination>
@@ -281,6 +276,13 @@
         this.page = 1
         this.changeRoute()
       },
+      onReset () {
+        this.formFilter.myself = false
+        this.formFilter.result = ''
+        this.formFilter.username = ''
+        this.page = 1
+        this.changeRoute()
+      },
       handleRejudge (id, index) {
         this.submissions[index].loading = true
         api.submissionRejudge(id).then(res => {
@@ -327,21 +329,39 @@
 </script>
 
 <style scoped lang="less">
-  .ivu-btn-text {
-    color: #57a3f3;
-  }
-
   .flex-container {
     #main {
       flex: auto;
       margin-right: 18px;
-      .filter {
-        margin-right: -10px;
-      }
+      :deep(.el-card__header) { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+      :deep(.panel-title) { flex: none; }
+      :deep(.panel-extra) { min-width: 0; flex: 1; line-height: normal; }
+      .submission-filters { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 34px; white-space: nowrap; }
+      .filter-control { appearance: none; display: inline-flex; height: 34px; align-items: center; justify-content: center; gap: 7px; min-width: 104px; padding: 0 11px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text-muted); cursor: pointer; transition: color var(--transition), border-color var(--transition), background-color var(--transition); }
+      .filter-control:hover, .filter-control:focus-visible { border-color: var(--line-strong); background: var(--color-bg-subtle); color: var(--color-text); }
+      .filter-control.is-active { border-color: color-mix(in srgb, var(--cat-kaggle) 28%, var(--color-border)); background: var(--tag-kaggle-bg); color: var(--cat-kaggle); }
+      .status-filter { justify-content: space-between; }
+      .keyword-filter { width: 210px; }
+      .reset-filter { color: var(--color-text); background: var(--color-bg-subtle); }
+      .reset-filter:hover { background: var(--bg-hover); }
+      .refresh-control { min-width: 34px; width: 34px; padding: 0; }
+      :deep(.legacy-icon) { display: inline-flex; }
     }
     #contest-menu {
       flex: none;
       width: 210px;
+    }
+  }
+  @media (max-width: 1100px) {
+    .flex-container #main {
+      :deep(.el-card__header) { align-items: flex-start; flex-direction: column; }
+      :deep(.panel-extra) { width: 100%; }
+      .submission-filters { justify-content: flex-start; flex-wrap: wrap; }
+    }
+  }
+  @media (max-width: 560px) {
+    .flex-container #main {
+      .keyword-filter { order: 5; width: 100%; }
     }
   }
 </style>

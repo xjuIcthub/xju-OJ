@@ -625,7 +625,7 @@
       height: 35px;
       font-size: 14px;
       &:hover {
-        background-color: #f9fafc;
+        background-color: var(--color-bg-subtle);
       }
       i {
         margin-right: 10px;
@@ -648,4 +648,3 @@
     overflow-x: scroll;
   }
 </style>
-

@@ -126,7 +126,7 @@ export const m = {
   OI: 'OI',
   ACM: 'ACM',
   Underway: 'Underway',
-  Not_Started: 'Not_Started',
+  Not_Started: 'Not Started',
   Ended: 'Ended',
   No_contest: 'No contest',
   Please_login_first: 'Please login first!',

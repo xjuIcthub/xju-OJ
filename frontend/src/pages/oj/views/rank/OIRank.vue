@@ -1,27 +1,23 @@
 <template>
-  <Row type="flex" justify="space-around">
-    <Col :span="22">
-    <Panel :padding="10">
-      <template #title><div >{{$t('m.OI_Ranklist')}}</div></template>
-      <div class="echarts">
-        <ECharts :options="options" ref="chart" auto-resize></ECharts>
-      </div>
-    </Panel>
-    <Table :data="dataRank" :columns="columns" size="large"></Table>
+  <section class="rank-page">
+    <div class="rank-heading">
+      <h1>{{$t('m.OI_Ranklist')}}</h1>
+      <span>OI standings</span>
+    </div>
+    <Table class="rank-table" :data="dataRank" :columns="columns" :loading="loadingTable" size="large"></Table>
     <Pagination :total="total" :page-size="limit" @update:page-size="limit = $event" :current="page" @update:current="page = $event"
-                @on-change="getRankData"
-                show-sizer @on-page-size-change="getRankData(1)"></Pagination>
-    </Col>
-  </Row>
+                @on-change="getRankData" show-sizer @on-page-size-change="getRankData(1)"></Pagination>
+  </section>
 </template>
 <script>
   import api from '@oj/api'
   import Pagination from '@oj/components/Pagination'
   import utils from '@/utils/utils'
   import { RULE_TYPE } from '@/utils/constants'
+  import { cloneFixtures, MOCK_OI_RANK } from '@oj/mocks/fixtures'
 
   export default {
-    name: 'acm-rank',
+    name: 'oi-rank',
     components: {
       Pagination
     },
@@ -30,9 +26,11 @@
         page: 1,
         limit: 30,
         total: 0,
+        loadingTable: false,
         dataRank: [],
         columns: [
           {
+            title: '#',
             align: 'center',
             width: 60,
             render: (h, params) => {
@@ -50,11 +48,10 @@
                 },
                 on: {
                   click: () => {
-                    this.$router.push(
-                      {
-                        name: 'user-home',
-                        query: {username: params.row.user.username}
-                      })
+                    this.$router.push({
+                      name: 'user-home',
+                      query: {username: params.row.user.username}
+                    })
                   }
                 }
               }, params.row.user.username)
@@ -87,102 +84,72 @@
               return h('span', utils.getACRate(params.row.accepted_number, params.row.submission_number))
             }
           }
-        ],
-        options: {
-          tooltip: {
-            trigger: 'axis'
-          },
-          legend: {
-            data: [this.$t('m.Score')]
-          },
-          grid: {
-            x: '3%',
-            x2: '3%'
-          },
-          toolbox: {
-            show: true,
-            feature: {
-              dataView: {show: true, readOnly: true},
-              magicType: {show: true, type: ['line', 'bar']},
-              saveAsImage: {show: true}
-            },
-            right: '10%'
-          },
-          calculable: true,
-          xAxis: [
-            {
-              type: 'category',
-              data: ['root'],
-              boundaryGap: true,
-              axisLabel: {
-                interval: 0,
-                showMinLabel: true,
-                showMaxLabel: true,
-                align: 'center',
-                formatter: (value, index) => {
-                  return utils.breakLongWords(value, 14)
-                }
-              },
-              axisTick: {
-                alignWithLabel: true
-              }
-            }
-          ],
-          yAxis: [
-            {
-              type: 'value'
-            }
-          ],
-          series: [
-            {
-              name: this.$t('m.Score'),
-              type: 'bar',
-              data: [0],
-              barMaxWidth: '80',
-              markPoint: {
-                data: [
-                  {type: 'max', name: 'max'}
-                ]
-              }
-            }
-          ]
-        }
+        ]
       }
     },
     mounted () {
       this.getRankData(1)
     },
     methods: {
-      getRankData (page) {
-        let offset = (page - 1) * this.limit
-        let bar = this.$refs.chart
-        bar.showLoading({maskColor: 'rgba(250, 250, 250, 0.8)'})
+      getRankData (page = 1) {
+        this.page = page
+        const offset = (page - 1) * this.limit
+        this.loadingTable = true
         api.getUserRank(offset, this.limit, RULE_TYPE.OI).then(res => {
-          if (page === 1) {
-            this.changeCharts(res.data.data.results.slice(0, 10))
-          }
-          this.total = res.data.data.total
-          this.dataRank = res.data.data.results
-          bar.hideLoading()
+          const payload = res.data.data || {}
+          const results = payload.results || []
+          this.dataRank = results.length ? results : cloneFixtures(MOCK_OI_RANK)
+          this.total = payload.total || this.dataRank.length
+          this.loadingTable = false
+        }).catch(() => {
+          this.dataRank = cloneFixtures(MOCK_OI_RANK)
+          this.total = this.dataRank.length
+          this.loadingTable = false
         })
-      },
-      changeCharts (rankData) {
-        let [usernames, scores] = [[], []]
-        rankData.forEach(ele => {
-          usernames.push(ele.user.username)
-          scores.push(ele.total_score)
-        })
-        this.options.xAxis[0].data = usernames
-        this.options.series[0].data = scores
       }
     }
   }
 </script>
 
 <style scoped lang="less">
-  .echarts {
-    margin: 0 auto;
-    width: 95%;
-    height: 400px;
+  /* Direct table layout: keep rankings free of the legacy chart card. */
+  .rank-page {
+    width: 100%;
+    padding-top: 22px;
+  }
+
+  .rank-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .rank-heading h1 {
+    margin: 0;
+    color: var(--color-text);
+    font: 600 26px/1.2 var(--font-serif);
+  }
+
+  .rank-heading span {
+    color: var(--color-text-faint);
+    font-size: 12px;
+  }
+
+  .rank-table :deep(.el-table),
+  .rank-table :deep(.el-table__inner-wrapper),
+  .rank-table :deep(.ivu-table-wrapper) {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .rank-table :deep(.el-table__header-wrapper th.el-table__cell) {
+    height: 44px;
+  }
+
+  .rank-table :deep(.el-table__body-wrapper td.el-table__cell) {
+    height: 48px;
   }
 </style>

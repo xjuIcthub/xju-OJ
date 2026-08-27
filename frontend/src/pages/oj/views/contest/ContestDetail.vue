@@ -9,28 +9,35 @@
       </router-view>
       <!--children end-->
       <div class="flex-container" v-if="route_name === 'contest-details'">
-        <template>
-          <div id="contest-desc">
-            <Panel :padding="20" shadow>
-              <template #title><div >
-                {{contest.title}}
-              </div></template>
-              <template #extra><div >
-                <Tag type="dot" :color="countdownColor">
-                  <span id="countdown">{{countdown}}</span>
-                </Tag>
-              </div></template>
-              <div v-html="contest.description" class="markdown-body"></div>
-              <div v-if="passwordFormVisible" class="contest-password">
-                <Input v-model="contestPassword" type="password"
-                       placeholder="contest password" class="contest-password-input"
-                       @on-enter="checkPassword"/>
-                <LegacyButton type="info" @click="checkPassword">Enter</LegacyButton>
+        <div id="contest-desc">
+          <Panel :padding="20" shadow>
+            <template #title><div >
+              {{contest.title}}
+            </div></template>
+            <template #extra><div >
+              <Tag type="dot" :color="countdownColor">
+                <span id="countdown">{{countdown}}</span>
+              </Tag>
+            </div></template>
+            <div v-html="contest.description" class="markdown-body"></div>
+            <div v-if="contestProblemIds.length" class="contest-problem-index">
+              <h3>Problems</h3>
+              <div class="contest-problem-links">
+                <router-link v-for="problemID in contestProblemIds" :key="problemID"
+                             :to="{name: 'contest-problem-details', params: {contestID: contestID, problemID: problemID}}">
+                  #{{problemID}}
+                </router-link>
               </div>
-            </Panel>
-            <Table :columns="columns" :data="contest_table" disabled-hover style="margin-bottom: 40px;"></Table>
-          </div>
-        </template>
+            </div>
+            <div v-if="passwordFormVisible" class="contest-password">
+              <Input v-model="contestPassword" type="password"
+                     placeholder="contest password" class="contest-password-input"
+                     @on-enter="checkPassword"/>
+              <LegacyButton type="info" @click="checkPassword">Enter</LegacyButton>
+            </div>
+          </Panel>
+          <Table :columns="columns" :data="contest_table" disabled-hover style="margin-bottom: 40px;"></Table>
+        </div>
       </div>
 
     </div>
@@ -178,6 +185,12 @@
           return CONTEST_STATUS_REVERSE[this.contestStatus].color
         }
       },
+      contestProblemIds () {
+        return (this.contest.problem_ids || this.contest.problems || []).map(problem => {
+          if (typeof problem === 'string' || typeof problem === 'number') return String(problem)
+          return problem._id || problem.id || ''
+        }).filter(Boolean)
+      },
       showAdminHelper () {
         return this.isContestAdmin && this.contestRuleType === 'ACM'
       }
@@ -226,5 +239,14 @@
         margin-right: 10px;
       }
     }
+    .contest-problem-index {
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--color-border);
+      h3 { margin: 0 0 10px; font-size: 16px; font-weight: 600; }
+    }
+    .contest-problem-links { display: flex; flex-wrap: wrap; gap: 8px; }
+    .contest-problem-links a { padding: 6px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-link); background: var(--color-bg); transition: background-color var(--transition), border-color var(--transition); }
+    .contest-problem-links a:hover { border-color: var(--line-strong); background: var(--color-bg-subtle); }
   }
 </style>

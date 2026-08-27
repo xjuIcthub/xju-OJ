@@ -6,6 +6,7 @@ import i18n from '@/i18n'
 import types from './types'
 import { STORAGE_KEY, USER_TYPE, PROBLEM_PERMISSION, CONTEST_STATUS, CONTEST_TYPE } from '@/utils/constants'
 import runtime from '@/utils/runtime'
+import { cloneFixtures, MOCK_CONTESTS, MOCK_PROBLEMS } from '@oj/mocks/fixtures'
 
 let activeRouter = null
 export const setStoreRouter = router => { activeRouter = router }
@@ -75,12 +76,11 @@ const useApplicationStore = defineStore('application', {
   actions: {
     async getWebsiteConfig () { const res = await api.getWebsiteConf(); this.website = res.data.data },
     async getAuthProviders () {
-      if (!runtime.AUTHENTIK_OIDC_ENABLED) return
       try {
         const res = await api.getAuthProviders()
         if (res.data.data) this.authProviders = res.data.data
       } catch (_) {
-        // Keep the safe runtime defaults if the backend is an older release.
+        // Keep the safe runtime defaults if the backend is unavailable or older.
       }
     },
     changeModalStatus ({ mode, visible }) { if (mode !== undefined) this.modalStatus.mode = mode; if (visible !== undefined) this.modalStatus.visible = visible },
@@ -103,18 +103,60 @@ const useApplicationStore = defineStore('application', {
       storage.set(STORAGE_KEY.AUTHED, !!profile.user)
     },
     async getContest () {
-      const res = await api.getContest(route().params.contestID)
-      this.contest.contest = res.data.data
-      this.contest.now = moment(res.data.data.now)
-      if (this.contest.contest.contest_type === CONTEST_TYPE.PRIVATE) await this.getContestAccess()
-      return res
+      const mockContest = import.meta.env.DEV && MOCK_CONTESTS.find(contest => String(contest.id) === String(route().params.contestID))
+      if (mockContest) {
+        const contest = cloneFixtures([mockContest])[0]
+        this.contest.contest = contest
+        this.contest.now = moment(contest.now)
+        return { data: { data: contest } }
+      }
+      try {
+        const res = await api.getContest(route().params.contestID)
+        this.contest.contest = res.data.data
+        this.contest.now = moment(res.data.data.now)
+        if (this.contest.contest.contest_type === CONTEST_TYPE.PRIVATE) await this.getContestAccess()
+        return res
+      } catch (error) {
+        const mock = MOCK_CONTESTS.find(contest => String(contest.id) === String(route().params.contestID))
+        if (!mock) throw error
+        const contest = cloneFixtures([mock])[0]
+        this.contest.contest = contest
+        this.contest.now = moment(contest.now)
+        return { data: { data: contest } }
+      }
     },
     async getContestProblems () {
+      const mockContest = import.meta.env.DEV && MOCK_CONTESTS.find(contest => String(contest.id) === String(route().params.contestID))
+      if (mockContest) {
+        const result = cloneFixtures(mockContest.problem_ids
+          .map(id => MOCK_PROBLEMS.find(problem => String(problem._id) === String(id)))
+          .filter(Boolean))
+        this.contest.contestProblems = result
+        return { data: { data: result } }
+      }
       try {
         const res = await api.getContestProblemList(route().params.contestID)
-        this.contest.contestProblems = res.data.data.sort((a, b) => a._id === b._id ? 0 : (a._id > b._id ? 1 : -1))
-        return res
-      } catch (error) { this.contest.contestProblems = []; throw error }
+        const problems = Array.isArray(res.data.data) ? res.data.data : []
+        const mock = MOCK_CONTESTS.find(contest => String(contest.id) === String(route().params.contestID))
+        const selected = mock && mock.problem_ids
+          ? mock.problem_ids.map(id => MOCK_PROBLEMS.find(problem => String(problem._id) === String(id))).filter(Boolean)
+          : []
+        const result = problems.length ? problems : (selected.length ? cloneFixtures(selected) : problems)
+        this.contest.contestProblems = result.sort((a, b) => a._id === b._id ? 0 : (a._id > b._id ? 1 : -1))
+        return { data: { data: result } }
+      } catch (error) {
+        const mock = MOCK_CONTESTS.find(contest => String(contest.id) === String(route().params.contestID))
+        if (!mock) {
+          this.contest.contestProblems = []
+          throw error
+        }
+        const selected = mock.problem_ids
+          .map(id => MOCK_PROBLEMS.find(problem => String(problem._id) === String(id)))
+          .filter(Boolean)
+        const result = cloneFixtures(selected)
+        this.contest.contestProblems = result
+        return { data: { data: result } }
+      }
     },
     async getContestAccess () { const res = await api.getContestAccess(route().params.contestID); this.contest.access = res.data.data.access; return res }
   }

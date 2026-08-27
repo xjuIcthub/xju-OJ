@@ -4,10 +4,10 @@
       <SideMenu></SideMenu>
     </div>
     <div id="header">
-      <i class="el-icon-fa-font katex-editor" @click="katexVisible=true" ></i>
+      <Icon type="file-text" class="katex-editor" @click="katexVisible=true" />
       <screen-full :width="14" :height="14" class="screen-full"></screen-full>
       <el-dropdown @command="handleCommand">
-        <span>{{user.username}}<i class="el-icon-caret-bottom el-icon--right"></i></span>
+        <span class="admin-user"><span class="user-avatar">{{ (user.username || '?').slice(0, 1).toUpperCase() }}</span>{{user.username}}<Icon type="arrow-down-b" /></span>
         <template #dropdown><el-dropdown-menu >
           <el-dropdown-item command="logout">Logout</el-dropdown-item>
         </el-dropdown-menu></template>
@@ -20,7 +20,7 @@
         </transition>
       </router-view>
       <div class="footer">
-        Build Version: {{ version }}
+        Powered by XJU-ICTHub · Version 0.2.0
       </div>
     </div>
 
@@ -88,9 +88,9 @@
     font-weight: 400;
     height: 100%;
     -webkit-font-smoothing: antialiased;
-    background-color: #EDECEC;
+    background-color: var(--color-bg);
     overflow-y: scroll;
-    min-width: 1000px;
+    min-width: 760px;
   }
 
   * {
@@ -103,7 +103,8 @@
     padding-right: 30px;
     line-height: 50px;
     height: 50px;
-    background: #F9FAFC;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
     .screen-full {
       margin-right: 8px;
     }
@@ -124,7 +125,7 @@
   @keyframes fadeInUp {
     from {
       opacity: 0;
-      transform: translate(0, 30px);
+      transform: translateY(6px);
     }
 
     to {
@@ -134,13 +135,17 @@
   }
 
   .fadeInUp-enter-active {
-    animation: fadeInUp .8s;
+    animation: fadeInUp 220ms ease both;
   }
 
   .katex-editor {
     margin-right: 5px;
-    /*font-size: 18px;*/
+    cursor: pointer;
   }
+
+  .admin-user { display: inline-flex; align-items: center; gap: 7px; color: var(--color-text); }
+  .user-avatar { display: inline-grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: var(--color-bg-subtle); font-size: 12px; font-weight: 600; }
+  @media (max-width: 760px) { .container { min-width: 0; } #header { padding-left: 180px; padding-right: 14px; } .content-app { padding-left: 180px; } }
 
 
 

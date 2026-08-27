@@ -23,12 +23,18 @@ importers:
       '@codemirror/lang-python':
         specifier: 6.2.1
         version: 6.2.1
+      '@codemirror/language':
+        specifier: 6.12.4
+        version: 6.12.4
       '@codemirror/state':
         specifier: 6.7.1
         version: 6.7.1
       '@codemirror/view':
         specifier: 6.43.9
         version: 6.43.9
+      '@lezer/highlight':
+        specifier: 1.2.3
+        version: 1.2.3
       '@tiptap/extension-color':
         specifier: 3.30.3
         version: 3.30.3(@tiptap/extension-text-style@3.30.3(@tiptap/core@3.30.3(@tiptap/pm@3.30.3)))
@@ -74,6 +80,9 @@ importers:
       less:
         specifier: 4.9.0
         version: 4.9.0
+      lucide-vue-next:
+        specifier: 0.468.0
+        version: 0.468.0(vue@3.5.41)
       moment:
         specifier: 2.30.1
         version: 2.30.1
@@ -936,6 +945,12 @@ packages:
 
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
+
+  lucide-vue-next@0.468.0:
+    resolution: {integrity: sha512-quV/6T8YB1XK0VOEnebg3Byd8Rsan5/m95cvjnuHV4vcS3qEnLAybkrSh0hk3ppavx+V7R1PjNW+mGDvcBdz4A==}
+    deprecated: Package deprecated. Please use @lucide/vue instead.
+    peerDependencies:
+      vue: '>=3.0.1'
 
   magic-string-ast@1.0.3:
     resolution: {integrity: sha512-CvkkH1i81zl7mmb94DsRiFeG9V2fR2JeuK8yDgS8oiZSFa++wWLEgZ5ufEOyLHbvSbD1gTRKv9NdX69Rnvr9JA==}
@@ -2121,6 +2136,10 @@ snapshots:
     optional: true
 
   lodash@4.18.1: {}
+
+  lucide-vue-next@0.468.0(vue@3.5.41):
+    dependencies:
+      vue: 3.5.41
 
   magic-string-ast@1.0.3:
     dependencies:

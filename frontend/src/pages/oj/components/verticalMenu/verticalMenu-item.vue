@@ -44,17 +44,17 @@
   }
 
   li {
-    border-bottom: 1px dashed #e9eaec;
-    color: #495060;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-muted);
     display: block;
     text-align: left;
     padding: 15px 20px;
     &:hover {
-      background: #f8f8f9;
-      border-left: 2px solid #5cadff;
-      color: #2d8cf0;
+      background: var(--color-bg-subtle);
+      border-left: 2px solid var(--color-text);
+      color: var(--color-text);
     }
-    & > .ivu-icon {
+    & > .ivu-icon, & > .legacy-icon {
       font-size: 16px;
       margin-right: 8px;
     }

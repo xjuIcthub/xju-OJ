@@ -1,6 +1,6 @@
 <template>
   <div class="login-container">
-    <div class="brand-mark">OJ</div>
+    <div class="brand-mark">XJ</div>
     <h3 class="title">{{$t('m.Welcome_to_Login')}}</h3>
     <p v-if="authentikEnabled" class="auth-copy">{{$t('m.Authentik_Account_Notice')}}</p>
     <el-button v-if="authentikEnabled" type="primary" class="auth-button" @click="startAuthentikLogin">
@@ -85,7 +85,7 @@
     width: min(390px, calc(100% - 32px));
     padding: 36px;
     border: 1px solid var(--oj-border);
-    border-radius: 22px;
+    border-radius: var(--radius-lg);
     background: var(--oj-surface);
     box-shadow: var(--oj-shadow-card);
     .brand-mark {
@@ -94,7 +94,7 @@
       height: 42px;
       margin: 0 auto 18px;
       place-items: center;
-      border-radius: 14px;
+      border-radius: var(--radius-lg);
       background: var(--oj-accent);
       color: #fffdf9;
       font-size: 13px;

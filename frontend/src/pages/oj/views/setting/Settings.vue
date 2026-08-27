@@ -57,8 +57,9 @@
   @avatar-radius: 50%;
 
   .container {
-    width: 90%;
-    min-width: 800px;
+    width: 100%;
+    max-width: 1080px;
+    min-width: 0;
     margin: auto;
   }
 
@@ -121,7 +122,7 @@
         display: block;
         width: 1px;
         height: 100%;
-        background: #dddee1;
+        background: var(--color-border);
         position: absolute;
         top: 0;
         bottom: 0;
@@ -135,6 +136,7 @@
     /*取消默认的伪元素*/
     width: 0;
   }
+  @media (max-width: 760px) { .flex-container { flex-direction: column; } .flex-container .menu { width: 100%; max-width: none; } .flex-container .panel { width: 100%; } .flex-container .panel::before { display: none; } .setting-main { margin: 10px 16px; } }
 </style>
 
 <style lang="less">

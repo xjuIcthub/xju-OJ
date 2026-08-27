@@ -17,6 +17,8 @@ import {
   UserHome
 } from '../views'
 
+const Login = () => import('@oj/views/user/Login.vue')
+
 import * as Contest from '@oj/views/contest'
 import * as Setting from '@oj/views/setting'
 
@@ -32,6 +34,12 @@ export default [
     path: '/logout',
     meta: {title: 'Logout'},
     component: Logout
+  },
+  {
+    name: 'login',
+    path: '/login',
+    meta: {title: 'Login'},
+    component: Login
   },
   {
     name: 'apply-reset-password',

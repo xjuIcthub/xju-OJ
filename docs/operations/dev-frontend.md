@@ -20,7 +20,8 @@ PostgreSQL 和 Redis 保持与部署栈相同的服务边界。
 2. 仅启动 `postgres`、`redis`、`backend-api`、`backend-worker`、`judge-server`；
 3. 使用开发 Compose override 将 backend-api 仅绑定到 `127.0.0.1:8000`；
 4. 在 `frontend/` 执行 `pnpm dev`，默认绑定 `127.0.0.1:5173`；
-5. Vite 将 `/api`、`/public` 代理到本地 backend，浏览器仍使用同源路径。
+5. Vite 将 `/api`、`/public` 代理到本地 backend，浏览器仍使用同源路径；
+6. Vite 的 `/runtime-config.js` 从同一次部署解析出的非秘密运行时配置生成，并在启动时读取 backend 的 `/api/auth/providers/`；Authentik 开关和本地登录/注册开关与实际 backend 保持一致。
 
 首次启动如果没有依赖目录，会自动执行冻结安装：
 

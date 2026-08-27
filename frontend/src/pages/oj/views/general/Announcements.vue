@@ -114,13 +114,14 @@
   .announcements-container {
     margin-top: -10px;
     margin-bottom: 10px;
+    padding-left: 0;
     li {
       padding-top: 15px;
       list-style: none;
       padding-bottom: 15px;
       margin-left: 20px;
       font-size: 16px;
-      border-bottom: 1px solid rgba(187, 187, 187, 0.5);
+      border-bottom: 1px solid var(--color-border);
       &:last-child {
         border-bottom: none;
       }
@@ -130,10 +131,10 @@
           text-align: left;
           padding-left: 10px;
           a.entry {
-            color: #495060;
+            color: var(--color-text);
             &:hover {
-              color: #2d8cf0;
-              border-bottom: 1px solid #2d8cf0;
+              color: var(--color-link);
+              border-bottom: 1px solid var(--color-link);
             }
           }
         }

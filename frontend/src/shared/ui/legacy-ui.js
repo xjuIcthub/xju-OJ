@@ -6,6 +6,7 @@ import ElementPlus, {
   ElSubMenu, ElSwitch, ElTable, ElTableColumn, ElTag, ElTooltip, ElUpload
 } from 'element-plus'
 import 'element-plus/dist/index.css'
+import { resolveIcon } from './icon-map'
 
 const forward = (component, name, map = {}) => ({
   name,
@@ -33,7 +34,7 @@ const LegacyIcon = {
     return () => h('i', {
       class: ['legacy-icon', props.type],
       style: { fontSize: props.size ? `${props.size}px` : undefined, color: props.color }
-    })
+    }, [h(resolveIcon(props.type), { size: props.size || 16, strokeWidth: 1.75 })])
   }
 }
 

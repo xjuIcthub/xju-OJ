@@ -145,6 +145,8 @@
 
 <style scoped lang="less">
   .auth-panel {
+    max-width: 420px;
+    margin: 0 auto;
     padding: 2px 2px 0;
   }
 

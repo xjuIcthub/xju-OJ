@@ -1,5 +1,5 @@
 <template>
-  <div class="flex-container">
+  <div v-if="problemLoaded" class="flex-container">
     <div id="problem-main">
       <!--problem main-->
       <Panel :padding="40" shadow>
@@ -19,9 +19,10 @@
               <div class="sample-input">
                 <p class="title">{{$t('m.Sample_Input')}} {{index + 1}}
                   <a class="copy"
-                     v-clipboard:copy="sample.input"
-                     v-clipboard:success="onCopy"
-                     v-clipboard:error="onCopyError">
+                     role="button"
+                     tabindex="0"
+                     @click="copySample(sample.input)"
+                     @keydown.enter.prevent="copySample(sample.input)">
                     <Icon type="clipboard"></Icon>
                   </a>
                 </p>
@@ -81,19 +82,19 @@
             </div>
           </Col>
 
-          <Col :span="12">
-            <template v-if="captchaRequired">
-              <div class="captcha-container">
-                <Tooltip v-if="captchaRequired" content="Click to refresh" placement="top">
-                  <img :src="captchaSrc" @click="getCaptchaSrc"/>
-                </Tooltip>
-                <Input v-model="captchaCode" class="captcha-code"/>
-              </div>
-            </template>
-            <LegacyButton type="warning" icon="edit" :loading="submitting" @click="submitCode"
-                    :disabled="problemSubmitDisabled || submitted"
-                    class="fl-right">
+          <Col :span="12" class="submit-controls">
+            <div v-if="captchaRequired" class="captcha-container">
+              <Tooltip content="Click to refresh" placement="top"><img :src="captchaSrc" @click="getCaptchaSrc"/></Tooltip>
+              <Input v-model="captchaCode" class="captcha-code" />
+            </div>
+            <LegacyButton type="primary" @click="submitCode"
+                    :disabled="problemSubmitDisabled || submitted || submitting"
+                    :class="['oj-submit-button', { 'is-loading': submitting, 'is-success': submitted }]">
+              <Icon v-if="submitting" type="loading" class="submit-spinner" />
+              <Icon v-else-if="submitted" type="check" />
+              <Icon v-else type="send" />
               <span v-if="submitting">{{$t('m.Submitting')}}</span>
+              <span v-else-if="submitted">{{$t('m.Submitted_successfully')}}</span>
               <span v-else>{{$t('m.Submit')}}</span>
             </LegacyButton>
           </Col>
@@ -102,7 +103,29 @@
     </div>
 
     <div id="right-column">
-      <VerticalMenu @on-click="handleRoute">
+      <section v-if="!this.contestID || OIContestRealTimePermission" class="recent-submission-card" aria-labelledby="recent-submissions-title">
+        <button type="button" class="recent-submission-header" @click="handleRoute(submissionRoute)">
+          <span id="recent-submissions-title" class="recent-submission-heading">
+            <Icon type="navicon-round"></Icon>
+            <span>{{$t('m.Submissions')}}</span>
+          </span>
+          <Icon type="arrow-down-b" class="recent-submission-arrow"></Icon>
+        </button>
+        <div class="recent-submission-divider"></div>
+        <div class="recent-submission-list">
+          <div v-for="submission in recentSubmissions" :key="submission.id" class="recent-submission-row">
+            <span :class="['submission-status-dot', submissionStatusClass(submission)]"></span>
+            <span class="recent-submission-main">
+              <strong>{{submission.username}}</strong>
+              <small>{{submissionStatusLabel(submission)}} · {{submission.language}}</small>
+            </span>
+            <time>{{formatSubmissionTime(submission.create_time)}}</time>
+          </div>
+          <div v-if="!recentSubmissions.length" class="recent-submission-empty">No recent submissions</div>
+        </div>
+      </section>
+
+      <VerticalMenu v-if="this.contestID" @on-click="handleRoute">
         <template v-if="this.contestID">
           <VerticalMenu-item :route="{name: 'contest-problem-list', params: {contestID: contestID}}">
             <Icon type="ios-photos"></Icon>
@@ -114,11 +137,6 @@
             {{$t('m.Announcements')}}
           </VerticalMenu-item>
         </template>
-
-        <VerticalMenu-item v-if="!this.contestID || OIContestRealTimePermission" :route="submissionRoute">
-          <Icon type="navicon-round"></Icon>
-           {{$t('m.Submissions')}}
-        </VerticalMenu-item>
 
         <template v-if="this.contestID">
           <VerticalMenu-item v-if="!this.contestID || OIContestRealTimePermission"
@@ -134,43 +152,47 @@
       </VerticalMenu>
 
       <Card id="info">
-        <template #title><div  class="header">
+        <template #title><div class="info-heading">
           <Icon type="information-circled"></Icon>
           <span class="card-title">{{$t('m.Information')}}</span>
         </div></template>
         <ul>
-          <li><p>ID</p>
-            <p>{{problem._id}}</p></li>
+          <li><span class="info-label">ID</span>
+            <span class="info-value">{{problem._id}}</span></li>
           <li>
-            <p>{{$t('m.Time_Limit')}}</p>
-            <p>{{problem.time_limit}}MS</p></li>
+            <span class="info-label">{{$t('m.Time_Limit')}}</span>
+            <span class="info-value">{{problem.time_limit}}MS</span></li>
           <li>
-            <p>{{$t('m.Memory_Limit')}}</p>
-            <p>{{problem.memory_limit}}MB</p></li>
+            <span class="info-label">{{$t('m.Memory_Limit')}}</span>
+            <span class="info-value">{{problem.memory_limit}}MB</span></li>
           <li>
-            <p>{{$t('m.IOMode')}}</p>
-            <p>{{problem.io_mode.io_mode}}</p>
+            <span class="info-label">{{$t('m.IOMode')}}</span>
+            <span class="info-value">{{problem.io_mode.io_mode}}</span>
           </li>
           <li>
-            <p>{{$t('m.Created')}}</p>
-            <p>{{problem.created_by.username}}</p></li>
+            <span class="info-label">{{$t('m.Created')}}</span>
+            <span class="info-value" :title="problem.created_by.username">{{problem.created_by.username}}</span></li>
           <li v-if="problem.difficulty">
-            <p>{{$t('m.Level')}}</p>
-            <p>{{$t('m.' + problem.difficulty)}}</p></li>
+            <span class="info-label">{{$t('m.Level')}}</span>
+            <span class="info-value">{{$t('m.' + problem.difficulty)}}</span></li>
           <li v-if="problem.total_score">
-            <p>{{$t('m.Score')}}</p>
-            <p>{{problem.total_score}}</p>
+            <span class="info-label">{{$t('m.Score')}}</span>
+            <span class="info-value">{{problem.total_score}}</span>
+          </li>
+          <li v-if="problem.spj">
+            <span class="info-label">Judge</span>
+            <span class="info-value">Special Judge</span>
           </li>
           <li>
-            <p>{{$t('m.Tags')}}</p>
-            <p>
+            <span class="info-label">{{$t('m.Tags')}}</span>
+            <span class="info-value">
               <Poptip trigger="hover" placement="left-end">
                 <a>{{$t('m.Show')}}</a>
                 <template #content><div >
                   <Tag v-for="tag in problem.tags" :key="tag">{{tag}}</Tag>
                 </div></template>
               </Poptip>
-            </p>
+            </span>
           </li>
         </ul>
       </Card>
@@ -196,6 +218,7 @@
       </div></template>
     </Modal>
   </div>
+  <div v-else class="problem-loading"><Spin size="large" /></div>
 </template>
 <script>
   import {mapGetters, mapActions} from '@/store/compat'
@@ -206,6 +229,7 @@
   import {JUDGE_STATUS, CONTEST_STATUS, buildProblemCodeKey} from '@/utils/constants'
   import api from '@oj/api'
   import {pie, largePie} from './chartData'
+  import { cloneFixtures, MOCK_PROBLEMS, MOCK_SUBMISSIONS } from '@oj/mocks/fixtures'
 
   // 只显示这些状态的图形占用
   const filtedStatus = ['-1', '-2', '0', '1', '2', '3', '4', '8']
@@ -232,6 +256,8 @@
         theme: 'solarized',
         submissionId: '',
         submitted: false,
+        problemLoaded: false,
+        recentSubmissions: [],
         result: {
           result: 9
         },
@@ -271,35 +297,57 @@
       ...mapActions(['changeDomTitle']),
       init () {
         this.$Loading.start()
+        this.problemLoaded = false
         this.contestID = this.$route.params.contestID
         this.problemID = this.$route.params.problemID
         let func = this.$route.name === 'problem-details' ? 'getProblem' : 'getContestProblem'
         api[func](this.problemID, this.contestID).then(res => {
-          this.$Loading.finish()
-          let problem = res.data.data
-          this.changeDomTitle({title: problem.title})
-          api.submissionExists(problem.id).then(res => {
-            this.submissionExists = res.data.data
-          })
-          problem.languages = problem.languages.sort()
-          this.problem = problem
-          if (problem.statistic_info) {
-            this.changePie(problem)
+          this.applyProblem(res.data.data)
+        }).catch(() => {
+          const fallback = MOCK_PROBLEMS.find(problem => String(problem._id) === String(this.problemID))
+          if (fallback) {
+            this.applyProblem(cloneFixtures([fallback])[0])
+          } else {
+            this.$Loading.error()
           }
-
-          // 在beforeRouteEnter中修改了, 说明本地有code，无需加载template
-          if (this.code !== '') {
-            return
-          }
-          // try to load problem template
-          this.language = this.problem.languages[0]
-          let template = this.problem.template
-          if (template && template[this.language]) {
-            this.code = template[this.language]
-          }
-        }, () => {
-          this.$Loading.error()
         })
+      },
+      applyProblem (problem) {
+        this.$Loading.finish()
+        this.changeDomTitle({title: problem.title})
+        api.submissionExists(problem.id).then(res => {
+          this.submissionExists = res.data.data
+        }).catch(() => {
+          this.submissionExists = false
+        })
+        const fixture = MOCK_PROBLEMS.find(item => String(item._id) === String(problem._id))
+        if (fixture) {
+          // Older API serializers may return template keys with empty values
+          // when no PREPEND/TEMPLATE markers are stored. Keep real API fields,
+          // but provide the matching local starter code so the editor remains
+          // useful in development and theme previews always have code to show.
+          const apiTemplates = Object.fromEntries(Object.entries(problem.template || {}).filter(([, value]) => value))
+          problem.template = { ...cloneFixtures([fixture])[0].template, ...apiTemplates }
+          if (!problem.languages || !problem.languages.length) problem.languages = fixture.languages.slice()
+        }
+        problem.languages = (problem.languages || []).slice().sort()
+        this.problem = problem
+        this.loadRecentSubmissions(problem._id)
+        if (problem.statistic_info) {
+          this.changePie(problem)
+        }
+        this.problemLoaded = true
+
+        // 在beforeRouteEnter中修改了, 说明本地有code，无需加载template
+        if (this.code !== '') {
+          return
+        }
+        // try to load problem template
+        this.language = this.problem.languages[0] || 'C++'
+        let template = this.problem.template
+        if (template && template[this.language]) {
+          this.code = template[this.language]
+        }
       },
       changePie (problemData) {
         // 只显示特定的一些状态
@@ -350,6 +398,35 @@
       },
       onChangeTheme (newTheme) {
         this.theme = newTheme
+      },
+      loadRecentSubmissions (problemID) {
+        const params = { problem_id: problemID }
+        const method = this.contestID ? 'getContestSubmissionList' : 'getSubmissionList'
+        if (this.contestID) params.contest_id = this.contestID
+        api[method](0, 5, params).then(res => {
+          const data = res.data.data || {}
+          const results = Array.isArray(data.results) ? data.results : []
+          this.recentSubmissions = results.length
+            ? results.slice().sort((a, b) => new Date(b.create_time) - new Date(a.create_time)).slice(0, 5)
+            : this.mockSubmissions(problemID)
+        }).catch(() => {
+          this.recentSubmissions = this.mockSubmissions(problemID)
+        })
+      },
+      mockSubmissions (problemID) {
+        return cloneFixtures(MOCK_SUBMISSIONS.filter(item => String(item.problem) === String(problemID)))
+      },
+      submissionStatusLabel (submission) {
+        const status = JUDGE_STATUS[String(submission.result)] || {}
+        return status.short || status.name || 'Pending'
+      },
+      submissionStatusClass (submission) {
+        const status = JUDGE_STATUS[String(submission.result)] || {}
+        return `is-${status.type || 'info'}`
+      },
+      formatSubmissionTime (value) {
+        if (!value) return ''
+        return this.$filters.localtime(value, 'MMM D HH:mm')
       },
       onResetToTemplate () {
         this.$Modal.confirm({
@@ -459,6 +536,9 @@
       },
       onCopyError (e) {
         this.$error('Failed to copy code')
+      },
+      copySample (text) {
+        Promise.resolve().then(() => this.$copyText(text)).then(this.onCopy).catch(this.onCopyError)
       }
     },
     computed: {
@@ -503,9 +583,8 @@
 </script>
 
 <style lang="less" scoped>
-  .card-title {
-    margin-left: 8px;
-  }
+  .card-title { margin-left: 0; }
+  .info-heading { display: inline-flex; align-items: center; gap: 8px; }
 
   .flex-container {
     #problem-main {
@@ -524,10 +603,31 @@
       font-size: 20px;
       font-weight: 400;
       margin: 25px 0 8px 0;
-      color: #3091f2;
+      color: var(--color-link);
+      line-height: 28px;
       .copy {
-        padding-left: 8px;
+        display: inline-flex;
+        width: 22px;
+        height: 22px;
+        align-items: center;
+        justify-content: center;
+        margin-left: 5px;
+        border-radius: 4px;
+        color: var(--color-link);
+        vertical-align: middle;
+        transition: color var(--transition), background-color var(--transition);
       }
+      .copy:hover { background: rgba(35, 131, 226, .08); color: var(--color-link); }
+      .copy:focus-visible { outline: 2px solid rgba(35, 131, 226, .32); outline-offset: 1px; color: var(--color-link); }
+    }
+    :deep(code) {
+      border-radius: 4px;
+      background: rgba(135, 131, 120, .10);
+      color: #c84747;
+    }
+    :deep(pre) {
+      border-radius: var(--radius-sm);
+      background: #fcfcfb;
     }
     p.content {
       margin-left: 25px;
@@ -562,40 +662,83 @@
         margin-left: 10px;
       }
     }
-    .captcha-container {
-      display: inline-block;
-      .captcha-code {
-        width: auto;
-        margin-top: -20px;
-        margin-left: 20px;
-      }
-    }
+    .submit-controls { display: flex; align-items: center; justify-content: flex-end; gap: 13px; flex-wrap: wrap; }
+    .captcha-container { display: flex; align-items: center; gap: 8px; }
+    .captcha-container img { display: block; width: 96px; height: 36px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; }
+    .captcha-code { width: 120px; }
+    .oj-submit-button { min-width: 132px; min-height: 40px; border-radius: var(--radius-md); gap: 7px; font-weight: 600; }
+    :deep(.oj-submit-button > span) { display: inline-flex; align-items: center; justify-content: center; gap: 10px; white-space: nowrap; }
+    :deep(.oj-submit-button .legacy-icon) { display: inline-flex; flex: none; align-items: center; }
+    .oj-submit-button.is-success { background: var(--oj-success); border-color: var(--oj-success); color: #fff; }
+    .oj-submit-button.is-loading { cursor: wait; }
+    .submit-spinner { animation: oj-submit-spin 900ms linear infinite; }
+    @keyframes oj-submit-spin { to { transform: rotate(360deg); } }
   }
+
+  .recent-submission-card {
+    overflow: hidden;
+    margin-bottom: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    box-shadow: var(--shadow-card);
+  }
+  .recent-submission-header {
+    display: flex;
+    width: 100%;
+    min-height: 52px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border: 0;
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    text-align: left;
+    cursor: pointer;
+    transition: color var(--transition), background-color var(--transition);
+  }
+  .recent-submission-header:hover { background: var(--bg-hover); color: var(--color-text); }
+  .recent-submission-heading { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+  .recent-submission-heading :deep(.legacy-icon) { display: inline-flex; align-items: center; }
+  .recent-submission-arrow { color: var(--color-text-faint); transform: rotate(-90deg); }
+  .recent-submission-divider { width: 34px; height: 1px; margin: 0 16px 4px; background: var(--line-strong); }
+  .recent-submission-list { padding: 2px 16px 8px; }
+  .recent-submission-row { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--color-border); }
+  .recent-submission-row:last-child { border-bottom: 0; }
+  .submission-status-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--color-text-faint); }
+  .submission-status-dot.is-success { background: var(--oj-success); }
+  .submission-status-dot.is-error { background: var(--oj-danger); }
+  .submission-status-dot.is-warning { background: var(--oj-warning); }
+  .submission-status-dot.is-info { background: var(--oj-info); }
+  .recent-submission-main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
+  .recent-submission-main strong { overflow: hidden; color: var(--color-text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  .recent-submission-main small, .recent-submission-row time { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
+  .recent-submission-row time { flex: none; color: var(--color-text-faint); }
+  .recent-submission-empty { padding: 14px 0 10px; color: var(--color-text-faint); font-size: 12px; }
 
   #info {
     margin-bottom: 20px;
     margin-top: 20px;
-    ul {
-      list-style-type: none;
-      li {
-        border-bottom: 1px dotted #e9eaec;
-        margin-bottom: 10px;
-        p {
-          display: inline-block;
-        }
-        p:first-child {
-          width: 90px;
-        }
-        p:last-child {
-          float: right;
-        }
-      }
+    ul { list-style-type: none; margin: 0; padding: 0; }
+    li {
+      display: flex;
+      min-height: 36px;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0;
+      padding: 8px 0;
+      border-bottom: 1px dotted var(--color-border);
     }
+    li:last-child { border-bottom: 0; }
+    .info-label { flex: 0 0 auto; color: var(--color-text); font-weight: 600; }
+    .info-value { min-width: 0; overflow: hidden; color: var(--color-text-muted); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+    .info-value :deep(a) { color: var(--color-link); }
   }
 
-  .fl-right {
-    float: right;
-  }
+  #right-column > :deep(.el-card) { margin-bottom: 20px; }
+
+  @media (max-width: 760px) { #submit-code .submit-controls { justify-content: stretch; } #submit-code .oj-submit-button { flex: 1 1 100%; } #submit-code .captcha-container { flex: 1 1 100%; } #submit-code .captcha-code { flex: 1; width: auto; } }
 
   #pieChart {
     .echarts {
@@ -614,5 +757,12 @@
     width: 500px;
     height: 480px;
   }
-</style>
 
+  @media (max-width: 900px) {
+    .flex-container { flex-direction: column; }
+    .flex-container #problem-main { width: 100%; margin-right: 0; }
+    .flex-container #right-column { width: 100%; }
+    #info, #pieChart { width: 100%; }
+    .recent-submission-card { width: 100%; }
+  }
+</style>

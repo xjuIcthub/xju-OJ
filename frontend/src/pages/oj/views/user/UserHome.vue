@@ -150,7 +150,7 @@
         width: 140px;
         height: 140px;
         border-radius: 50%;
-        box-shadow: 0 1px 1px 0;
+        box-shadow: var(--shadow-card);
       }
     }
     .emphasis {

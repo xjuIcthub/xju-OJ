@@ -1,5 +1,5 @@
 <template>
-  <Card :padding="padding" :shadow="shadow" :dis-hover="disHover" :bordered="bordered">
+  <Card class="feiyue-panel" :padding="padding" :shadow="shadow" :dis-hover="disHover" :bordered="bordered">
     <template #title><div  class="panel-title">
       <slot name="title"></slot>
     </div></template>
@@ -46,6 +46,8 @@
     .section-title;
     padding: 5px 15px;
   }
+  .feiyue-panel { border-radius: var(--radius-md); box-shadow: var(--shadow-card) !important; }
+  .feiyue-panel .el-card__header { border-bottom-color: var(--color-border); }
 
   .panel-extra {
     line-height: 40px;

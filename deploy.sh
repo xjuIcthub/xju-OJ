@@ -1239,8 +1239,15 @@ if [ "$DEV_MODE" -eq 1 ]; then
     log_info "[dev] Vite /api and /public proxy target: $dev_backend_url"
     log_info "[dev] Ctrl-C stops Vite only; Docker backend services remain running"
     cd "$ROOT/frontend"
+    # Keep the host Vite runtime flags aligned with the backend Compose env.
+    # Only non-secret OIDC presentation settings are passed to the frontend;
+    # client IDs and secrets remain server-side.
     exec env TARGET="$dev_backend_url" PORT="$DEV_FRONTEND_PORT" VITE_DEV_HOST="$DEV_FRONTEND_HOST" \
-        GIT_COMMIT="$GIT_COMMIT" pnpm dev
+        GIT_COMMIT="$GIT_COMMIT" APP_DOMAIN="$APP_DOMAIN" PUBLIC_BASE_URL="$PUBLIC_BASE_URL" \
+        AUTHENTIK_OIDC_ENABLED="$AUTHENTIK_OIDC_ENABLED" \
+        AUTHENTIK_OIDC_REGISTER_URL="$AUTHENTIK_OIDC_REGISTER_URL" \
+        AUTHENTIK_LOCAL_LOGIN_ENABLED="$AUTHENTIK_LOCAL_LOGIN_ENABLED" \
+        AUTHENTIK_LOCAL_REGISTER_ENABLED="$AUTHENTIK_LOCAL_REGISTER_ENABLED" pnpm dev
 fi
 
 release_dir="$RUNTIME_ROOT/deployments"
