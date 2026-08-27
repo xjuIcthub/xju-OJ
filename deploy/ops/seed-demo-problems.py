@@ -20,6 +20,7 @@ from django.utils.timezone import now
 from account.models import User
 from options.options import SysOptions
 from problem.models import Problem, ProblemDifficulty, ProblemIOMode, ProblemRuleType, ProblemTag
+from utils.xss_filter import XSSHtml
 
 
 SOURCE = "ICThub demo problems v1"
@@ -306,17 +307,22 @@ def _find_problem(definition):
     return rows[0] if rows else None
 
 
+def _clean_rich_text(value):
+    with XSSHtml() as parser:
+        return parser.clean(value or "")
+
+
 def _validate_existing(problem, definition, creator):
-    if problem.created_by_id != creator.id:
-        raise RuntimeError(f"{definition['display_id']} exists with a different creator")
+    if problem.created_by_id != creator.id and not problem.created_by.is_admin_role():
+        raise RuntimeError(f"{definition['display_id']} exists with a different non-admin creator")
     expected_values = {
         "source": SOURCE,
         "test_case_id": definition["test_case_id"],
         "title": definition["title"],
-        "description": definition["description"],
-        "input_description": definition["input_description"],
-        "output_description": definition["output_description"],
-        "hint": definition["hint"],
+        "description": _clean_rich_text(definition["description"]),
+        "input_description": _clean_rich_text(definition["input_description"]),
+        "output_description": _clean_rich_text(definition["output_description"]),
+        "hint": _clean_rich_text(definition["hint"]),
         "samples": definition["samples"],
         "test_case_score": _test_case_score(definition),
         "spj": definition["spj"],
