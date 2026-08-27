@@ -6,6 +6,7 @@ ENV_FILE=${ENV_FILE:-"$ROOT/.env"}
 COMPOSE_FILE=${COMPOSE_FILE:-"$ROOT/compose.yaml"}
 DRY_RUN=0
 CONFIG_ONLY=0
+FRONTEND_ONLY=0
 
 # Never inherit workstation/server proxy variables. Optional download proxies are
 # accepted only through the explicit BUILD_*_PROXY settings and are never used
@@ -14,7 +15,10 @@ unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_prox
 
 usage() {
     cat <<'EOF'
-Usage: ./deploy.sh [--dry-run] [--config-only]
+Usage: ./deploy.sh [--dry-run] [--config-only] [--frontend-only]
+
+Modes:
+  --frontend-only  build/release only frontend; keep all backend services running
 
 Environment:
   ENV_FILE       .env path (default: repository/.env)
@@ -27,6 +31,7 @@ for arg in "$@"; do
         --help|-h) usage; exit 0 ;;
         --dry-run) DRY_RUN=1 ;;
         --config-only) CONFIG_ONLY=1 ;;
+        --frontend-only) FRONTEND_ONLY=1 ;;
         *) printf '%s\n' "unknown option: $arg" >&2; usage >&2; exit 2 ;;
     esac
 done
@@ -211,6 +216,12 @@ judge_image_ref_input=${JUDGE_IMAGE_REF-}
 judge_toolchain_image_ref_input=${JUDGE_TOOLCHAIN_IMAGE_REF-}
 postgres_image_ref_input=${POSTGRES_IMAGE_REF-}
 build_targets=${BUILD_TARGETS:-"postgres frontend backend judge-toolchain server"}
+if [ "$FRONTEND_ONLY" -eq 1 ]; then
+    if [ -n "${BUILD_TARGETS:-}" ] && [ "${BUILD_TARGETS}" != "frontend" ]; then
+        fail "--frontend-only requires BUILD_TARGETS=frontend when BUILD_TARGETS is set"
+    fi
+    build_targets=frontend
+fi
 
 case "${FRONTEND_IMAGE_REF:-}" in
     ""|xju-oj-frontend:auto) FRONTEND_IMAGE_REF=xju-oj-frontend:git-$git_tag ;;
@@ -513,6 +524,44 @@ compose() {
 release_dir="$RUNTIME_ROOT/deployments"
 release_file="$release_dir/current.json"
 
+frontend_only_source_guard() {
+    [ -f "$release_file" ] || fail "--frontend-only requires a previous successful release: $release_file"
+    previous_commit=$(release_source_commit 2>/dev/null || true)
+    [ -n "$previous_commit" ] || fail "--frontend-only requires source commit metadata in $release_file"
+    python3 - "$ROOT" "$previous_commit" "${GIT_COMMIT:-}" <<'PY' || fail "--frontend-only is allowed only when changes are confined to frontend/"
+import subprocess
+import sys
+
+root, previous, current = sys.argv[1:]
+if not current:
+    raise SystemExit("missing current source commit")
+
+def git(*args):
+    return subprocess.check_output(["git", "-C", root, *args], text=True)
+
+try:
+    committed = [path for path in git("diff", "--name-only", previous, current, "--").splitlines() if path]
+except subprocess.CalledProcessError as exc:
+    raise SystemExit(f"cannot compare release commits: {previous}..{current}") from exc
+
+status = git("status", "--porcelain=v1", "-z", "--untracked-files=all")
+working = []
+for record in status.split("\0"):
+    if not record:
+        continue
+    path = record[3:] if len(record) >= 3 else record
+    paths = path.split(" -> ") if " -> " in path else [path]
+    working.extend(paths)
+
+changed = committed + working
+outside = sorted({path for path in changed if not (path == "frontend" or path.startswith("frontend/"))})
+if outside:
+    print("changed paths outside frontend/: " + ", ".join(outside), file=sys.stderr)
+    raise SystemExit(1)
+
+PY
+}
+
 release_source_commit() {
     [ -f "$release_file" ] || return 1
     python3 - "$release_file" <<'PY'
@@ -679,6 +728,17 @@ PY
 rm -f "$config_json"
 trap - 0
 
+if [ "$FRONTEND_ONLY" -eq 1 ] && [ "$CONFIG_ONLY" -eq 0 ]; then
+    frontend_only_source_guard
+    for retained_target in postgres redis backend judge-toolchain server; do
+        if set_target_ref_from_release "$retained_target"; then
+            printf '%s\n' "[frontend-only] retaining $retained_target from previous release"
+        else
+            fail "--frontend-only requires the previous $retained_target image to be available locally"
+        fi
+    done
+fi
+
 if [ "$CONFIG_ONLY" -eq 1 ]; then
     printf '%s\n' "deploy config-only passed"
     exit 0
@@ -699,6 +759,15 @@ if [ "$DRY_RUN" -eq 1 ]; then
     printf '%s\n' "deploy dry-run passed"
     exit 0
 fi
+
+case "$HTTP_BIND_ADDRESS" in
+    0.0.0.0|::) http_host=127.0.0.1 ;;
+    *) http_host=$HTTP_BIND_ADDRESS ;;
+esac
+case "$http_host" in
+    *:*) http_url="http://[${http_host}]:${HTTP_PORT}" ;;
+    *) http_url="http://${http_host}:${HTTP_PORT}" ;;
+esac
 
 umask 077
 ensure_dir() {
@@ -728,14 +797,16 @@ ensure_dir "$RUNTIME_ROOT/deployments" 0750
 ensure_dir "$RUNTIME_ROOT/deployments/history" 0750
 ensure_dir "$BACKUP_ROOT" 0700
 
-provision_secret_file "$POSTGRES_PASSWORD_FILE" "PostgreSQL password" 16
-provision_secret_file "$DJANGO_SECRET_KEY_FILE" "Django secret key" 32
-provision_secret_file "$JUDGE_SERVER_TOKEN_FILE" "JudgeServer token" 32
-provision_secret_file "$INITIAL_ADMIN_PASSWORD_FILE" "Initial administrator password" 12 1
-if [ "$AUTHENTIK_OIDC_ENABLED" = true ]; then
-    provision_secret_file "$AUTHENTIK_OIDC_CLIENT_SECRET_FILE" "Authentik OIDC client secret" 16
+if [ "$FRONTEND_ONLY" -eq 0 ]; then
+    provision_secret_file "$POSTGRES_PASSWORD_FILE" "PostgreSQL password" 16
+    provision_secret_file "$DJANGO_SECRET_KEY_FILE" "Django secret key" 32
+    provision_secret_file "$JUDGE_SERVER_TOKEN_FILE" "JudgeServer token" 32
+    provision_secret_file "$INITIAL_ADMIN_PASSWORD_FILE" "Initial administrator password" 12 1
+    if [ "$AUTHENTIK_OIDC_ENABLED" = true ]; then
+        provision_secret_file "$AUTHENTIK_OIDC_CLIENT_SECRET_FILE" "Authentik OIDC client secret" 16
+    fi
+    check_secret_set
 fi
-check_secret_set
 
 attempt_dir="$RUNTIME_ROOT/deployments/history/attempt-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 ensure_dir "$attempt_dir" 0700
@@ -1007,52 +1078,59 @@ PY
     esac
 fi
 
-run_step infra-ready 'Healthy|healthy' compose up -d --wait postgres redis
+frontend_backend_ready() {
+    compose ps --status running --services | grep -qx 'backend-api'
+    curl --noproxy '*' --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 1 \
+        "$http_url/api/website/" >/dev/null
+}
 
-if [ "$CONFIG_ONLY" -eq 0 ]; then
-    run_step backend-bootstrap 'completed|passed' compose --profile init run --rm --no-deps backend-bootstrap
-    run_step backend-migrate 'Applying |No migrations to apply|Operations to perform|Running migrations:' compose --profile init run --rm --no-deps backend-migrate
-
-    token_log="$attempt_dir/backend-configure-token.log"
-    if compose --profile init run --rm --no-deps backend-configure-token >"$token_log" 2>&1; then
-        printf '%s\n' 'backend-configure-token: PASS'
-        grep -nE 'configured|already' "$token_log" | tail -10 || true
-    else
-        token_check_log="$attempt_dir/backend-configure-token-check.log"
-        if ! compose run --rm --no-deps backend-api manage shell -c \
-            'from options.models import SysOptions; raise SystemExit(0 if SysOptions.objects.filter(key="judge_server_token").exists() else 1)' >"$token_check_log" 2>&1; then
-            printf '%s\n' "backend-configure-token: FAIL (key lines; full log: $token_log)" >&2
-            grep -nE 'ERROR|error|failed|Traceback|CommandError' "$token_log" | tail -80 >&2 || true
-            fail "JudgeServer token initialization failed"
-        fi
-        printf '%s\n' 'backend-configure-token: PASS (already configured; no overwrite)'
-    fi
-
-    run_step judge-token-volume 'PASS|already|error|failed' compose --profile init run --rm --no-deps judge-token-init
-    run_step backend-create-admin 'administrator|created|ignored' compose --profile init run --rm --no-deps backend-create-admin
-fi
-
-run_step services-ready 'Healthy|healthy' compose up -d --remove-orphans --wait
-
-case "$HTTP_BIND_ADDRESS" in
-    0.0.0.0|::) http_host=127.0.0.1 ;;
-    *) http_host=$HTTP_BIND_ADDRESS ;;
-esac
-case "$http_host" in
-    *:*) http_url="http://[${http_host}]:${HTTP_PORT}" ;;
-    *) http_url="http://${http_host}:${HTTP_PORT}" ;;
-esac
-http_smoke() {
+frontend_http_smoke() {
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 "$http_url/" >/dev/null
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 -I "$http_url/admin" | grep -q '301'
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 "$http_url/admin/" >/dev/null
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 "$http_url/api/website/" | grep -q '"error"'
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 "$http_url/runtime-config.js" | grep -q '__XJU_RUNTIME_CONFIG__'
 }
-run_step http-smoke 'PASS' http_smoke
 
-run_step runtime-worker-smoke 'passed|PASS' compose exec -T backend-api python deploy/worker_smoke.py
-run_step runtime-judge-smoke 'passed|PASS' compose exec -T judge-server python -c '
+if [ "$FRONTEND_ONLY" -eq 1 ]; then
+    log_info '[frontend-only] backend-api must already be running; no backend service will be restarted'
+    run_step frontend-backend-ready '.*' frontend_backend_ready
+    run_step frontend-ready 'Healthy|healthy' compose up -d --no-deps --force-recreate --wait frontend
+    run_step frontend-http-smoke '.*' frontend_http_smoke
+else
+    run_step infra-ready 'Healthy|healthy' compose up -d --wait postgres redis
+
+    if [ "$CONFIG_ONLY" -eq 0 ]; then
+        run_step backend-bootstrap 'completed|passed' compose --profile init run --rm --no-deps backend-bootstrap
+        run_step backend-migrate 'Applying |No migrations to apply|Operations to perform|Running migrations:' compose --profile init run --rm --no-deps backend-migrate
+
+        token_log="$attempt_dir/backend-configure-token.log"
+        if compose --profile init run --rm --no-deps backend-configure-token >"$token_log" 2>&1; then
+            printf '%s\n' 'backend-configure-token: PASS'
+            grep -nE 'configured|already' "$token_log" | tail -10 || true
+        else
+            token_check_log="$attempt_dir/backend-configure-token-check.log"
+            if ! compose run --rm --no-deps backend-api manage shell -c \
+                'from options.models import SysOptions; raise SystemExit(0 if SysOptions.objects.filter(key="judge_server_token").exists() else 1)' >"$token_check_log" 2>&1; then
+                printf '%s\n' "backend-configure-token: FAIL (key lines; full log: $token_log)" >&2
+                grep -nE 'ERROR|error|failed|Traceback|CommandError' "$token_log" | tail -80 >&2 || true
+                fail "JudgeServer token initialization failed"
+            fi
+            printf '%s\n' 'backend-configure-token: PASS (already configured; no overwrite)'
+        fi
+
+        run_step judge-token-volume 'PASS|already|error|failed' compose --profile init run --rm --no-deps judge-token-init
+        run_step backend-create-admin 'administrator|created|ignored' compose --profile init run --rm --no-deps backend-create-admin
+    fi
+
+    run_step services-ready 'Healthy|healthy' compose up -d --remove-orphans --wait
+    http_smoke() {
+        frontend_http_smoke
+    }
+    run_step http-smoke 'PASS' http_smoke
+
+    run_step runtime-worker-smoke 'passed|PASS' compose exec -T backend-api python deploy/worker_smoke.py
+    run_step runtime-judge-smoke 'passed|PASS' compose exec -T judge-server python -c '
 import hashlib, os, requests
 with open(os.environ["TOKEN_FILE"], encoding="utf-8") as handle:
     token = handle.read().strip()
@@ -1062,18 +1140,19 @@ assert response.json().get("err") is None
 print("Judge /ping passed")
 '
 
-heartbeat_ok=0
-heartbeat_attempt=1
-while [ "$heartbeat_attempt" -le 20 ]; do
-    if compose exec -T backend-api python manage.py shell -c \
-        'from conf.models import JudgeServer; raise SystemExit(0 if JudgeServer.objects.filter(is_disabled=False).exists() else 1)' >/dev/null 2>&1; then
-        heartbeat_ok=1
-        break
-    fi
-    sleep 1
-    heartbeat_attempt=$((heartbeat_attempt + 1))
-done
-[ "$heartbeat_ok" -eq 1 ] || fail "JudgeServer heartbeat was not observed"
+    heartbeat_ok=0
+    heartbeat_attempt=1
+    while [ "$heartbeat_attempt" -le 20 ]; do
+        if compose exec -T backend-api python manage.py shell -c \
+            'from conf.models import JudgeServer; raise SystemExit(0 if JudgeServer.objects.filter(is_disabled=False).exists() else 1)' >/dev/null 2>&1; then
+            heartbeat_ok=1
+            break
+        fi
+        sleep 1
+        heartbeat_attempt=$((heartbeat_attempt + 1))
+    done
+    [ "$heartbeat_ok" -eq 1 ] || fail "JudgeServer heartbeat was not observed"
+fi
 
 release_dir="$RUNTIME_ROOT/deployments"
 if [ -f "$release_dir/current.json" ]; then

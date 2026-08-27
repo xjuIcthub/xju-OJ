@@ -63,6 +63,26 @@ docker compose up -d --remove-orphans --wait
 
 不执行依赖下载和业务 build；完成后重新 smoke。
 
+## 前端快速发布路径
+
+为保持前端迭代与后端/判题运行时低耦合，`deploy.sh --frontend-only` 是受限的独立发布模式：
+
+1. 只接受 `BUILD_TARGETS=frontend`（未设置时自动收敛为 `frontend`）。
+2. 要求存在上一份成功 `current.json`，并保留上一 release 的 Postgres、Redis、backend、toolchain、server 镜像引用。
+3. 比较上一 release source commit 与当前提交/工作树；发现 `frontend/` 以外变更时 fail closed，必须改用完整 `./deploy.sh`。
+4. 跳过 Secret provisioning/check、数据库 bootstrap/migration、Judge token/admin 初始化、全栈 `up`、Worker/Judge smoke。
+5. 只执行 backend-api 可达检查、`docker compose up -d --no-deps --force-recreate --wait frontend`，以及 frontend root/admin/runtime-config/API 反向代理 smoke。
+6. 成功后仍写入完整 release metadata 与 `previous.json`；失败保留现场，不停止其他服务，不删除旧 image/volume/runtime。
+
+推荐命令：
+
+```bash
+BUILD_TARGETS=frontend ./deploy.sh --frontend-only --dry-run
+BUILD_TARGETS=frontend ./deploy.sh --frontend-only
+```
+
+前端-only 模式不能用于首次安装、Compose/环境变更、backend/OIDC/migration 变更或无上一成功 release 的主机；这些情况必须走完整部署门。
+
 ## 计划命令
 
 ```bash

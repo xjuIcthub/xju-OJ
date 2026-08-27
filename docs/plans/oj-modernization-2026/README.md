@@ -2,7 +2,7 @@
 
 > 当前状态：**Phase 3 已在 WSL 完成；下一阶段为 Phase 4 immutable-digest huawei1 隔离演练，尚未开始**。
 >
-> 本 README 是唯一执行入口。`00-*.md` 至 `30-*.md` 保留为技术检查清单；执行顺序、失败分类、提交和跨环境规则以本 README 与 `phases/` 为准。
+> 本 README 是唯一执行入口。`00-*.md` 至 `31-*.md` 保留为技术检查清单；执行顺序、失败分类、提交和跨环境规则以本 README 与 `phases/` 为准。
 >
 > 首要目标不是逐条“打卡”，而是尽快让升级版先在本机 WSL、再在 `huawei1` 端到端运行；生产数据和生产 Secret 只在最后一个 Phase 启用。
 
@@ -151,7 +151,7 @@ phase 5: complete production cutover and rollback acceptance
 - Backend：[11](11-backend-uv-metadata.md)–[18](18-backend-worker-ecosystem.md)
 - Data：[19](19-data-inventory-backup.md)–[22](22-postgres-cutover.md)
 - Server：[23](23-server-build-boundary.md)–[26](26-server-hardening-multiarc.md)
-- Delivery：[27](27-buildkit-bake-supply-chain.md)–[30](30-release-cutover-rollback.md)
+- Delivery：[27](27-buildkit-bake-supply-chain.md)–[30](30-release-cutover-rollback.md)；前端快速迭代：[31](31-frontend-fast-iteration.md)
 
 若 Step 文档的“进入条件/停止条件”与 Phase 模型冲突：
 

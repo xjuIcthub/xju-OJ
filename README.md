@@ -146,6 +146,24 @@ git pull --ff-only
 ./deploy.sh
 ```
 
+只迭代前端时使用隔离发布路径：
+
+```bash
+git pull --ff-only
+BUILD_TARGETS=frontend ./deploy.sh --frontend-only
+```
+
+该模式只构建并替换 `frontend` 容器，不执行数据库迁移、后端 bootstrap、管理员/token 初始化，也不重启 backend、Worker、Judge、PostgreSQL 或 Redis。它要求已有成功的完整 release 和本地保留的其他镜像；如果自上次 release 以来检测到 `frontend/` 以外的代码、Compose 或部署变更，会直接拒绝，避免前后端版本不匹配。前端 Dockerfile 已将 Node/pnpm 基础镜像和依赖下载分层，首次构建后后续迭代会复用本机 BuildKit/pnpm cache。
+
+预检和回滚演练：
+
+```bash
+BUILD_TARGETS=frontend ./deploy.sh --frontend-only --dry-run
+docker compose --env-file .env -f compose.yaml ps
+```
+
+前端-only 发布失败会保留 `runtime/deployments/history/attempt-*` 和 `previous.json`；不要删除旧镜像，回滚时按 [前端快速迭代计划](docs/plans/oj-modernization-2026/31-frontend-fast-iteration.md) 使用上一成功 frontend image 重建 frontend 容器。
+
 查看状态：
 
 ```bash

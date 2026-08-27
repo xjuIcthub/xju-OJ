@@ -179,3 +179,11 @@
 - Soft failures / deferred: 没有批准的持久 registry/cache namespace 和 CVE scanner，因此最终 RC 目前以本地 immutable image ID 保存；Phase 2 已证明 SBOM/provenance 机制，但 Phase 3 RC 的 persistent registry digest、`provenance=mode=max`、SBOM、cache import 和 vulnerability report 必须在 Phase 4 promotion 前补齐，禁止用 mutable tag 在 `huawei1` 重建。默认 `SysOptions.languages` 的展示字符串仍有历史版本标签，实际 toolchain 与判题合同无误；后续只允许 customization-preserving metadata 更新，禁止 blind reset。
 - Hard-stop 核验: 没有修改历史 migration、app label、db_table、DEFAULT_AUTO_FIELD、API/Session/CSRF、DB1/DB4 或 Judge protocol；未访问生产数据/Secret，未触碰 `huawei1`，未使用 `privileged`、Docker socket、`SYS_ADMIN`、公开非 frontend 端口或破坏性数据命令。
 - 下一 Phase: Phase 3 WSL final application 已达到完成标志。Phase 4 开始前先把这组 RC image IDs 发布/转移为可由 `huawei1` 消费的同一 immutable digest，并补齐最终 SBOM/provenance/scan；不得重新构建另一组镜像。
+
+### 2026-08-26 — 前端快速迭代发布隔离
+
+- 只读复核确认 Compose 已将 frontend 作为唯一宿主端口服务，`frontend/Dockerfile` 已拆分基础镜像、依赖、构建和 runtime 层；BuildKit/pnpm cache 可复用，后端业务逻辑无需参与前端重建。
+- `deploy.sh` 新增 `--frontend-only`：只接受 `BUILD_TARGETS=frontend`，要求上一成功 release 及本地保留的非前端镜像；检测到上一 release 以来 `frontend/` 之外的提交或工作树变更时 fail closed。
+- frontend-only 路径跳过 Secret provisioning/check、数据库 bootstrap/migration、Judge token/admin 初始化、全栈 `up`、Worker/Judge smoke；只检查 backend-api 可达，使用 `--no-deps --force-recreate` 替换 frontend，并执行静态、SPA、runtime-config 和 API 代理 smoke。
+- 本地验证：`sh -n deploy.sh`、`git diff --check`、`./deploy.sh --help` 和临时 env 的 `--frontend-only --config-only` 通过；未触碰 huawei1 生产服务或数据。
+- 日常命令见 `31-frontend-fast-iteration.md`；前端-only 不能用于首次安装、Compose/环境/backend/OIDC/migration/Judge 变更。
