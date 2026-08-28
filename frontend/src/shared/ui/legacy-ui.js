@@ -254,17 +254,25 @@ const LegacyTable = {
   inheritAttrs: false,
   props: { columns: { type: Array, default: () => [] }, data: { type: Array, default: () => [] } },
   setup (props, { attrs, slots }) {
-    return () => h(ElTable, { ...attrs, data: props.data }, {
+    return () => h(ElTable, {
+      ...attrs,
+      data: props.data,
+      cellClassName: attrs.cellClassName || (({ row, column }) => row.cellClassName?.[column.property] || '')
+    }, {
       default: () => props.columns.map((column, index) => h(ElTableColumn, {
         key: column.key || index,
         prop: column.key,
         label: column.title,
         width: column.width,
         minWidth: column.minWidth,
+        className: column.className,
         align: column.align,
         fixed: column.fixed,
         sortable: column.sortable
       }, {
+        header: scope => column.renderHeader
+          ? column.renderHeader(legacyH, { ...scope, column })
+          : String(column.title ?? ''),
         default: scope => column.render
           ? column.render(legacyH, { row: scope.row, index: scope.$index, column })
           : (slots[column.slot] ? slots[column.slot](scope) : String(scope.row[column.key] ?? ''))

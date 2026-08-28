@@ -1,5 +1,6 @@
 import {
   Activity,
+  ArrowLeft,
   ArrowDown,
   ArrowDownToLine,
   BarChart3,
@@ -82,6 +83,8 @@ const iconMap = {
   navicon: List,
   'navicon-round': ListChecks,
   'arrow-down-b': ChevronDown,
+  'arrow-left': ArrowLeft,
+  'ios-arrow-back': ArrowLeft,
   'ios-arrow-down': ArrowDown,
   search: Search,
   calendar: CalendarDays,

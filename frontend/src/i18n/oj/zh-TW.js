@@ -123,6 +123,7 @@ export const m = {
   StartAt: '開始時間',
   EndAt: '結束時間',
   ContestType: '比賽類型',
+  Duration: '持續時間',
   Creator: '發起人',
   Public: '公開',
   Password_Protected: '密碼保護',

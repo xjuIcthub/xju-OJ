@@ -122,6 +122,79 @@ export const MOCK_OI_RANK = [
   { user: { username: 'frank' }, mood: 'Weekend coder', total_score: 768, accepted_number: 13, submission_number: 23 }
 ]
 
+export const MOCK_CONTEST_ACM_RANK = [
+  {
+    id: 1,
+    user: { id: 11, username: 'alice', real_name: 'Alice Chen' },
+    accepted_number: 2,
+    submission_number: 3,
+    total_time: 1560,
+    submission_info: {
+      1001: { is_ac: true, ac_time: 420, error_number: 0, is_first_ac: true },
+      1002: { is_ac: true, ac_time: 840, error_number: 1, is_first_ac: false }
+    }
+  },
+  {
+    id: 2,
+    user: { id: 12, username: 'bob', real_name: 'Bob Li' },
+    accepted_number: 2,
+    submission_number: 4,
+    total_time: 2460,
+    submission_info: {
+      1001: { is_ac: true, ac_time: 610, error_number: 1, is_first_ac: false },
+      1002: { is_ac: true, ac_time: 1250, error_number: 1, is_first_ac: false }
+    }
+  },
+  {
+    id: 3,
+    user: { id: 13, username: 'charlie', real_name: 'Charlie Wang' },
+    accepted_number: 1,
+    submission_number: 2,
+    total_time: 930,
+    submission_info: {
+      1001: { is_ac: true, ac_time: 930, error_number: 0, is_first_ac: false },
+      1002: { is_ac: false, ac_time: 0, error_number: 1, is_first_ac: false }
+    }
+  },
+  {
+    id: 4,
+    user: { id: 14, username: 'diana', real_name: 'Diana Zhao' },
+    accepted_number: 1,
+    submission_number: 3,
+    total_time: 1740,
+    submission_info: {
+      1001: { is_ac: false, ac_time: 0, error_number: 2, is_first_ac: false },
+      1002: { is_ac: true, ac_time: 1140, error_number: 1, is_first_ac: true }
+    }
+  },
+  {
+    id: 5,
+    user: { id: 15, username: 'evan', real_name: 'Evan Sun' },
+    accepted_number: 0,
+    submission_number: 2,
+    total_time: 0,
+    submission_info: {
+      1001: { is_ac: false, ac_time: 0, error_number: 1, is_first_ac: false },
+      1002: { is_ac: false, ac_time: 0, error_number: 1, is_first_ac: false }
+    }
+  }
+]
+
+export const MOCK_CONTEST_OI_RANK = [
+  { id: 21, user: { id: 11, username: 'alice', real_name: 'Alice Chen' }, total_score: 200, submission_info: { 1001: 100, 1002: 100 } },
+  { id: 22, user: { id: 13, username: 'charlie', real_name: 'Charlie Wang' }, total_score: 180, submission_info: { 1001: 100, 1002: 80 } },
+  { id: 23, user: { id: 12, username: 'bob', real_name: 'Bob Li' }, total_score: 160, submission_info: { 1001: 80, 1002: 80 } },
+  { id: 24, user: { id: 14, username: 'diana', real_name: 'Diana Zhao' }, total_score: 140, submission_info: { 1001: 60, 1002: 80 } },
+  { id: 25, user: { id: 15, username: 'evan', real_name: 'Evan Sun' }, total_score: 90, submission_info: { 1001: 50, 1002: 40 } }
+]
+
+export const MOCK_ACM_HELPER = [
+  { id: 1, username: 'alice', real_name: 'Alice Chen', problem_id: '1001', ac_info: { ac_time: 420, is_ac: true, is_first_ac: true }, checked: false },
+  { id: 2, username: 'bob', real_name: 'Bob Li', problem_id: '1001', ac_info: { ac_time: 610, is_ac: true, is_first_ac: false }, checked: true },
+  { id: 1, username: 'alice', real_name: 'Alice Chen', problem_id: '1002', ac_info: { ac_time: 840, is_ac: true, is_first_ac: false }, checked: false },
+  { id: 4, username: 'diana', real_name: 'Diana Zhao', problem_id: '1002', ac_info: { ac_time: 1140, is_ac: true, is_first_ac: true }, checked: false }
+]
+
 function submissionIso (minutesAgo) {
   return new Date(Date.now() - minutesAgo * 60 * 1000).toISOString()
 }

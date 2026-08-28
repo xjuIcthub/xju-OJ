@@ -32,12 +32,16 @@ const LegacyECharts = defineComponent({
     const hideLoading = () => { loading.value = false }
     const resize = (...args) => chart.value && chart.value.resize(...args)
     expose({ showLoading, hideLoading, resize, chart })
-    return () => h(ECharts, {
-      ...attrs,
-      loading: loading.value,
-      loadingOptions: loadingOptions.value,
-      ref: chart
-    }, slots)
+    return () => {
+      const { options, ...forwardedAttrs } = attrs
+      return h(ECharts, {
+        ...forwardedAttrs,
+        option: attrs.option || options,
+        loading: loading.value,
+        loadingOptions: loadingOptions.value,
+        ref: chart
+      }, slots)
+    }
   }
 })
 

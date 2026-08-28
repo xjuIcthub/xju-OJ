@@ -43,7 +43,7 @@
       language: { type: String, default: 'C++' }, theme: { type: String, default: 'solarized' }
     },
     emits: ['update:value', 'input', 'changeLang', 'changeTheme', 'resetCode'],
-    data () { return { mode: { 'C++': 'text/x-csrc' }, themes: [
+    data () { return { mode: { 'C': 'text/x-csrc', 'C++': 'text/x-c++src' }, themes: [
       {label: 'Monokai', value: 'monokai'}, {label: 'Solarized Light', value: 'solarized'},
       {label: 'Material', value: 'material'} ] } },
     mounted () { utils.getLanguages().then(languages => { const mode = {}; languages.forEach(lang => { mode[lang.name] = lang.content_type }); this.mode = mode; this.$refs.myEditor.focus() }) },

@@ -35,7 +35,7 @@ const useApplicationStore = defineStore('application', {
     contest: {
       now: moment(), access: false, rankLimit: 30, forceUpdate: false,
       contest: { created_by: {}, contest_type: CONTEST_TYPE.PUBLIC },
-      contestProblems: [], itemVisible: { menu: true, chart: true, realName: false }
+      contestProblems: [], itemVisible: { menu: true, chart: false, realName: false }
     }
   }),
   getters: {
@@ -196,7 +196,7 @@ const facade = {
       [types.CHANGE_CONTEST_PROBLEMS]: () => { s.contest.contestProblems = payload.contestProblems },
       [types.CHANGE_CONTEST_RANK_LIMIT]: () => { s.contest.rankLimit = payload.rankLimit },
       [types.CONTEST_ACCESS]: () => { s.contest.access = payload.access },
-      [types.CLEAR_CONTEST]: () => { s.contest.contest = { created_by: {} }; s.contest.contestProblems = []; s.contest.access = false; s.contest.itemVisible = { menu: true, chart: true, realName: false }; s.contest.forceUpdate = false },
+      [types.CLEAR_CONTEST]: () => { s.contest.contest = { created_by: {} }; s.contest.contestProblems = []; s.contest.access = false; s.contest.itemVisible = { menu: true, chart: false, realName: false }; s.contest.forceUpdate = false },
       [types.NOW]: () => { s.contest.now = payload.now },
       [types.NOW_ADD_1S]: () => { s.contest.now = moment(s.contest.now).add(1, 's') }
     }

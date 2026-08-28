@@ -1,19 +1,23 @@
 import api from '@oj/api'
-import ScreenFull from '@admin/components/ScreenFull.vue'
 import { mapGetters, mapState } from '@/store/compat'
 import { types } from '@/store'
 import { CONTEST_STATUS } from '@/utils/constants'
+import { cloneFixtures, MOCK_CONTEST_ACM_RANK, MOCK_CONTEST_OI_RANK } from '@oj/mocks/fixtures'
 
 export default {
-  components: {
-    ScreenFull
+  data () {
+    return {
+      autoRefresh: false,
+      rankRequestSerial: 0
+    }
   },
   methods: {
     getContestRankData (page = 1, refresh = false) {
+      this.page = Number(page) || 1
       let offset = (page - 1) * this.limit
-      if (this.showChart && !refresh) {
-        this.$refs.chart.showLoading({maskColor: 'rgba(250, 250, 250, 0.8)'})
-      }
+      const requestSerial = ++this.rankRequestSerial
+      const chart = this.showChart ? this.$refs.chart : null
+      if (chart && !refresh) chart.showLoading({maskColor: 'rgba(255, 255, 255, 0.82)'})
       let params = {
         offset,
         limit: this.limit,
@@ -21,29 +25,64 @@ export default {
         force_refresh: this.forceUpdate ? '1' : '0'
       }
       api.getContestRank(params).then(res => {
-        if (this.showChart && !refresh) {
-          this.$refs.chart.hideLoading()
-        }
-        this.total = res.data.data.total
-        if (page === 1) {
-          this.applyToChart(res.data.data.results.slice(0, 10))
-        }
-        this.applyToTable(res.data.data.results)
+        if (requestSerial !== this.rankRequestSerial) return
+        const payload = res.data.data || {}
+        const results = Array.isArray(payload.results) ? payload.results : []
+        if (results.length || this.getMockRank().length === 0) this.applyRankPayload(payload, this.page)
+        else this.applyRankPayload(this.getMockRankPayload(), this.page)
+      }).catch(() => {
+        if (requestSerial !== this.rankRequestSerial) return
+        this.applyRankPayload(this.getMockRankPayload(), this.page)
+      }).finally(() => {
+        if (chart && !refresh) chart.hideLoading()
       })
     },
+    applyRankPayload (payload, page) {
+      const results = Array.isArray(payload.results) ? payload.results : []
+      this.total = Number(payload.total) || results.length
+      if (page === 1) this.applyToChart(results.slice(0, 10))
+      this.applyToTable(results)
+    },
+    getMockRank () {
+      return this.contestRuleType === 'ACM' ? MOCK_CONTEST_ACM_RANK : MOCK_CONTEST_OI_RANK
+    },
+    getMockRankPayload () {
+      const mockRank = this.getMockRank()
+      const start = (this.page - 1) * this.limit
+      return {
+        total: mockRank.length,
+        results: cloneFixtures(mockRank.slice(start, start + this.limit))
+      }
+    },
     handleAutoRefresh (status) {
-      if (status === true) {
+      clearInterval(this.refreshFunc)
+      this.autoRefresh = status === true
+      if (this.autoRefresh) {
         this.refreshFunc = setInterval(() => {
           this.page = 1
           this.getContestRankData(1, true)
         }, 10000)
-      } else {
-        clearInterval(this.refreshFunc)
+      }
+    },
+    syncRealNameColumn (value) {
+      const existingIndex = this.columns.findIndex(column => column.isRealNameColumn)
+      if (value && existingIndex === -1) {
+        this.columns.splice(2, 0, {
+          isRealNameColumn: true,
+          title: this.$t('m.RealName'),
+          align: 'center',
+          width: 150,
+          render: (h, {row}) => {
+            return h('span', row.user.real_name)
+          }
+        })
+      } else if (!value && existingIndex !== -1) {
+        this.columns.splice(existingIndex, 1)
       }
     }
   },
   computed: {
-    ...mapGetters(['isContestAdmin']),
+    ...mapGetters(['isContestAdmin', 'contestRuleType']),
     ...mapState({
       'contest': state => state.contest.contest,
       'contestProblems': state => state.contest.contestProblems
@@ -54,19 +93,9 @@ export default {
       },
       set (value) {
         this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {chart: value})
-      }
-    },
-    showMenu: {
-      get () {
-        return this.$store.state.contest.itemVisible.menu
-      },
-      set (value) {
-        this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {menu: value})
         this.$nextTick(() => {
-          if (this.showChart) {
-            this.$refs.chart.resize()
-          }
-          this.$refs.tableRank.handleResize()
+          if (this.showChart) this.$refs.chart?.resize?.()
+          this.$refs.tableRank?.handleResize?.()
         })
       }
     },
@@ -76,18 +105,7 @@ export default {
       },
       set (value) {
         this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {realName: value})
-        if (value) {
-          this.columns.splice(2, 0, {
-            title: 'RealName',
-            align: 'center',
-            width: 150,
-            render: (h, {row}) => {
-              return h('span', row.user.real_name)
-            }
-          })
-        } else {
-          this.columns.splice(2, 1)
-        }
+        this.syncRealNameColumn(value)
       }
     },
     forceUpdate: {
@@ -109,6 +127,9 @@ export default {
     refreshDisabled () {
       return this.contest.status === CONTEST_STATUS.ENDED
     }
+  },
+  mounted () {
+    this.syncRealNameColumn(this.showRealName)
   },
   beforeUnmount () {
     clearInterval(this.refreshFunc)

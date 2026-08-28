@@ -1,31 +1,15 @@
 <template>
   <Panel shadow>
-    <template #title><div >{{ contest.title }}</div></template>
-    <template #extra><div >
-      <screen-full :height="18" :width="18" class="screen-full"></screen-full>
-      <Poptip trigger="hover" placement="left-start">
-        <Icon type="android-settings" size="20"></Icon>
-        <template #content><div  id="switches">
-          <p>
-            <span>{{$t('m.Menu')}}</span>
-            <i-switch v-model="showMenu"></i-switch>
-            <span>{{$t('m.Chart')}}</span>
-            <i-switch v-model="showChart"></i-switch>
-          </p>
-          <p>
-            <span>{{$t('m.Auto_Refresh')}}(10s)</span>
-            <i-switch :disabled="refreshDisabled" @on-change="handleAutoRefresh"></i-switch>
-          </p>
-          <p v-if="isContestAdmin">
-            <span>{{$t('m.RealName')}}</span>
-            <i-switch v-model="showRealName"></i-switch>
-          </p>
-          <p>
-            <LegacyButton type="primary" size="small" @click="downloadRankCSV">{{$t('m.download_csv')}}</LegacyButton>
-          </p>
-        </div></template>
-      </Poptip>
-    </div></template>
+    <template #title><div class="rank-title">{{ contest.title }}</div></template>
+    <div class="rank-settings-row" aria-label="Ranking settings">
+      <label class="rank-setting"><span>{{$t('m.Chart')}}</span><i-switch v-model="showChart"></i-switch></label>
+      <label class="rank-setting"><span>{{$t('m.Auto_Refresh')}} (10s)</span><i-switch v-model="autoRefresh" :disabled="refreshDisabled" @on-change="handleAutoRefresh"></i-switch></label>
+      <label v-if="isContestAdmin" class="rank-setting"><span>{{$t('m.RealName')}}</span><i-switch v-model="showRealName"></i-switch></label>
+      <button type="button" class="rank-download" @click="downloadRankCSV">
+        <Icon type="download" />
+        <span>{{$t('m.download_csv')}}</span>
+      </button>
+    </div>
     <div v-show="showChart" class="echarts">
       <ECharts :options="options" ref="chart" auto-resize></ECharts>
     </div>
@@ -46,7 +30,7 @@
   import utils from '@/utils/utils'
 
   export default {
-    name: 'acm-contest-rank',
+    name: 'oi-contest-rank',
     components: {
       Pagination
     },
@@ -104,6 +88,7 @@
         ],
         dataRank: [],
         options: {
+          color: ['#2383e2'],
           title: {
             text: this.$t('m.Top_10_Teams'),
             left: 'center'
@@ -127,6 +112,7 @@
               data: ['root'],
               boundaryGap: true,
               axisLabel: {
+                color: '#787774',
                 interval: 0,
                 showMinLabel: true,
                 showMaxLabel: true,
@@ -137,12 +123,16 @@
               },
               axisTick: {
                 alignWithLabel: true
-              }
+              },
+              axisLine: {lineStyle: {color: '#d9d8d4'}}
             }
           ],
           yAxis: [
             {
-              type: 'value'
+              type: 'value',
+              axisLine: {show: true, lineStyle: {color: '#d9d8d4'}},
+              axisLabel: {color: '#787774'},
+              splitLine: {lineStyle: {color: '#edebe8'}}
             }
           ],
           series: [
@@ -150,6 +140,7 @@
               name: this.$t('m.Score'),
               type: 'bar',
               barMaxWidth: '80',
+              itemStyle: {color: '#2383e2', borderRadius: [4, 4, 0, 0]},
               data: [0],
               markPoint: {
                 data: [
@@ -226,31 +217,29 @@
         })
       },
       downloadRankCSV () {
-        utils.downloadFile(`contest_rank?download_csv=1&contest_id=${this.$route.params.contestID}&force_refrash=${this.forceUpdate ? '1' : '0'}`)
+        utils.downloadFile(`contest_rank?download_csv=1&contest_id=${this.$route.params.contestID}&force_refresh=${this.forceUpdate ? '1' : '0'}`)
       }
     }
   }
 </script>
 <style scoped lang="less">
   .echarts {
-    margin: 20px auto;
-    height: 400px;
-    width: 98%;
+    height: 320px;
+    width: 100%;
+    border-bottom: 1px solid var(--color-border);
   }
+  .rank-title { color: var(--color-text); font-size: 15px; font-weight: 650; }
+  .rank-settings-row { display: flex; min-height: 52px; align-items: center; gap: 18px; flex-wrap: wrap; margin: 0; padding: 0 16px; border-bottom: 1px solid var(--color-border); box-sizing: border-box; }
+  .rank-setting { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-muted); font-size: 12px; white-space: nowrap; }
+  .rank-download { display: inline-flex; min-height: 32px; align-items: center; gap: 7px; margin-left: auto; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text-muted); font: inherit; font-size: 12px; cursor: pointer; transition: color var(--transition), border-color var(--transition), background-color var(--transition); }
+  .rank-download:hover, .rank-download:focus-visible { border-color: var(--line-strong); background: var(--color-bg-subtle); color: var(--color-text); }
+  .rank-download :deep(.legacy-icon) { display: inline-flex; align-items: center; line-height: 0; }
+  :deep(.el-table) { --el-table-row-hover-bg-color: var(--color-bg-subtle); border-radius: var(--radius-sm); }
+  :deep(.el-table th.el-table__cell) { background: #fcfbf9; color: var(--color-text-muted); font-size: 12px; }
+  :deep(.el-table td.el-table__cell) { padding: 9px 0; }
 
-  .screen-full {
-    margin-right: 8px;
-  }
-
-  #switches {
-    p {
-      margin-top: 5px;
-      &:first-child {
-        margin-top: 0;
-      }
-      span {
-        margin-left: 8px;
-      }
-    }
+  @media (max-width: 760px) {
+    .rank-settings-row { gap: 10px 14px; padding: 10px 12px; }
+    .rank-download { width: 100%; justify-content: center; margin-left: 0; }
   }
 </style>

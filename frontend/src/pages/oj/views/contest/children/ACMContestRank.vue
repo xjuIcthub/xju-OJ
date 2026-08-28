@@ -1,41 +1,22 @@
 <template>
   <Panel shadow>
-    <template #title><div >{{ contest.title }}</div></template>
-    <template #extra><div >
-      <screen-full :height="18" :width="18" class="screen-full"></screen-full>
-      <Poptip trigger="hover" placement="left-start">
-        <Icon type="android-settings" size="20"></Icon>
-        <template #content><div  id="switches">
-          <p>
-            <span>{{$t('m.Menu')}}</span>
-            <i-switch v-model="showMenu"></i-switch>
-            <span>{{$t('m.Chart')}}</span>
-            <i-switch v-model="showChart"></i-switch>
-          </p>
-          <p>
-            <span>{{$t('m.Auto_Refresh')}}(10s)</span>
-            <i-switch :disabled="refreshDisabled" @on-change="handleAutoRefresh"></i-switch>
-          </p>
-          <template v-if="isContestAdmin">
-            <p>
-              <span>{{$t('m.RealName')}}</span>
-              <i-switch v-model="showRealName"></i-switch>
-            </p>
-            <p>
-              <span>{{$t('m.Force_Update')}}</span>
-              <i-switch :disabled="refreshDisabled" v-model="forceUpdate"></i-switch>
-            </p>
-          </template>
-          <template>
-            <LegacyButton type="primary" size="small" @click="downloadRankCSV">{{$t('m.download_csv')}}</LegacyButton>
-          </template>
-        </div></template>
-      </Poptip>
-    </div></template>
+    <template #title><div class="rank-title">{{ contest.title }}</div></template>
+    <div class="rank-settings-row" aria-label="Ranking settings">
+      <label class="rank-setting"><span>{{$t('m.Chart')}}</span><i-switch v-model="showChart"></i-switch></label>
+      <label class="rank-setting"><span>{{$t('m.Auto_Refresh')}} (10s)</span><i-switch v-model="autoRefresh" :disabled="refreshDisabled" @on-change="handleAutoRefresh"></i-switch></label>
+      <template v-if="isContestAdmin">
+        <label class="rank-setting"><span>{{$t('m.RealName')}}</span><i-switch v-model="showRealName"></i-switch></label>
+        <label class="rank-setting"><span>{{$t('m.Force_Update')}}</span><i-switch v-model="forceUpdate" :disabled="refreshDisabled"></i-switch></label>
+      </template>
+      <button type="button" class="rank-download" @click="downloadRankCSV">
+        <Icon type="download" />
+        <span>{{$t('m.download_csv')}}</span>
+      </button>
+    </div>
     <div v-show="showChart" class="echarts">
       <ECharts :options="options" ref="chart" auto-resize></ECharts>
     </div>
-    <Table ref="tableRank" :columns="columns" :data="dataRank" disabled-hover height="600"></Table>
+    <Table ref="tableRank" :columns="columns" :data="dataRank" disabled-hover></Table>
     <Pagination :total="total"
                 :page-size="limit" @update:page-size="limit = $event"
                 :current="page" @update:current="page = $event"
@@ -50,7 +31,6 @@
 
   import Pagination from '@oj/components/Pagination'
   import ContestRankMixin from './contestRankMixin'
-  import time from '@/utils/time'
   import utils from '@/utils/utils'
 
   export default {
@@ -66,6 +46,7 @@
         contestID: '',
         columns: [
           {
+            className: 'rank-hover-cell',
             align: 'center',
             width: 50,
             fixed: 'left',
@@ -74,6 +55,7 @@
             }
           },
           {
+            className: 'rank-hover-cell',
             title: this.$t('m.User_User'),
             align: 'center',
             fixed: 'left',
@@ -97,6 +79,7 @@
             }
           },
           {
+            className: 'rank-hover-cell',
             title: 'AC / ' + this.$t('m.Total'),
             align: 'center',
             width: 100,
@@ -117,6 +100,7 @@
             }
           },
           {
+            className: 'rank-hover-cell',
             title: this.$t('m.TotalTime'),
             align: 'center',
             width: 100,
@@ -127,6 +111,7 @@
         ],
         dataRank: [],
         options: {
+          color: ['#2383e2', '#0f7b6c', '#7c5c9e', '#d9730d', '#4d646f'],
           title: {
             text: this.$t('m.Top_10_Teams'),
             left: 'center'
@@ -163,6 +148,7 @@
               return utils.breakLongWords(value, 16)
             },
             textStyle: {
+              color: '#787774',
               fontSize: 12
             }
           },
@@ -173,6 +159,8 @@
           xAxis: [{
             type: 'time',
             splitLine: false,
+            axisLine: {lineStyle: {color: '#d9d8d4'}},
+            axisLabel: {color: '#787774'},
             axisPointer: {
               show: true,
               snap: true
@@ -182,7 +170,9 @@
             {
               type: 'category',
               boundaryGap: false,
-              data: [0]
+              data: [0],
+              axisLine: {lineStyle: {color: '#d9d8d4'}},
+              axisLabel: {color: '#787774'}
             }],
           series: []
         }
@@ -252,7 +242,7 @@
           let cellClass = {}
           Object.keys(info).forEach(problemID => {
             dataRank[i][problemID] = info[problemID]
-            dataRank[i][problemID].ac_time = time.secondFormat(dataRank[i][problemID].ac_time)
+            dataRank[i][problemID].ac_time = this.formatRankTime(dataRank[i][problemID].ac_time)
             let status = info[problemID]
             if (status.is_first_ac) {
               cellClass[problemID] = 'first-ac'
@@ -308,35 +298,44 @@
         })
       },
       parseTotalTime (totalTime) {
-        let m = moment.duration(totalTime, 's')
-        return [Math.floor(m.asHours()), m.minutes(), m.seconds()].join(':')
+        return this.formatRankTime(totalTime)
+      },
+      formatRankTime (totalSeconds) {
+        const value = Math.max(0, Number(totalSeconds) || 0)
+        const hours = Math.floor(value / 3600)
+        const minutes = Math.floor((value % 3600) / 60)
+        const seconds = Math.floor(value % 60)
+        return [hours, minutes, seconds].map(part => String(part).padStart(2, '0')).join(':')
       },
       downloadRankCSV () {
-        utils.downloadFile(`contest_rank?download_csv=1&contest_id=${this.$route.params.contestID}&force_refrash=${this.forceUpdate ? '1' : '0'}`)
+        utils.downloadFile(`contest_rank?download_csv=1&contest_id=${this.$route.params.contestID}&force_refresh=${this.forceUpdate ? '1' : '0'}`)
       }
     }
   }
 </script>
 <style scoped lang="less">
   .echarts {
-    margin: 20px auto;
-    height: 400px;
-    width: 98%;
+    height: 320px;
+    width: 100%;
+    border-bottom: 1px solid var(--color-border);
   }
+  .rank-title { color: var(--color-text); font-size: 15px; font-weight: 650; }
+  .rank-settings-row { display: flex; min-height: 52px; align-items: center; gap: 18px; flex-wrap: wrap; margin: 0; padding: 0 16px; border-bottom: 1px solid var(--color-border); box-sizing: border-box; }
+  .rank-setting { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-muted); font-size: 12px; white-space: nowrap; }
+  .rank-download { display: inline-flex; min-height: 32px; align-items: center; gap: 7px; margin-left: auto; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text-muted); font: inherit; font-size: 12px; cursor: pointer; transition: color var(--transition), border-color var(--transition), background-color var(--transition); }
+  .rank-download:hover, .rank-download:focus-visible { border-color: var(--line-strong); background: var(--color-bg-subtle); color: var(--color-text); }
+  .rank-download :deep(.legacy-icon) { display: inline-flex; align-items: center; line-height: 0; }
+  :deep(.el-table) { --el-table-row-hover-bg-color: var(--color-bg-subtle); border-radius: var(--radius-sm); }
+  :deep(.el-table th.el-table__cell) { background: #fcfbf9; color: var(--color-text-muted); font-size: 12px; }
+  :deep(.el-table td.el-table__cell) { padding: 9px 0; }
+  :deep(.el-table__body tr:hover > td.el-table__cell) { background-color: var(--color-bg) !important; }
+  :deep(.el-table__body tr:hover > td.el-table__cell.rank-hover-cell) { background-color: var(--color-bg-subtle) !important; }
+  :deep(.el-table__body tr:hover > td.el-table__cell.first-ac),
+  :deep(.el-table__body tr:hover > td.el-table__cell.ac) { background-color: var(--tag-tools-bg) !important; }
+  :deep(.el-table__body tr:hover > td.el-table__cell.wa) { background-color: var(--tag-research-bg) !important; }
 
-  .screen-full {
-    margin-right: 8px;
-  }
-
-  #switches {
-    p {
-      margin-top: 5px;
-      &:first-child {
-        margin-top: 0;
-      }
-      span {
-        margin-left: 8px;
-      }
-    }
+  @media (max-width: 760px) {
+    .rank-settings-row { gap: 10px 14px; padding: 10px 12px; }
+    .rank-download { width: 100%; justify-content: center; margin-left: 0; }
   }
 </style>

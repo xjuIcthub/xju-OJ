@@ -1,18 +1,19 @@
 <template>
-  <panel shadow>
-    <template #title><div >{{$t('m.ACM_Helper')}}</div></template>
-    <template #extra><div >
-      <ul class="filter">
-        <li>
-          {{$t('m.Auto_Refresh')}} (10s)
-          <i-switch style="margin-left: 5px;" @on-change="handleAutoRefresh"></i-switch>
-        </li>
-        <li>
-          <LegacyButton type="info" @click="getACInfo">{{$t('m.Refresh')}}</LegacyButton>
-        </li>
-      </ul>
-    </div></template>
-    <Table :data="pagedAcInfo" :columns="columns" :loading="loadingTable" disabled-hover></Table>
+  <panel class="acm-helper-panel" shadow>
+    <template #title><div class="helper-title"><Icon type="shield" /><span>{{$t('m.ACM_Helper')}}</span></div></template>
+    <template #extra>
+      <div class="helper-header-actions">
+        <label class="helper-setting">
+          <span>{{$t('m.Auto_Refresh')}} (10s)</span>
+          <i-switch v-model="autoRefresh" @on-change="handleAutoRefresh"></i-switch>
+        </label>
+        <button type="button" class="helper-refresh" :disabled="loadingTable" @click="getACInfo(page)">
+          <Icon type="refresh" :class="{'is-spinning': loadingTable}" />
+          <span>{{$t('m.Refresh')}}</span>
+        </button>
+      </div>
+    </template>
+    <Table class="helper-table" :data="pagedAcInfo" :columns="columns" :loading="loadingTable" disabled-hover></Table>
     <pagination :total="total"
                 :page-size="limit" @update:page-size="limit = $event"
                 :current="page" @update:current="page = $event"
@@ -27,6 +28,7 @@
   import moment from 'moment'
   import Pagination from '@oj/components/Pagination.vue'
   import api from '@oj/api'
+  import { cloneFixtures, MOCK_ACM_HELPER } from '@oj/mocks/fixtures'
 
   export default {
     name: 'acm-helper',
@@ -38,6 +40,8 @@
         page: 1,
         total: 0,
         loadingTable: false,
+        autoRefresh: false,
+        usingMockData: false,
         columns: [
           {
             title: this.$t('m.AC_Time'),
@@ -53,13 +57,9 @@
             align: 'center',
             render: (h, {row}) => {
               if (row.ac_info.is_first_ac) {
-                return h('Tag', {
-                  props: {
-                    color: 'red'
-                  }
-                }, this.$t('m.First_Blood'))
+                return h('span', {class: 'helper-badge is-first'}, this.$t('m.First_Blood'))
               } else {
-                return h('span', '----')
+                return h('span', {class: 'helper-empty'}, '—')
               }
             }
           },
@@ -67,11 +67,8 @@
             title: this.$t('m.Username'),
             align: 'center',
             render: (h, {row}) => {
-              return h('a', {
-                style: {
-                  display: 'inline-block',
-                  'max-width': '150px'
-                },
+              return h('button', {
+                class: 'helper-user-link',
                 on: {
                   click: () => {
                     this.$router.push({
@@ -99,10 +96,8 @@
             title: this.$t('m.Status'),
             align: 'center',
             render: (h, {row}) => {
-              return h('Tag', {
-                props: {
-                  color: row.checked ? 'green' : 'yellow'
-                }
+              return h('span', {
+                class: ['helper-badge', row.checked ? 'is-checked' : 'is-pending']
               }, row.checked ? this.$t('m.Checked') : this.$t('m.Not_Checked'))
             }
           },
@@ -110,27 +105,23 @@
             title: this.$t('m.Option'),
             fixed: 'right',
             align: 'center',
-            width: 100,
+            width: 132,
             render: (h, {row}) => {
-              return h('Button', {
-                props: {
-                  type: 'ghost',
-                  size: 'small',
-                  icon: 'checkmark',
-                  disabled: row.checked
-                },
+              return h('button', {
+                class: ['helper-check-button', {'is-complete': row.checked}],
+                disabled: row.checked,
                 on: {
                   click: () => {
                     this.updateCheckedStatus(row)
                   }
                 }
-              }, this.$t('m.Check_It'))
+              }, [h('Icon', {props: {type: 'check'}}), h('span', row.checked ? this.$t('m.Checked') : this.$t('m.Check_It'))])
             }
           }
         ],
         acInfo: [],
         pagedAcInfo: [],
-        problemsMap: []
+        problemsMap: {}
       }
     },
     mounted () {
@@ -155,21 +146,37 @@
         this.problemsMap = problemsMap
       },
       getACInfo (page = 1) {
+        this.page = Number(page) || 1
         this.loadingTable = true
         let params = {
           contest_id: this.$route.params.contestID
         }
         api.getACMACInfo(params).then(res => {
           this.loadingTable = false
-          let data = res.data.data
+          this.usingMockData = false
+          let data = Array.isArray(res.data.data) ? res.data.data : []
+          if (!data.length && MOCK_ACM_HELPER.length) {
+            this.usingMockData = true
+            data = cloneFixtures(MOCK_ACM_HELPER)
+          }
           this.total = data.length
           this.acInfo = data
-          this.handlePage()
+          this.handlePage(this.page)
         }).catch(() => {
           this.loadingTable = false
+          this.usingMockData = true
+          this.acInfo = cloneFixtures(MOCK_ACM_HELPER)
+          this.total = this.acInfo.length
+          this.handlePage(this.page)
         })
       },
       updateCheckedStatus (row) {
+        if (this.usingMockData) {
+          row.checked = true
+          row.ac_info.checked = true
+          this.$success('Succeeded')
+          return
+        }
         let data = {
           rank_id: row.id,
           contest_id: this.contestID,
@@ -183,16 +190,17 @@
         })
       },
       handleAutoRefresh (value) {
-        if (value) {
+        clearInterval(this.refreshFunc)
+        this.autoRefresh = value === true
+        if (this.autoRefresh) {
           this.refreshFunc = setInterval(() => {
             this.page = 1
             this.getACInfo()
           }, 10000)
-        } else {
-          clearInterval(this.refreshFunc)
         }
       },
       handlePage (page = 1) {
+        this.page = Number(page) || 1
         if (page !== 1) {
           this.loadingTable = true
         }
@@ -230,5 +238,38 @@
   }
 </script>
 <style lang="less" scoped>
+  .helper-title { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text); font-size: 15px; font-weight: 650; }
+  .helper-title :deep(.legacy-icon) { display: inline-flex; align-items: center; line-height: 0; }
+  .acm-helper-panel :deep(.el-card__header) { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .acm-helper-panel :deep(.panel-extra) { min-width: 0; flex: 1; }
+  .helper-header-actions { display: flex; min-height: 40px; align-items: center; justify-content: flex-end; gap: 14px; padding-right: 1px; line-height: normal; }
+  .helper-setting { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-muted); font-size: 12px; }
+  .helper-refresh, :deep(.helper-check-button) { display: inline-flex; min-height: 32px; align-items: center; justify-content: center; gap: 7px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text-muted); font: inherit; font-size: 12px; cursor: pointer; transition: color var(--transition), border-color var(--transition), background-color var(--transition); }
+  .helper-refresh:hover, .helper-refresh:focus-visible, :deep(.helper-check-button:hover:not(:disabled)), :deep(.helper-check-button:focus-visible:not(:disabled)) { border-color: var(--line-strong); background: var(--color-bg-subtle); color: var(--color-text); }
+  .helper-refresh:disabled, :deep(.helper-check-button:disabled) { cursor: default; opacity: .6; }
+  .helper-refresh :deep(.legacy-icon), :deep(.helper-check-button .legacy-icon) { display: inline-flex; align-items: center; line-height: 0; }
+  .helper-refresh .is-spinning { animation: helper-spin 900ms linear infinite; }
+  :deep(.helper-user-link) { appearance: none; max-width: 150px; overflow: hidden; padding: 0; border: 0; background: transparent; color: var(--color-link); font: inherit; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  :deep(.helper-user-link:hover), :deep(.helper-user-link:focus-visible) { text-decoration: underline; text-underline-offset: 3px; }
+  :deep(.helper-badge) { display: inline-flex; min-width: 66px; min-height: 24px; align-items: center; justify-content: center; padding: 0 8px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 650; line-height: 1; }
+  :deep(.helper-badge.is-first) { background: var(--tag-research-bg); color: var(--cat-research); }
+  :deep(.helper-badge.is-checked) { background: var(--tag-tools-bg); color: var(--cat-tools); }
+  :deep(.helper-badge.is-pending) { background: var(--tag-course-bg); color: var(--cat-course); }
+  :deep(.helper-empty) { color: var(--color-text-faint); }
+  :deep(.helper-check-button.is-complete) { border-color: transparent; background: var(--tag-tools-bg); color: var(--cat-tools); }
+  :deep(.helper-check-button) { font-weight: 650; }
+  :deep(.el-table) { --el-table-row-hover-bg-color: var(--color-bg-subtle); border-radius: var(--radius-sm); }
+  :deep(.el-table th.el-table__cell) { background: #fcfbf9; color: var(--color-text-muted); font-size: 12px; }
+  :deep(.el-table td.el-table__cell) { padding: 9px 0; }
 
+  @keyframes helper-spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 620px) {
+    .helper-header-actions { gap: 8px; }
+    .helper-setting > span { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .helper-refresh .is-spinning { animation: none; }
+  }
 </style>

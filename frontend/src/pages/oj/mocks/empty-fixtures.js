@@ -5,6 +5,9 @@ export const MOCK_CONTESTS = []
 export const MOCK_ACM_RANK = []
 export const MOCK_OI_RANK = []
 export const MOCK_SUBMISSIONS = []
+export const MOCK_CONTEST_ACM_RANK = []
+export const MOCK_CONTEST_OI_RANK = []
+export const MOCK_ACM_HELPER = []
 
 export function cloneFixtures (items = []) {
   return items.map(item => JSON.parse(JSON.stringify(item)))
