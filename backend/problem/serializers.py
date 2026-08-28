@@ -235,7 +235,7 @@ class ExportProblemSerializer(serializers.ModelSerializer):
 class AddContestProblemSerializer(serializers.Serializer):
     contest_id = serializers.IntegerField()
     problem_id = serializers.IntegerField()
-    display_id = serializers.CharField()
+    display_id = serializers.CharField(allow_blank=True, required=False, default="")
 
 
 class ExportProblemRequestSerialzier(serializers.Serializer):

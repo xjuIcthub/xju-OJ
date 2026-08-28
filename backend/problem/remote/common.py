@@ -139,11 +139,116 @@ def safe_external_url(value):
     return value.strip() if parsed.scheme in {"http", "https"} else ""
 
 
+def render_residual_markdown_links(value):
+    content = str(value or "")
+
+    def linked_image(match):
+        image_url = safe_external_url(match.group(2))
+        link_url = safe_external_url(match.group(3))
+        if not image_url or not link_url:
+            return match.group(0)
+        return (
+            f'<a href="{html.escape(link_url, quote=True)}" target="_blank" rel="noopener noreferrer">'
+            f'<img src="{html.escape(image_url, quote=True)}" '
+            f'alt="{html.escape(match.group(1), quote=True)}" loading="lazy"></a>'
+        )
+
+    def image(match):
+        image_url = safe_external_url(match.group(2))
+        if not image_url:
+            return match.group(0)
+        return (
+            f'<img src="{html.escape(image_url, quote=True)}" '
+            f'alt="{html.escape(match.group(1), quote=True)}" loading="lazy">'
+        )
+
+    def link(match):
+        link_url = safe_external_url(match.group(2))
+        if not link_url:
+            return match.group(0)
+        return (
+            f'<a href="{html.escape(link_url, quote=True)}" target="_blank" '
+            f'rel="noopener noreferrer">{html.escape(match.group(1))}</a>'
+        )
+
+    def convert_text(fragment):
+        fragment = re.sub(
+            r"\[!\[([^\]]*)\]\((https?://[^\s)]+)\)\]\((https?://[^\s)]+)\)",
+            linked_image,
+            fragment,
+        )
+        fragment = re.sub(r"!\[([^\]]*)\]\((https?://[^\s)]+)\)", image, fragment)
+        return re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", link, fragment)
+
+    parts = re.split(r"(<[^>]+>)", content)
+    protected_depth = 0
+    rendered = []
+    for part in parts:
+        tag = re.match(r"<\s*(/?)\s*(a|code|pre)\b", part, re.I)
+        if tag:
+            if tag.group(1):
+                protected_depth = max(0, protected_depth - 1)
+            elif not part.rstrip().endswith("/>"):
+                protected_depth += 1
+            rendered.append(part)
+        else:
+            rendered.append(part if protected_depth else convert_text(part))
+    return "".join(rendered)
+
+
 def _render_markdown_inline(value):
-    escaped = html.escape(value)
-    escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
+    tokens = []
+
+    def store(markup):
+        token = f"REMOTEINLINEPLACEHOLDER{len(tokens)}X"
+        tokens.append((token, markup))
+        return token
+
+    def external_link(label, url):
+        safe_url = safe_external_url(url)
+        if not safe_url:
+            return html.escape(label)
+        return (
+            f'<a href="{html.escape(safe_url, quote=True)}" target="_blank" '
+            f'rel="noopener noreferrer">{label}</a>'
+        )
+
+    content = str(value or "")
+    content = re.sub(
+        r"\[!\[([^\]]*)\]\((https?://[^\s)]+)\)\]\((https?://[^\s)]+)\)",
+        lambda match: store(external_link(
+            f'<img src="{html.escape(match.group(2), quote=True)}" '
+            f'alt="{html.escape(match.group(1), quote=True)}" loading="lazy">',
+            match.group(3),
+        )),
+        content,
+    )
+    content = re.sub(
+        r"!\[([^\]]*)\]\((https?://[^\s)]+)\)",
+        lambda match: store(
+            f'<img src="{html.escape(match.group(2), quote=True)}" '
+            f'alt="{html.escape(match.group(1), quote=True)}" loading="lazy">'
+        ),
+        content,
+    )
+    content = re.sub(
+        r"\[([^\]]+)\]\((https?://[^\s)]+)\)",
+        lambda match: store(external_link(html.escape(match.group(1)), match.group(2))),
+        content,
+    )
+    content = re.sub(
+        r"`([^`]+)`",
+        lambda match: store(f"<code>{html.escape(match.group(1))}</code>"),
+        content,
+    )
+
+    escaped = html.escape(content)
     escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
     escaped = re.sub(r"__([^_]+)__", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"~~([^~]+)~~", r"<s>\1</s>", escaped)
+    escaped = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", escaped)
+    for token, markup in tokens:
+        escaped = escaped.replace(token, markup)
     return escaped
 
 
@@ -153,6 +258,12 @@ def markdown_to_html(value):
     paragraph = []
     list_tag = None
     code_lines = None
+    code_language = ""
+
+    def render_code_block():
+        language = re.sub(r"[^A-Za-z0-9_+-]", "", code_language)
+        class_name = f' class="language-{language}"' if language else ""
+        return f"<pre><code{class_name}>" + html.escape("\n".join(code_lines)) + "</code></pre>"
 
     def close_paragraph():
         if paragraph:
@@ -168,8 +279,9 @@ def markdown_to_html(value):
     for line in lines:
         if code_lines is not None:
             if line.strip().startswith("```"):
-                output.append("<pre><code>" + html.escape("\n".join(code_lines)) + "</code></pre>")
+                output.append(render_code_block())
                 code_lines = None
+                code_language = ""
             else:
                 code_lines.append(line)
             continue
@@ -177,6 +289,7 @@ def markdown_to_html(value):
             close_paragraph()
             close_list()
             code_lines = []
+            code_language = line.strip()[3:].strip()
             continue
         if not line.strip():
             close_paragraph()
@@ -215,7 +328,7 @@ def markdown_to_html(value):
         paragraph.append(line)
 
     if code_lines is not None:
-        output.append("<pre><code>" + html.escape("\n".join(code_lines)) + "</code></pre>")
+        output.append(render_code_block())
     close_paragraph()
     close_list()
     return "".join(output).strip()

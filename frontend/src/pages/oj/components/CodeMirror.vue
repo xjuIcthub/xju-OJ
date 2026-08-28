@@ -1,5 +1,5 @@
 <template>
-  <div class="code-editor-shell">
+  <div class="code-editor-shell" @mousedown="focusFromShell">
     <div class="editor-toolbar">
       <div class="editor-toolbar-group">
         <span class="toolbar-label">{{$t('m.Language')}}:</span>
@@ -51,7 +51,12 @@
       onEditorCodeChange (value) { this.$emit('update:value', value); this.$emit('input', value) },
       onLangChange (value) { this.$emit('changeLang', value) }, onThemeChange (value) { this.$emit('changeTheme', value) },
       onResetClick () { this.$emit('resetCode') }, onUploadFile () { this.$refs.fileUploader?.click() },
-      onUploadFileDone (event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { this.$refs.myEditor.setValue(e.target.result); event.target.value = '' }; reader.readAsText(file, 'UTF-8') }
+      onUploadFileDone (event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { this.$refs.myEditor.setValue(e.target.result); event.target.value = '' }; reader.readAsText(file, 'UTF-8') },
+      focus () { this.$refs.myEditor?.focus() },
+      focusFromShell (event) {
+        if (event.target.closest('button, input, select, textarea, [role="button"], .el-select, .ivu-select')) return
+        window.requestAnimationFrame(() => this.focus())
+      }
     }
   }
 </script>

@@ -150,6 +150,82 @@ class SubmissionAPITest(SubmissionPrepare):
         self.assertEqual(self.problem.accepted_number, 1)
         self.assertEqual(self.user.userprofile.submission_number, 1)
 
+        for stale_status in (
+                RemoteSubmissionStatus.SUBMITTED,
+                RemoteSubmissionStatus.JUDGING,
+                RemoteSubmissionStatus.FINISHED):
+            duplicate = self.client.post(event_url, {
+                "submission_id": submission_id,
+                "provider": RemoteOJ.CODEFORCES,
+                "status": stale_status,
+                "remote_submission_id": "10001",
+                "remote_url": "https://codeforces.com/contest/4/submission/10001",
+                "verdict": "OK" if stale_status == RemoteSubmissionStatus.FINISHED else "",
+            })
+            self.assertSuccess(duplicate)
+
+        submission.refresh_from_db()
+        self.problem.refresh_from_db()
+        self.user.userprofile.refresh_from_db()
+        self.assertEqual(submission.result, JudgeStatus.ACCEPTED)
+        self.assertEqual(submission.remote_status, RemoteSubmissionStatus.FINISHED)
+        self.assertEqual(self.problem.submission_number, 1)
+        self.assertEqual(self.problem.accepted_number, 1)
+        self.assertEqual(self.user.userprofile.submission_number, 1)
+
+    def test_remote_submission_ignores_backward_progress_event(self, judge_task):
+        self._configure_remote_problem()
+        create = self.client.post(self.url, self.submission_data)
+        self.assertSuccess(create)
+        submission_id = create.data["data"]["submission_id"]
+        event_url = self.reverse("remote_submission_event_api")
+
+        for status in (
+                RemoteSubmissionStatus.OPENING,
+                RemoteSubmissionStatus.SUBMITTED,
+                RemoteSubmissionStatus.JUDGING):
+            response = self.client.post(event_url, {
+                "submission_id": submission_id,
+                "provider": RemoteOJ.CODEFORCES,
+                "status": status,
+                "remote_submission_id": "10002" if status != RemoteSubmissionStatus.OPENING else "",
+            })
+            self.assertSuccess(response)
+
+        stale = self.client.post(event_url, {
+            "submission_id": submission_id,
+            "provider": RemoteOJ.CODEFORCES,
+            "status": RemoteSubmissionStatus.SUBMITTED,
+            "remote_submission_id": "10002",
+        })
+        self.assertSuccess(stale)
+        submission = Submission.objects.get(id=submission_id)
+        self.assertEqual(submission.remote_status, RemoteSubmissionStatus.JUDGING)
+        self.assertEqual(submission.result, JudgeStatus.JUDGING)
+
+    def test_remote_judging_can_request_authentication(self, judge_task):
+        self._configure_remote_problem()
+        create = self.client.post(self.url, self.submission_data)
+        self.assertSuccess(create)
+        submission_id = create.data["data"]["submission_id"]
+        event_url = self.reverse("remote_submission_event_api")
+
+        for status in (
+                RemoteSubmissionStatus.SUBMITTED,
+                RemoteSubmissionStatus.JUDGING,
+                RemoteSubmissionStatus.AUTH_REQUIRED):
+            response = self.client.post(event_url, {
+                "submission_id": submission_id,
+                "provider": RemoteOJ.CODEFORCES,
+                "status": status,
+                "remote_submission_id": "10003",
+            })
+            self.assertSuccess(response)
+
+        submission = Submission.objects.get(id=submission_id)
+        self.assertEqual(submission.remote_status, RemoteSubmissionStatus.AUTH_REQUIRED)
+        self.assertEqual(submission.result, JudgeStatus.PENDING)
+
 
 class RemoteVerdictMappingTest(APITestCase):
     def test_common_remote_verdicts(self):

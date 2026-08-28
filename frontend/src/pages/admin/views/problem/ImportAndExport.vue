@@ -54,6 +54,22 @@
         </el-pagination>
       </div>
     </panel>
+    <panel title="Import External OJ Problems">
+      <div class="remote-import-grid">
+        <article v-for="provider in remoteProviders"
+                 :key="provider.value"
+                 :class="['remote-import-card', `provider-${provider.value.toLowerCase()}`]">
+          <div class="remote-card-heading">
+            <span>{{ provider.short }}</span>
+            <div><strong>{{ provider.name }}</strong><small>{{ provider.description }}</small></div>
+          </div>
+          <el-input v-model="remoteImports[provider.value]" :placeholder="provider.placeholder"></el-input>
+          <el-button type="primary"
+                     :loading="remoteImportLoading[provider.value]"
+                     @click="importRemoteProblem(provider.value)">Import {{ provider.name }}</el-button>
+        </article>
+      </div>
+    </panel>
     <panel title="Import QDUOJ Problems (beta)">
       <el-upload class="import-upload"
         ref="QDU"
@@ -94,6 +110,13 @@
 <script>
   import api from '@admin/api'
   import utils from '@/utils/utils'
+  import { collectCodeforcesProblemPage, supportsRemoteProblemImport } from '../../remoteBridge'
+
+  const remoteProviders = [
+    { value: 'NOWCODER', short: 'NC', name: '牛客', description: '导入公开编程题并绑定牛客远程判题', placeholder: 'NC322024 或 ACM 题目链接' },
+    { value: 'LUOGU', short: 'LG', name: '洛谷', description: '导入洛谷公开题面与样例', placeholder: 'P1001 或洛谷题目链接' },
+    { value: 'CODEFORCES', short: 'CF', name: 'Codeforces', description: '通过远程助手读取 Codeforces 题面', placeholder: '4A 或 Codeforces 题目链接' }
+  ]
 
   export default {
     name: 'import_and_export',
@@ -106,6 +129,9 @@
         total: 0,
         loadingProblems: false,
         loadingImporting: false,
+        remoteProviders,
+        remoteImports: { NOWCODER: '', LUOGU: '', CODEFORCES: '' },
+        remoteImportLoading: { NOWCODER: false, LUOGU: false, CODEFORCES: false },
         keyword: '',
         problems: [],
         selected_problems: []
@@ -138,6 +164,36 @@
         }
         let url = '/admin/export_problem?' + params.join('&')
         utils.downloadFile(url)
+      },
+      async importRemoteProblem (provider) {
+        const reference = this.remoteImports[provider].trim()
+        if (!reference) {
+          this.$error('请输入外部题号或链接')
+          return
+        }
+        this.remoteImportLoading[provider] = true
+        try {
+          let pageHtml = ''
+          if (provider === 'CODEFORCES') {
+            if (!supportsRemoteProblemImport()) throw new Error('Codeforces 导题需要最新版远程提交助手')
+            pageHtml = await collectCodeforcesProblemPage(reference)
+          }
+          await api.importRemoteProblem({
+            provider,
+            remote_id: reference,
+            display_id: '',
+            contest_id: null,
+            public_display_id: '',
+            page_html: pageHtml
+          })
+          this.remoteImports[provider] = ''
+          this.$success('外部题目导入成功')
+          this.getProblems(1)
+        } catch (error) {
+          this.$error(error.message || '外部题目导入失败')
+        } finally {
+          this.remoteImportLoading[provider] = false
+        }
       },
       submitUpload (ref) {
         this.$refs[ref].submit()
@@ -179,4 +235,16 @@
     flex: 0 0 100%;
     margin: 4px 0 0;
   }
+  .remote-import-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .remote-import-card { display: flex; min-width: 0; min-height: 214px; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+  .remote-card-heading { display: flex; align-items: center; gap: 11px; }
+  .remote-card-heading > span { display: inline-grid; width: 38px; height: 38px; flex: none; place-items: center; border-radius: var(--radius-sm); background: var(--color-bg-subtle); color: var(--color-text); font-size: 12px; font-weight: 750; }
+  .remote-card-heading strong, .remote-card-heading small { display: block; }
+  .remote-card-heading strong { color: var(--color-text); font-size: 15px; }
+  .remote-card-heading small { margin-top: 3px; color: var(--color-text-muted); font-size: 11px; line-height: 1.45; }
+  .remote-import-card > .el-button { width: 100%; margin-top: auto; }
+  .provider-nowcoder .remote-card-heading > span { background: var(--tag-course-bg); color: var(--cat-course); }
+  .provider-luogu .remote-card-heading > span { background: var(--tag-tools-bg); color: var(--cat-tools); }
+  .provider-codeforces .remote-card-heading > span { background: var(--tag-kaggle-bg); color: var(--cat-kaggle); }
+  @media (max-width: 1000px) { .remote-import-grid { grid-template-columns: 1fr; } }
 </style>

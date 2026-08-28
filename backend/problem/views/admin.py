@@ -36,6 +36,26 @@ from ..serializers import (CreateContestProblemSerializer, CompileSPJSerializer,
 from ..utils import TEMPLATE_BASE, build_problem_template
 
 
+def _alphabetic_display_id(index):
+    value = index + 1
+    label = ""
+    while value > 0:
+        value -= 1
+        label = chr(ord("A") + value % 26) + label
+        value //= 26
+    return label
+
+
+def _next_contest_display_id(contest):
+    used = set(Problem.objects.filter(contest=contest).values_list("_id", flat=True))
+    index = 0
+    while True:
+        candidate = _alphabetic_display_id(index)
+        if candidate not in used:
+            return candidate
+        index += 1
+
+
 class TestCaseZipProcessor(object):
     def process_zip(self, uploaded_zip_file, spj, dir=""):
         try:
@@ -341,7 +361,7 @@ class RemoteProblemImportAPI(APIView):
             if contest.rule_type != ProblemRuleType.ACM:
                 return self.error("Remote problems only support ACM contests")
             if not data["display_id"]:
-                return self.error("Contest display ID is required")
+                data["display_id"] = _next_contest_display_id(contest)
             if Problem.objects.filter(contest=contest, _id=data["display_id"]).exists():
                 return self.error("Duplicate display id in this contest")
             if Problem.objects.filter(
@@ -442,9 +462,8 @@ class ContestProblemAPI(ProblemBase):
         if data["rule_type"] != contest.rule_type:
             return self.error("Invalid rule type")
 
-        _id = data["_id"]
-        if not _id:
-            return self.error("Display ID is required")
+        _id = data["_id"] or _next_contest_display_id(contest)
+        data["_id"] = _id
 
         if Problem.objects.filter(_id=_id, contest=contest).exists():
             return self.error("Duplicate Display id")
@@ -486,7 +505,7 @@ class ContestProblemAPI(ProblemBase):
             ensure_created_by(contest, user)
         except Contest.DoesNotExist:
             return self.error("Contest does not exist")
-        problems = Problem.objects.filter(contest=contest).order_by("-create_time")
+        problems = Problem.objects.filter(contest=contest).order_by("_id")
         if user.is_admin():
             problems = problems.filter(contest__created_by=user)
         keyword = request.GET.get("keyword")
@@ -611,7 +630,8 @@ class AddContestProblemAPI(APIView):
 
         if contest.status == ContestStatus.CONTEST_ENDED:
             return self.error("Contest has ended")
-        if Problem.objects.filter(contest=contest, _id=data["display_id"]).exists():
+        display_id = data["display_id"] or _next_contest_display_id(contest)
+        if Problem.objects.filter(contest=contest, _id=display_id).exists():
             return self.error("Duplicate display id in this contest")
 
         tags = problem.tags.all()
@@ -619,7 +639,7 @@ class AddContestProblemAPI(APIView):
         problem.contest = contest
         problem.is_public = True
         problem.visible = True
-        problem._id = request.data["display_id"]
+        problem._id = display_id
         problem.submission_number = problem.accepted_number = 0
         problem.statistic_info = {}
         problem.publish_after_contest = False

@@ -27,6 +27,37 @@ class NowcoderProblemError(RemoteProblemError):
     pass
 
 
+_NOWCODER_MATH_PATTERNS = (
+    re.compile(r"\$\$.*?\$\$|\$[^$]+\$|\\\(.*?\\\)|\\\[.*?\\\]", re.S),
+    re.compile(r"\\displaystyle.+$", re.S),
+    re.compile(r"\b[A-Za-z](?:\s*,\s*[A-Za-z])?\\left.*?\\right", re.S),
+    re.compile(r"\b[A-Za-z](?:_[A-Za-z0-9]+)?\s*(?:=|\\in)\s*\\\{.*?\\\}", re.S),
+    re.compile(r"\b[A-Za-z](?:_[A-Za-z0-9]+)?\s*\\equiv\s*.*?\\pmod\{.*?\}", re.S),
+    re.compile(r"\\equiv\^\{\\texttt\{\[[^\]]+\]\}\}"),
+)
+
+
+def _normalize_nowcoder_math_text(value):
+    text = re.sub(r"\\hspace\{[^}]+\}", " ", str(value or ""))
+    text = re.sub(r"\\bullet(?:\\,)?\s*", "• ", text)
+    math_parts = []
+
+    def protect(match):
+        token = f"NOWCODERMATHPLACEHOLDER{len(math_parts)}X"
+        expression = match.group(0).strip()
+        if expression.startswith(("$", r"\(", r"\[")):
+            math_parts.append(expression)
+        else:
+            math_parts.append(r"\(" + expression + r"\)")
+        return token
+
+    for pattern in _NOWCODER_MATH_PATTERNS:
+        text = pattern.sub(protect, text)
+    for index, expression in enumerate(math_parts):
+        text = text.replace(f"NOWCODERMATHPLACEHOLDER{index}X", expression)
+    return text
+
+
 class _SafeRichTextParser(HTMLParser):
     allowed_tags = {
         "p", "br", "pre", "code", "strong", "b", "em", "i",
@@ -77,7 +108,7 @@ class _SafeRichTextParser(HTMLParser):
 
     def handle_data(self, data):
         if not self.blocked_depth:
-            self.parts.append(html.escape(data))
+            self.parts.append(html.escape(_normalize_nowcoder_math_text(data)))
 
     def result(self):
         while self.open_tags:

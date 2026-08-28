@@ -17,7 +17,7 @@ const getHighlighter = () => highlighterPromise || (highlighterPromise = Promise
 const render = async (el, binding) => {
   const hljs = await getHighlighter()
   if (!el.isConnected) return
-  Array.from(el.querySelectorAll('code')).forEach(target => {
+  Array.from(el.querySelectorAll('pre code')).forEach(target => {
     if (binding.value) target.textContent = binding.value
     hljs.highlightElement(target)
   })

@@ -5,12 +5,15 @@ const root = path.join(__dirname, '..')
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const exact = {
   vue: '3.5.41', 'vue-router': '5.2.0', 'vue-i18n': '11.4.8', 'element-plus': '2.14.4',
-  pinia: '4.0.3', vite: '8.2.1', '@tiptap/vue-3': '3.30.3', '@tiptap/extension-table': '3.30.3',
-  '@tiptap/extension-color': '3.30.3', '@tiptap/extension-text-align': '3.30.3', '@codemirror/state': '6.7.1'
+  pinia: '4.0.3', vite: '8.2.1', 'markdown-it': '15.0.0', turndown: '7.2.4',
+  'turndown-plugin-gfm': '1.0.2', '@codemirror/state': '6.7.1'
 }
 for (const [name, version] of Object.entries(exact)) assert.strictEqual(pkg.dependencies[name] || pkg.devDependencies[name], version)
 for (const name of ['vuex', 'element-ui', 'iview', '@vue/compat', 'vue-codemirror-lite', 'tar-simditor', 'webpack']) {
   assert.ok(!pkg.dependencies[name] && !pkg.devDependencies[name], `${name} remains declared`)
+}
+for (const name of ['@tiptap/vue-3', '@tiptap/starter-kit', '@tiptap/extension-table']) {
+  assert.ok(!pkg.dependencies[name] && !pkg.devDependencies[name], `${name} remains declared after the Markdown editor migration`)
 }
 const files = []
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).forEach(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : /\.(js|vue|mjs)$/.test(entry.name) && files.push(path.join(dir, entry.name)))
@@ -42,6 +45,8 @@ const adminRouter = fs.readFileSync(path.join(root, 'src/pages/admin/router.js')
 const adminIconButton = fs.readFileSync(path.join(root, 'src/pages/admin/components/btn/IconBtn.vue'), 'utf8')
 const adminDashboard = fs.readFileSync(path.join(root, 'src/pages/admin/views/general/Dashboard.vue'), 'utf8')
 const richEditor = fs.readFileSync(path.join(root, 'src/shared/editors/RichTextEditorAdapter.vue'), 'utf8')
+const contestEditor = fs.readFileSync(path.join(root, 'src/pages/admin/views/contest/Contest.vue'), 'utf8')
+const contestProblemComposer = fs.readFileSync(path.join(root, 'src/pages/admin/views/contest/ContestProblemComposer.vue'), 'utf8')
 const settings = fs.readFileSync(path.join(root, 'src/pages/oj/views/setting/Settings.vue'), 'utf8')
 const securitySetting = fs.readFileSync(path.join(root, 'src/pages/oj/views/setting/children/SecuritySetting.vue'), 'utf8')
 const codeMirror = fs.readFileSync(path.join(root, 'src/pages/oj/components/CodeMirror.vue'), 'utf8')
@@ -58,10 +63,14 @@ assert.ok(!adminMenu.includes('index="/conf"') && !adminRouter.includes("path: '
 assert.ok(adminRouter.includes("const Problem = () => import('./views/problem/Problem.vue')") && adminRouter.includes("const Dashboard = () => import('./views/general/Dashboard.vue')"), 'admin routes must remain lazy so editor bundles do not delay the dashboard')
 assert.ok(adminIconButton.includes('<Icon :type="icon" />') && adminIconButton.includes('background: transparent'), 'admin table operations must use transparent Lucide icon buttons')
 assert.ok(adminDashboard.includes('XJU-OJ Release Notes') && adminDashboard.includes('Version 0.2.0'), 'admin release notes must describe XJU-OJ iterations')
-assert.ok(richEditor.includes('border: 1px solid transparent') && richEditor.includes('background: transparent'), 'rich text toolbar controls must use transparent button chrome')
+assert.ok(richEditor.includes('markdown-editor-toolbar') && richEditor.includes('background: transparent'), 'Markdown toolbar controls must use transparent button chrome')
+assert.ok(richEditor.includes("markdownIt({") && richEditor.includes("setMode('preview')") && richEditor.includes("wrapSelection('$', '$', 'a+b')"), 'admin text fields must provide Markdown raw/preview editing with inline formulas')
+assert.ok(contestEditor.includes('<ContestProblemComposer') && !contestEditor.includes('Contest_Allowed_IP_Ranges'), 'contest creation must use the problem composer and omit allowed IP controls')
+assert.ok(contestProblemComposer.includes('draggable="true"') && contestProblemComposer.includes('indexToLabel') && contestProblemComposer.includes('addProblemFromPublic') && contestProblemComposer.includes('importRemoteProblem'), 'contest problem composer must support ordering, indexing, and remote imports')
 assert.ok(!settings.includes("name=\"/setting/account\""), 'account settings must not be exposed in the profile menu')
 assert.ok(securitySetting.includes('session-current-pill') && securitySetting.includes('border-radius: 9999px'), 'security current state must use the Feiyue pill')
 assert.ok(codeMirror.includes("label: 'Monokai'") && codeMirror.includes("label: 'Solarized Light'") && codeMirror.includes("label: 'Material'"), 'code theme labels must remain in English')
+assert.ok(codeMirror.includes('@mousedown="focusFromShell"') && codeMirror.includes('focusFromShell'), 'clicking the code editor shell must focus CodeMirror')
 assert.ok(submissionDetails.includes('judge-status-badge') && submissionDetails.includes('copy-code-button'), 'submission details must use Feiyue status pills and expose code copy')
 assert.ok(highlight.includes('languageClass') && highlightPlugin.includes('solarized-light.css'), 'submitted code must use normalized languages and Solarized highlighting')
 assert.ok(problemDetail.includes('judge-status-badge') && problemDetail.includes('submissionStatusLabel'), 'problem submission feedback must use Feiyue status pills')

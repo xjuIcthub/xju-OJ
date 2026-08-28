@@ -58,14 +58,28 @@ _ALLOWED_TRANSITIONS = {
         RemoteSubmissionStatus.FAILED,
     },
     RemoteSubmissionStatus.SUBMITTED: {
+        RemoteSubmissionStatus.AUTH_REQUIRED,
+        RemoteSubmissionStatus.VERIFICATION_REQUIRED,
         RemoteSubmissionStatus.JUDGING,
         RemoteSubmissionStatus.FINISHED,
         RemoteSubmissionStatus.FAILED,
     },
     RemoteSubmissionStatus.JUDGING: {
+        RemoteSubmissionStatus.AUTH_REQUIRED,
+        RemoteSubmissionStatus.VERIFICATION_REQUIRED,
         RemoteSubmissionStatus.FINISHED,
         RemoteSubmissionStatus.FAILED,
     },
+}
+
+
+_PROGRESS_RANK = {
+    RemoteSubmissionStatus.QUEUED: 0,
+    RemoteSubmissionStatus.OPENING: 1,
+    RemoteSubmissionStatus.SUBMITTED: 2,
+    RemoteSubmissionStatus.JUDGING: 3,
+    RemoteSubmissionStatus.FINISHED: 4,
+    RemoteSubmissionStatus.FAILED: 4,
 }
 
 
@@ -170,11 +184,16 @@ def map_remote_verdict(verdict):
 
 def _check_transition(current, target):
     if current == target:
-        return
+        return True
     if current in RemoteSubmissionStatus.TERMINAL:
-        raise RemoteSubmissionError("Remote submission has already finished")
+        return False
     if target not in _ALLOWED_TRANSITIONS.get(current, set()):
+        current_rank = _PROGRESS_RANK.get(current)
+        target_rank = _PROGRESS_RANK.get(target)
+        if current_rank is not None and target_rank is not None and target_rank <= current_rank:
+            return False
         raise RemoteSubmissionError(f"Invalid remote submission transition: {current} -> {target}")
+    return True
 
 
 def _event_data(data):
@@ -205,7 +224,8 @@ def apply_remote_submission_event(user, data):
         raise RemoteSubmissionError("Remote provider does not match the submission")
 
     target = data["status"]
-    _check_transition(submission.remote_status, target)
+    if not _check_transition(submission.remote_status, target):
+        return submission
     if submission.remote_status == target and target in RemoteSubmissionStatus.TERMINAL:
         return submission
 

@@ -80,6 +80,10 @@ function makeDomParser () {
   return class FakeDOMParser {
     parseFromString (html) {
       if (html === 'CF_PROBLEM') return codeforcesProblemDocument()
+      if (html === 'CF_CHALLENGE') return {
+        ...emptyDocument(),
+        title: 'Just a moment...'
+      }
       if (html === 'LUOGU_PROBLEM') return luoguProblemDocument()
       return emptyDocument()
     }
@@ -232,20 +236,33 @@ async function runScenario (provider, mode = 'success') {
       }
       if (url.includes('/record/789')) {
         if (mode === 'auth') {
-          return jsonResponse({ currentTemplate: 'AuthLogin', currentData: {} })
+          return jsonResponse({ instance: 'auth', template: 'login', status: 200, data: {}, user: null })
         }
         if (mode === 'verification') {
           return { status: 200, responseText: '<html>browser verification</html>', finalUrl: url }
         }
         return jsonResponse({
-          currentTemplate: 'RecordShow',
-          currentData: { record: { status: 12, time: 1, memory: 1, score: 100 } }
+          instance: 'record',
+          template: 'record.show',
+          status: 200,
+          data: {
+            record: {
+              id: 789,
+              status: { code: 12, name: 'Accepted' },
+              time: 1,
+              memory: 1,
+              score: 100
+            }
+          },
+          user: { uid: 1 }
         })
       }
     }
     if (provider === 'CODEFORCES') {
       if (request.method === 'GET' && url.includes('/problemset/problem/4/A')) {
-        return { status: 200, responseText: 'CF_PROBLEM', finalUrl: url }
+        return mode === 'verification'
+          ? { status: 403, responseText: 'CF_CHALLENGE', finalUrl: url }
+          : { status: 200, responseText: 'CF_PROBLEM', finalUrl: url }
       }
       if (url.includes('/api/user.status')) {
         codeforcesApiCalls += 1
@@ -290,7 +307,7 @@ async function runScenario (provider, mode = 'success') {
       observe () {}
       disconnect () {}
     },
-    GM_info: { script: { version: '0.6.0' } },
+    GM_info: { script: { version: '0.6.1' } },
     GM_getValue: (key, fallback) => storage.has(key) ? storage.get(key) : fallback,
     GM_setValue: (key, value) => {
       const previous = storage.get(key)
@@ -304,7 +321,7 @@ async function runScenario (provider, mode = 'success') {
       valueListeners.set(key, handlers)
       return handlers.length
     },
-    GM_openInTab: url => openedTabs.push(url),
+    GM_openInTab: (url, options = {}) => openedTabs.push({ url, options }),
     GM_registerMenuCommand: () => {},
     GM_xmlhttpRequest: request => queueMicrotask(() => {
       try {
@@ -358,6 +375,11 @@ async function runScenario (provider, mode = 'success') {
   const luoguVerification = await runScenario('LUOGU', 'verification')
   assert.equal(luoguVerification.openedTabs.length, 1)
   assert.ok(luoguVerification.backendEvents.some(event => event.status === 'VERIFICATION_REQUIRED'))
+
+  const codeforcesVerification = await runScenario('CODEFORCES', 'verification')
+  assert.equal(codeforcesVerification.openedTabs.length, 1)
+  assert.equal(codeforcesVerification.openedTabs[0].options.active, false)
+  assert.ok(codeforcesVerification.backendEvents.some(event => event.status === 'VERIFICATION_REQUIRED'))
 
   console.log('remote bridge runtime passed')
 })().catch(error => {

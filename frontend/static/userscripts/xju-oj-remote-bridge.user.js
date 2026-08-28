@@ -3,7 +3,7 @@
 // @name:zh-CN   XJU-OJ 远程提交助手
 // @name:en      XJU-OJ Remote Submission Bridge
 // @namespace    https://oj.icthub.top/
-// @version      0.6.0
+// @version      0.6.1
 // @description  在用户自己的洛谷、牛客和 Codeforces 登录会话中转发 XJU-OJ 练习提交。
 // @description:en Forward XJU-OJ practice submissions through the user's own Luogu, Nowcoder, and Codeforces sessions.
 // @author       XJU-OJ
@@ -227,7 +227,14 @@
     task.action_tab = { status, opened_at: now }
     saveTask(task)
     publishBridgeEvent(task, status, { message, ...details })
-    GM_openInTab(task.target_url, { active: true, insert: true, setParent: true })
+    const backgroundCloudflare = task.provider === 'CODEFORCES' &&
+      status === 'VERIFICATION_REQUIRED' &&
+      details.verification_source === 'codeforces-cloudflare'
+    GM_openInTab(task.target_url, {
+      active: !backgroundCloudflare,
+      insert: true,
+      setParent: true
+    })
   }
 
   function codeforcesImportTarget (reference) {
@@ -317,8 +324,11 @@
     const title = String(root.title || '').toLowerCase()
     const source = String(html || '').toLowerCase()
     return title.includes('just a moment') ||
-      Boolean(root.querySelector('[id^="challenge-"], #challenge-form, iframe[src*="challenges.cloudflare.com"]')) ||
-      source.includes('cf-chl-') || source.includes('challenge-platform') || source.includes('challenges.cloudflare.com')
+      Boolean(root.querySelector(
+        '[id^="challenge-"], #challenge-form, form[action*="/cdn-cgi/challenge"], ' +
+        'iframe[src*="challenges.cloudflare.com"]'
+      )) ||
+      source.includes('window._cf_chl_opt') || source.includes('cf-chl-')
   }
 
   function codeforcesHandle (root = document, pathname = window.location.pathname) {
@@ -650,10 +660,18 @@
   }
 
   function codeforcesVerificationVisible (root, html = '') {
-    const source = String(html || '').toLowerCase()
-    return codeforcesChallengeVisible(root, source) ||
-      Boolean(root.querySelector('.g-recaptcha, [data-sitekey], iframe[src*="recaptcha"], iframe[src*="turnstile"]')) ||
-      source.includes('captcha') && source.includes('verify')
+    return codeforcesChallengeVisible(root, html) || Boolean(root.querySelector(
+      '#challenge-form iframe[src*="recaptcha"], #challenge-form iframe[src*="turnstile"], ' +
+      'form[action*="/cdn-cgi/challenge"] iframe'
+    ))
+  }
+
+  function codeforcesCaptchaMessage (root) {
+    const error = root.querySelector('.error[for], .alert-danger, .notice.error')
+    const message = String((error && error.textContent) || '').trim()
+    return /captcha|verification|verify|robot|human|验证码|人机|验证/i.test(message)
+      ? message
+      : ''
   }
 
   async function submitCodeforcesFromOj (task) {
@@ -718,6 +736,16 @@
     }
     if (submitResponse.status < 200 || submitResponse.status >= 300) {
       throw new Error(`Codeforces 提交接口返回 HTTP ${submitResponse.status}`)
+    }
+    const captchaMessage = codeforcesCaptchaMessage(submitPage)
+    if (captchaMessage) {
+      openProviderActionTab(
+        task,
+        'VERIFICATION_REQUIRED',
+        captchaMessage,
+        { verification_source: 'codeforces-submit' }
+      )
+      return
     }
     const formError = submitPage.querySelector('.error[for], .alert-danger, .notice.error')
     if (formError && String(formError.textContent || '').trim()) {
@@ -1121,10 +1149,40 @@
     5: 'TIME_LIMIT_EXCEEDED',
     6: 'WRONG_ANSWER',
     7: 'RUNTIME_ERROR',
+    8: 'SYSTEM_ERROR',
     11: 'SYSTEM_ERROR',
     12: 'ACCEPTED',
+    13: 'PARTIALLY_ACCEPTED',
     14: 'PARTIALLY_ACCEPTED',
     21: 'ACCEPTED'
+  }
+
+  const LUOGU_VERDICT_ALIASES = {
+    OK: 'ACCEPTED',
+    AC: 'ACCEPTED',
+    ACCEPTED: 'ACCEPTED',
+    COMPILE_ERROR: 'COMPILE_ERROR',
+    COMPILATION_ERROR: 'COMPILE_ERROR',
+    CE: 'COMPILE_ERROR',
+    OUTPUT_LIMIT_EXCEEDED: 'OUTPUT_LIMIT_EXCEEDED',
+    OLE: 'OUTPUT_LIMIT_EXCEEDED',
+    MEMORY_LIMIT_EXCEEDED: 'MEMORY_LIMIT_EXCEEDED',
+    MLE: 'MEMORY_LIMIT_EXCEEDED',
+    TIME_LIMIT_EXCEEDED: 'TIME_LIMIT_EXCEEDED',
+    TLE: 'TIME_LIMIT_EXCEEDED',
+    WRONG_ANSWER: 'WRONG_ANSWER',
+    WA: 'WRONG_ANSWER',
+    RUNTIME_ERROR: 'RUNTIME_ERROR',
+    RE: 'RUNTIME_ERROR',
+    SYSTEM_ERROR: 'SYSTEM_ERROR',
+    UNKNOWN_ERROR: 'SYSTEM_ERROR',
+    JUDGEMENT_FAILED: 'SYSTEM_ERROR',
+    JUDGE_FAILED: 'SYSTEM_ERROR',
+    SE: 'SYSTEM_ERROR',
+    PARTIALLY_ACCEPTED: 'PARTIALLY_ACCEPTED',
+    PARTIAL_ACCEPTED: 'PARTIALLY_ACCEPTED',
+    PARTIAL: 'PARTIALLY_ACCEPTED',
+    UNACCEPTED: 'PARTIALLY_ACCEPTED'
   }
 
   function acceptLuoguSubmission (task, submissionId) {
@@ -1149,19 +1207,99 @@
     handOffJudgingToOj()
   }
 
-  function luoguRecordData (payload) {
-    const candidates = [
-      payload && payload.currentData,
-      payload && payload.data,
-      payload
+  function luoguLooksLikeRecord (value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+    const identityKeys = ['rid', 'recordId', 'pid', 'problem', 'problemId']
+    const resultKeys = [
+      'judgeStatus', 'statusCode', 'statusText', 'statusName', 'verdict',
+      'score', 'time', 'timeCost', 'memory', 'memoryCost', 'judgeResult'
     ]
-    for (const data of candidates) {
-      if (!data || typeof data !== 'object') continue
-      if (data.record && typeof data.record === 'object') return data.record
-      if (data.submission && typeof data.submission === 'object') return data.submission
-      if (data.status !== undefined) return data
+    return identityKeys.some(key => value[key] !== undefined) ||
+      resultKeys.some(key => value[key] !== undefined) ||
+      (value.id !== undefined && value.status !== undefined)
+  }
+
+  function luoguRecordData (payload) {
+    const roots = [payload && payload.currentData, payload && payload.data]
+    const containerKeys = ['record', 'submission', 'recordData', 'judgeRecord', 'detail']
+    for (const root of roots) {
+      if (!root || typeof root !== 'object' || Array.isArray(root)) continue
+      for (const key of containerKeys) {
+        if (root[key] && typeof root[key] === 'object' && !Array.isArray(root[key])) return root[key]
+      }
+      if (luoguLooksLikeRecord(root)) return root
+      for (const key of ['result', 'data']) {
+        const nested = root[key]
+        if (!nested || typeof nested !== 'object' || Array.isArray(nested)) continue
+        for (const containerKey of containerKeys) {
+          if (nested[containerKey] && typeof nested[containerKey] === 'object' &&
+            !Array.isArray(nested[containerKey])) return nested[containerKey]
+        }
+        if (luoguLooksLikeRecord(nested)) return nested
+      }
     }
     return {}
+  }
+
+  function luoguScalar (value) {
+    return value !== null && value !== undefined && typeof value !== 'object'
+      ? String(value).trim()
+      : ''
+  }
+
+  function luoguStatusDetails (record) {
+    const statusObjects = [record.status, record.judgeStatus, record.judgeResult, record.result]
+      .filter(value => value && typeof value === 'object' && !Array.isArray(value))
+    const codeValues = [record.statusCode, record.judgeStatus, record.status]
+    for (const statusObject of statusObjects) {
+      codeValues.push(
+        statusObject.statusCode,
+        statusObject.code,
+        statusObject.id,
+        statusObject.value,
+        statusObject.status
+      )
+    }
+    let code = null
+    for (const value of codeValues) {
+      const scalar = luoguScalar(value)
+      if (!/^-?\d+$/.test(scalar)) continue
+      code = Number(scalar)
+      break
+    }
+
+    const textValues = [
+      record.statusText,
+      record.statusName,
+      record.verdict,
+      luoguScalar(record.result),
+      luoguScalar(record.judgeStatus),
+      luoguScalar(record.status)
+    ]
+    for (const statusObject of statusObjects) {
+      textValues.push(
+        statusObject.displayName,
+        statusObject.name,
+        statusObject.text,
+        statusObject.label,
+        statusObject.verdict
+      )
+    }
+    const text = textValues.map(luoguScalar).find(value => value && !/^-?\d+$/.test(value)) || ''
+    const normalized = text.toUpperCase().replace(/[\s-]+/g, '_')
+    const pending = code === 0 || code === 1 ||
+      /WAIT|JUDGING|PENDING|QUEUE|COMPILING|RUNNING|评测中|判题中|等待|编译中|运行中/i.test(text)
+    const verdict = LUOGU_STATUS[code] || LUOGU_VERDICT_ALIASES[normalized] ||
+      (/答案正确|通过/.test(text) ? 'ACCEPTED' : '') ||
+      (/编译错误/.test(text) ? 'COMPILE_ERROR' : '') ||
+      (/输出超限/.test(text) ? 'OUTPUT_LIMIT_EXCEEDED' : '') ||
+      (/内存超限/.test(text) ? 'MEMORY_LIMIT_EXCEEDED' : '') ||
+      (/时间超限|运行超时|超时/.test(text) ? 'TIME_LIMIT_EXCEEDED' : '') ||
+      (/答案错误/.test(text) ? 'WRONG_ANSWER' : '') ||
+      (/运行错误/.test(text) ? 'RUNTIME_ERROR' : '') ||
+      (/部分正确|未通过/.test(text) ? 'PARTIALLY_ACCEPTED' : '') ||
+      (/系统错误|评测失败|未知错误/.test(text) ? 'SYSTEM_ERROR' : '')
+    return { code, text, pending, verdict }
   }
 
   function luoguLoginTemplate (payload) {
@@ -1188,20 +1326,19 @@
           return
         }
         const record = luoguRecordData(payload)
-        const status = Number(record.status)
-        if (status === 0 || status === 1 || !Number.isFinite(status)) {
+        const status = luoguStatusDetails(record)
+        if (status.pending || !status.verdict) {
           await sleep(1500)
           continue
         }
-        const verdict = LUOGU_STATUS[status] || String(record.statusText || record.status || 'SYSTEM_ERROR')
         publishBridgeEvent(task, 'FINISHED', {
           remote_submission_id: submissionId,
           remote_url: `https://www.luogu.com.cn/record/${submissionId}`,
-          verdict,
+          verdict: status.verdict,
           time_ms: Number(record.time || record.timeCost || 0),
           memory_bytes: Number(record.memory || record.memoryCost || 0) * 1024,
           score: Number(record.score || 0),
-          message: String(record.statusText || verdict),
+          message: status.text || status.verdict,
           verification_source: 'luogu-session-page'
         })
         returnToOj(task)

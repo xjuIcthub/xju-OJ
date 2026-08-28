@@ -147,8 +147,7 @@
           <el-input v-model="remoteImportForm.remote_id"
                     :placeholder="remoteImportPlaceholder"></el-input>
         </el-form-item>
-        <el-form-item :label="contestId ? 'Contest Display ID' : 'Display ID'"
-                      :required="Boolean(contestId)">
+        <el-form-item :label="contestId ? 'Contest Display ID' : 'Display ID'">
           <el-input v-model="remoteImportForm.display_id"
                     :placeholder="remoteImportDisplayIdPlaceholder"></el-input>
         </el-form-item>
@@ -227,7 +226,7 @@
         }[this.remoteImportForm.provider]
       },
       remoteImportDisplayIdPlaceholder () {
-        if (this.contestId) return 'A, B, C...'
+        if (this.contestId) return 'Leave blank to assign A, B, C automatically'
         return {
           NOWCODER: 'Leave blank to use NC322024',
           LUOGU: 'Leave blank to use LG-P1001',
@@ -263,10 +262,6 @@
       async importRemoteProblem () {
         if (!this.remoteImportForm.remote_id.trim()) {
           this.$error('Remote problem ID or URL is required')
-          return
-        }
-        if (this.contestId && !this.remoteImportForm.display_id.trim()) {
-          this.$error('Contest display ID is required')
           return
         }
         this.remoteImportLoading = true

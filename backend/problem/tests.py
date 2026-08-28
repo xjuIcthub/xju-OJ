@@ -16,6 +16,7 @@ from .models import ProblemTag, ProblemIOMode
 from .models import Problem, ProblemRuleType, ProblemJudgeMode, RemoteOJ
 from .remote.codeforces import (parse_codeforces_problem_page,
                                 parse_codeforces_reference)
+from .remote.common import markdown_to_html, render_residual_markdown_links
 from .remote.luogu import parse_luogu_problem_page, parse_luogu_reference
 from .remote.nowcoder import (parse_nowcoder_acm_problem_page,
                               parse_nowcoder_problem_page,
@@ -67,7 +68,7 @@ NOWCODER_ACM_PROBLEM_HTML = """
   <div class="question-title"><i class="icon-list"></i>小月的数组</div>
   <span>时间限制：C/C++/Rust/Pascal 2秒，其他语言4秒</span>
   <span>空间限制：C/C++/Rust/Pascal 256 M，其他语言512 M</span>
-  <div class="subject-question"><p>计算答案。</p><script>bad()</script></div>
+  <div class="subject-question"><p>\hspace{15pt}数组 a = \{a_1, a_2,\dots, a_n\}。</p><script>bad()</script></div>
   <h2>输入描述:</h2><pre>两个整数。</pre>
   <h2>输出描述:</h2><pre>输出答案。</pre>
   <textarea data-clipboard-text-id="input1">1 0
@@ -315,6 +316,8 @@ class NowcoderProblemImportTest(APITestCase):
         self.assertEqual(acm["time_limit"], 2000)
         self.assertEqual(acm["memory_limit"], 256)
         self.assertNotIn("bad()", acm["description"])
+        self.assertNotIn(r"\hspace", acm["description"])
+        self.assertIn(r"\(a = \{a_1, a_2,\dots, a_n\}\)", acm["description"])
 
     def test_parse_luogu_and_codeforces_pages(self):
         self.assertEqual(parse_luogu_reference("https://www.luogu.com.cn/problem/P1001"), "P1001")
@@ -323,6 +326,20 @@ class NowcoderProblemImportTest(APITestCase):
         self.assertEqual(luogu["samples"], [{"input": "20 30\n", "output": "50\n"}])
         self.assertEqual(luogu["memory_limit"], 512)
         self.assertIn("<strong>Background</strong>", luogu["description"])
+
+        rendered = markdown_to_html(
+            "[受信任的用户](https://help.luogu.com.cn/rules/community/discuss#permissions)\n\n"
+            "> 任何一个伟大的思想。\n\n```cpp\nint main() {}\n```"
+        )
+        self.assertIn('<a href="https://help.luogu.com.cn/rules/community/discuss#permissions"', rendered)
+        self.assertIn("<blockquote>任何一个伟大的思想。</blockquote>", rendered)
+        self.assertIn('<code class="language-cpp">', rendered)
+        legacy = render_residual_markdown_links(
+            '<p>[受信任的用户](https://help.luogu.com.cn/rules)</p>'
+            '<pre><code>[do not convert](https://example.com)</code></pre>'
+        )
+        self.assertIn('<a href="https://help.luogu.com.cn/rules"', legacy)
+        self.assertIn('[do not convert](https://example.com)', legacy)
 
         self.assertEqual(parse_codeforces_reference("https://codeforces.com/problemset/problem/4/A"), (4, "A"))
         codeforces = parse_codeforces_problem_page(CODEFORCES_PROBLEM_HTML, 4, "A")
@@ -471,7 +488,7 @@ class NowcoderProblemImportTest(APITestCase):
         response = self.client.post(self.url, data={
             "provider": RemoteOJ.CODEFORCES,
             "remote_id": "71A",
-            "display_id": "A",
+            "display_id": "",
             "contest_id": contest.id,
             "public_display_id": "CF-71A",
         })
@@ -597,6 +614,12 @@ class AddProblemFromPublicProblemAPITest(ProblemCreateTestBase):
         self.assertSuccess(resp)
         self.assertTrue(Problem.objects.all().exists())
         self.assertTrue(Problem.objects.filter(contest_id=self.contest["id"]).exists())
+
+    def test_add_contest_problem_assigns_next_letter(self):
+        self.data["display_id"] = ""
+        resp = self.client.post(self.url, data=self.data)
+        self.assertSuccess(resp)
+        self.assertTrue(Problem.objects.filter(contest_id=self.contest["id"], _id="A").exists())
 
 
 class ParseProblemTemplateTest(APITestCase):

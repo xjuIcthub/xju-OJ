@@ -67,7 +67,8 @@ pre {
   white-space: pre-wrap;
   margin-top: 15px;
   margin-bottom: 15px;
-  background: var(--color-bg-subtle);
+  overflow-x: auto;
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
@@ -85,6 +86,7 @@ code {
 }
 
 pre > code {
+  display: block;
   padding: 0;
   margin: 0;
   font-size: 100%;
@@ -94,6 +96,22 @@ pre > code {
   border: 0;
 }
 
+pre > code, pre > code * {
+  background: transparent !important;
+}
+
+pre > code.hljs {
+  padding: 0;
+  color: var(--color-text);
+}
+
+pre .hljs-keyword, pre .hljs-selector-tag, pre .hljs-literal, pre .hljs-section, pre .hljs-link { color: #9a3d3d; }
+pre .hljs-string, pre .hljs-attr, pre .hljs-symbol, pre .hljs-bullet, pre .hljs-addition { color: #26756d; }
+pre .hljs-comment, pre .hljs-quote { color: #8b8983; font-style: italic; }
+pre .hljs-title, pre .hljs-name, pre .hljs-type { color: #73528f; }
+pre .hljs-number, pre .hljs-meta { color: #9a4f83; }
+pre .hljs-variable, pre .hljs-template-variable { color: #2f6f9f; }
+
 aside {
   display: block;
   float: right;
@@ -102,10 +120,14 @@ aside {
 
 blockquote {
   border-left: 3px solid var(--line-strong);
-  padding-left: 10px;
-  margin-top: 10px;
-  margin-bottom: 10px;
+  padding: 2px 0 2px 10px;
+  margin: 10px 0;
   color: var(--color-text-muted);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
 }
 
 hr {

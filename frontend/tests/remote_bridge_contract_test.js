@@ -26,8 +26,8 @@ function section (startMarker, endMarker) {
   return source.slice(start, end)
 }
 
-assert.match(source, /^\/\/ @version\s+0\.6\.0$/m)
-assert.match(frontendBridge, /MINIMUM_BRIDGE_VERSION = \[0, 6, 0\]/)
+assert.match(source, /^\/\/ @version\s+0\.6\.1$/m)
+assert.match(frontendBridge, /MINIMUM_BRIDGE_VERSION = \[0, 6, 1\]/)
 
 const opener = section(
   'function openProviderActionTab',
@@ -36,6 +36,8 @@ const opener = section(
 assert.match(opener, /status !== 'AUTH_REQUIRED'/)
 assert.match(opener, /status !== 'VERIFICATION_REQUIRED'/)
 assert.match(opener, /GM_openInTab\(task\.target_url/)
+assert.match(opener, /backgroundCloudflare/)
+assert.match(opener, /active: !backgroundCloudflare/)
 
 const runner = section(
   'async function runRemoteTaskFromOj',
@@ -53,6 +55,8 @@ assert.match(submitEntry, /await runRemoteTaskFromOj\(task\)/)
 assert.doesNotMatch(submitEntry, /GM_openInTab/)
 
 assert.match(source, /submitCodeforcesFromOj/)
+assert.match(source, /window\._cf_chl_opt/)
+assert.doesNotMatch(source, /Boolean\(root\.querySelector\('\.g-recaptcha, \[data-sitekey\]/)
 assert.match(source, /submitNowcoderDirect/)
 assert.match(source, /submitLuoguDirect/)
 assert.match(source, /payload && payload\.currentData/)

@@ -17,7 +17,7 @@
             <span>{{$t('m.Problems_List')}}</span>
           </button>
         </div></template>
-        <div id="problem-content" class="markdown-body" v-katex>
+        <div id="problem-content" class="markdown-body" v-katex v-highlight>
           <div class="problem-brief" aria-label="Problem information">
             <div><span>{{$t('m.Time_Limit')}}</span><strong>{{problem.time_limit}} MS</strong></div>
             <div><span>{{$t('m.Memory_Limit')}}</span><strong>{{problem.memory_limit}} MB</strong></div>
@@ -819,13 +819,17 @@
     }
     :deep(pre) {
       border-radius: var(--radius-sm);
-      background: #fcfcfb;
+      background: var(--color-bg);
+    }
+    :deep(pre code) {
+      background: transparent;
+      color: var(--color-text);
     }
     p.content { margin: 0 2px 15px; font-size: 14px; line-height: 1.75; }
     .sample { align-items: stretch; flex-direction: column; }
     .sample-input, .sample-output { width: 100%; flex: 1 1 auto; display: flex; flex-direction: column; margin: 0; }
     .sample-output .title { margin-top: 15px; }
-    .sample pre { flex: 1 1 auto; align-self: stretch; min-height: 76px; margin: 0; border: 1px solid var(--color-border); background: #fcfcfb; }
+    .sample pre { flex: 1 1 auto; align-self: stretch; min-height: 76px; margin: 0; border: 1px solid var(--color-border); background: var(--color-bg); }
   }
 
   #submit-code {
