@@ -10,6 +10,7 @@
     "start": "pnpm run dev",
     "build": "vite build",
     "test:routes": "node tests/e2e/route_contract_test.js",
+    "test:remote-bridge": "node --check static/userscripts/xju-oj-remote-bridge.user.js && node tests/remote_bridge_contract_test.js && node tests/remote_bridge_runtime_test.js",
     "lint:modern": "node tests/modern-stack-scan.cjs"
   },
   "dependencies": {

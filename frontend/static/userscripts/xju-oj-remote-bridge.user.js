@@ -3,7 +3,7 @@
 // @name:zh-CN   XJU-OJ 远程提交助手
 // @name:en      XJU-OJ Remote Submission Bridge
 // @namespace    https://oj.icthub.top/
-// @version      0.4.0
+// @version      0.5.0
 // @description  在用户自己的洛谷、牛客和 Codeforces 登录会话中转发 XJU-OJ 练习提交。
 // @description:en Forward XJU-OJ practice submissions through the user's own Luogu, Nowcoder, and Codeforces sessions.
 // @author       XJU-OJ
@@ -60,6 +60,8 @@
     'verdict', 'message', 'time_ms', 'memory_bytes', 'passed_tests', 'total_tests',
     'score', 'verification_source'
   ]
+  const dispatchedBridgeEvents = new Set()
+  const ojPollingSubmissions = new Set()
   const PROVIDER_HOSTS = {
     LUOGU: new Set(['www.luogu.com.cn', 'luogu.com.cn']),
     NOWCODER: new Set(['ac.nowcoder.com', 'www.nowcoder.com', 'nowcoder.com']),
@@ -116,6 +118,11 @@
 
   function dispatchBridgeEvent (event) {
     if (window.location.origin !== OJ_ORIGIN || !event || typeof event !== 'object') return
+    if (event.nonce && dispatchedBridgeEvents.has(event.nonce)) return
+    if (event.nonce) {
+      dispatchedBridgeEvents.add(event.nonce)
+      window.setTimeout(() => dispatchedBridgeEvents.delete(event.nonce), 60000)
+    }
     window.dispatchEvent(new CustomEvent(BRIDGE_EVENT, { detail: event }))
     postBridgeEvent(event)
   }
@@ -131,6 +138,7 @@
       ...details
     }
     GM_setValue(EVENT_STORAGE_KEY, event)
+    if (window.location.origin === OJ_ORIGIN) dispatchBridgeEvent(event)
     return event
   }
 
@@ -199,6 +207,19 @@
 
   function saveTask (task) {
     GM_setValue(taskStorageKey(task.submission_id), task)
+  }
+
+  function openProviderActionTab (task, status, message, details = {}) {
+    if (status !== 'AUTH_REQUIRED' && status !== 'VERIFICATION_REQUIRED') {
+      throw new Error(`不允许为 ${status} 状态打开外部标签页`)
+    }
+    const now = Date.now()
+    const previous = task.action_tab || {}
+    if (previous.status === status && now - Number(previous.opened_at || 0) < 10000) return
+    task.action_tab = { status, opened_at: now }
+    saveTask(task)
+    publishBridgeEvent(task, status, { message, ...details })
+    GM_openInTab(task.target_url, { active: true, insert: true, setParent: true })
   }
 
   function codeforcesImportTarget (reference) {
@@ -284,18 +305,21 @@
     }, 500)
   }
 
-  function codeforcesChallengeVisible () {
-    const title = document.title.toLowerCase()
-    return title.includes('just a moment') || Boolean(document.querySelector('[id^="challenge-"]'))
+  function codeforcesChallengeVisible (root = document, html = '') {
+    const title = String(root.title || '').toLowerCase()
+    const source = String(html || '').toLowerCase()
+    return title.includes('just a moment') ||
+      Boolean(root.querySelector('[id^="challenge-"], #challenge-form, iframe[src*="challenges.cloudflare.com"]')) ||
+      source.includes('cf-chl-') || source.includes('challenge-platform') || source.includes('challenges.cloudflare.com')
   }
 
-  function codeforcesHandle () {
-    const anchors = document.querySelectorAll('#header a[href^="/profile/"]')
+  function codeforcesHandle (root = document, pathname = window.location.pathname) {
+    const anchors = root.querySelectorAll('#header a[href^="/profile/"]')
     for (const anchor of anchors) {
       const match = anchor.getAttribute('href').match(/^\/profile\/([^/?#]+)/)
       if (match && match[1]) return decodeURIComponent(match[1])
     }
-    const submissionMatch = window.location.pathname.match(/^\/submissions\/([^/?#]+)/)
+    const submissionMatch = String(pathname || '').match(/^\/submissions\/([^/?#]+)/)
     return submissionMatch ? decodeURIComponent(submissionMatch[1]) : ''
   }
 
@@ -335,10 +359,27 @@
       try {
         runs = await codeforcesSubmissions(state.handle)
       } catch (error) {
-        if (codeforcesChallengeVisible()) {
-          publishBridgeEvent(task, 'VERIFICATION_REQUIRED', {
-            message: '请在 Codeforces 页面完成 Cloudflare 人机验证'
-          })
+        const challengeResponse = error && error.response
+        const challengeDocument = challengeResponse
+          ? new DOMParser().parseFromString(challengeResponse.responseText || '', 'text/html')
+          : null
+        if (codeforcesChallengeVisible() || (challengeDocument && codeforcesChallengeVisible(
+          challengeDocument,
+          challengeResponse.responseText
+        ))) {
+          if (window.location.origin === OJ_ORIGIN) {
+            openProviderActionTab(
+              task,
+              'VERIFICATION_REQUIRED',
+              '请在 Codeforces 页面完成 Cloudflare 人机验证',
+              { verification_source: 'codeforces-cloudflare' }
+            )
+          } else {
+            publishBridgeEvent(task, 'VERIFICATION_REQUIRED', {
+              message: '请在 Codeforces 页面完成 Cloudflare 人机验证',
+              verification_source: 'codeforces-cloudflare'
+            })
+          }
           return
         }
         await sleep(2000)
@@ -403,11 +444,34 @@
     }
   }
 
-  function codeforcesSubmitForm () {
-    return Array.from(document.forms).find(form => {
+  function codeforcesSubmitForm (root = document) {
+    return Array.from(root.forms).find(form => {
       return form.querySelector('[name="programTypeId"]') &&
         form.querySelector('[name="sourceFile"], [name="source"]')
     }) || null
+  }
+
+  function codeforcesSubmitBody (form, task) {
+    const language = form.querySelector('[name="programTypeId"]')
+    const option = language && Array.from(language.options).find(item => item.value === String(task.language_id))
+    if (!language || !option) throw new Error(`Codeforces 当前页面不支持语言 ID ${task.language_id}`)
+
+    const body = new FormData(form)
+    body.set(language.name || 'programTypeId', String(task.language_id))
+    const nonceLength = Math.floor(Date.now() / 1000) % 97 + 1
+    const source = `${task.code.replace(/\s+$/, '')}\n${' '.repeat(nonceLength)}\n`
+    const fileInput = form.querySelector('input[type="file"][name="sourceFile"]')
+    if (fileInput) {
+      body.delete(fileInput.name)
+      body.append(fileInput.name, new File([source], 'main.txt', { type: 'text/plain' }))
+    } else {
+      const textarea = form.querySelector('textarea[name="source"], [name="source"]')
+      if (!textarea || !textarea.name) throw new Error('Codeforces 提交表单中没有源码字段')
+      body.set(textarea.name, source)
+    }
+    const submitter = form.querySelector('button[type="submit"][name], input[type="submit"][name]')
+    if (submitter && submitter.name) body.set(submitter.name, submitter.value || '')
+    return body
   }
 
   function fillCodeforcesForm (form, task) {
@@ -529,38 +593,133 @@
     returnImportToOj()
   }
 
-  function gmJsonRequest (method, url, body = null, headers = {}) {
+  function gmRawRequest (method, url, data = null, headers = {}) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
         method,
         url,
-        data: body === null ? undefined : JSON.stringify(body),
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Content-Type': 'application/json;charset=UTF-8',
-          ...headers
-        },
+        data: data === null ? undefined : data,
+        headers,
         timeout: 30000,
         withCredentials: true,
-        onload: response => {
-          try {
-            const payload = JSON.parse(response.responseText || '{}')
-            if (response.status < 200 || response.status >= 300) {
-              const requestError = new Error(payload.msg || `HTTP ${response.status}`)
-              requestError.payload = payload
-              requestError.status = response.status
-              reject(requestError)
-              return
-            }
-            resolve(payload)
-          } catch (error) {
-            reject(new Error('远程平台返回了无法解析的数据'))
-          }
-        },
+        onload: resolve,
         onerror: () => reject(new Error('无法连接远程平台')),
         ontimeout: () => reject(new Error('连接远程平台超时'))
       })
     })
+  }
+
+  function responseJson (response) {
+    try {
+      return JSON.parse(response.responseText || '{}')
+    } catch (error) {
+      const requestError = new Error('远程平台返回了无法解析的数据')
+      requestError.response = response
+      throw requestError
+    }
+  }
+
+  async function gmJsonRequest (method, url, body = null, headers = {}) {
+    const response = await gmRawRequest(
+      method,
+      url,
+      body === null ? null : JSON.stringify(body),
+      {
+        Accept: 'application/json, text/plain, */*',
+        'Content-Type': 'application/json;charset=UTF-8',
+        ...headers
+      }
+    )
+    const payload = responseJson(response)
+    if (response.status < 200 || response.status >= 300) {
+      const requestError = new Error(payload.msg || payload.message || `HTTP ${response.status}`)
+      requestError.payload = payload
+      requestError.status = response.status
+      requestError.response = response
+      throw requestError
+    }
+    return payload
+  }
+
+  function codeforcesVerificationVisible (root, html = '') {
+    const source = String(html || '').toLowerCase()
+    return codeforcesChallengeVisible(root, source) ||
+      Boolean(root.querySelector('.g-recaptcha, [data-sitekey], iframe[src*="recaptcha"], iframe[src*="turnstile"]')) ||
+      source.includes('captcha') && source.includes('verify')
+  }
+
+  async function submitCodeforcesFromOj (task) {
+    const target = new URL(task.target_url)
+    target.hash = ''
+    const pageResponse = await gmRawRequest('GET', target.toString(), null, {
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+    })
+    const pageHtml = pageResponse.responseText || ''
+    const page = new DOMParser().parseFromString(pageHtml, 'text/html')
+    if (codeforcesVerificationVisible(page, pageHtml)) {
+      openProviderActionTab(
+        task,
+        'VERIFICATION_REQUIRED',
+        '请在 Codeforces 页面完成 Cloudflare 人机验证',
+        { verification_source: 'codeforces-cloudflare' }
+      )
+      return
+    }
+
+    const finalUrl = new URL(pageResponse.finalUrl || target.toString())
+    const handle = codeforcesHandle(page, finalUrl.pathname)
+    if (!handle || finalUrl.pathname.startsWith('/enter')) {
+      openProviderActionTab(task, 'AUTH_REQUIRED', 'Codeforces 登录状态已失效，请重新登录')
+      return
+    }
+    if (pageResponse.status < 200 || pageResponse.status >= 300) {
+      throw new Error(`Codeforces 题目页返回 HTTP ${pageResponse.status}`)
+    }
+
+    const form = codeforcesSubmitForm(page)
+    if (!form) throw new Error('Codeforces 题目页没有可用的提交表单')
+    const runs = await codeforcesSubmissions(handle)
+    const body = codeforcesSubmitBody(form, task)
+    const action = new URL(form.getAttribute('action') || finalUrl.toString(), finalUrl)
+    const state = {
+      phase: 'AWAITING_ID',
+      handle,
+      before_id: runs.reduce((maximum, run) => Math.max(maximum, Number(run.id || 0)), 0),
+      started_at: Math.floor(Date.now() / 1000)
+    }
+    const submitResponse = await gmRawRequest('POST', action.toString(), body, {
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      Origin: 'https://codeforces.com',
+      Referer: finalUrl.toString()
+    })
+    const submitHtml = submitResponse.responseText || ''
+    const submitPage = new DOMParser().parseFromString(submitHtml, 'text/html')
+    if (codeforcesVerificationVisible(submitPage, submitHtml)) {
+      openProviderActionTab(
+        task,
+        'VERIFICATION_REQUIRED',
+        'Codeforces 要求完成人机验证后才能提交',
+        { verification_source: 'codeforces-submit' }
+      )
+      return
+    }
+    const submitUrl = new URL(submitResponse.finalUrl || action.toString())
+    if (submitUrl.pathname.startsWith('/enter')) {
+      openProviderActionTab(task, 'AUTH_REQUIRED', 'Codeforces 登录状态已失效，请重新登录')
+      return
+    }
+    if (submitResponse.status < 200 || submitResponse.status >= 300) {
+      throw new Error(`Codeforces 提交接口返回 HTTP ${submitResponse.status}`)
+    }
+    const formError = submitPage.querySelector('.error[for], .alert-danger, .notice.error')
+    if (formError && String(formError.textContent || '').trim()) {
+      throw new Error(`Codeforces 提交失败：${String(formError.textContent || '').trim()}`)
+    }
+
+    task.adapter_state = state
+    saveTask(task)
+    publishBridgeEvent(task, 'OPENING', { message: 'Codeforces 已接收请求，正在定位提交记录' })
+    await resumeOjJudgingTask(task)
   }
 
   function nowcoderVerificationRequired (payload) {
@@ -631,7 +790,9 @@
           { Referer: state.referer || task.target_url.split('#')[0] }
         )
         if (nowcoderAuthRequired(payload)) {
-          publishBridgeEvent(task, 'AUTH_REQUIRED', { message: payload.msg || '牛客登录状态已失效' })
+          const message = payload.msg || '牛客登录状态已失效'
+          if (window.location.origin === OJ_ORIGIN) openProviderActionTab(task, 'AUTH_REQUIRED', message)
+          else publishBridgeEvent(task, 'AUTH_REQUIRED', { message })
           return
         }
         const result = payload && payload.data
@@ -656,7 +817,14 @@
           returnToOj(task)
           return
         }
-      } catch (error) {}
+      } catch (error) {
+        if (nowcoderAuthRequired(error.payload)) {
+          const message = error.message || '牛客登录状态已失效'
+          if (window.location.origin === OJ_ORIGIN) openProviderActionTab(task, 'AUTH_REQUIRED', message)
+          else publishBridgeEvent(task, 'AUTH_REQUIRED', { message })
+          return
+        }
+      }
       await sleep(1200)
     }
     publishBridgeEvent(task, 'JUDGING', {
@@ -794,6 +962,19 @@
     }
   }
 
+  async function requestNowcoderVerification (task, message) {
+    if (window.location.origin === OJ_ORIGIN) {
+      openProviderActionTab(
+        task,
+        'VERIFICATION_REQUIRED',
+        message || '请在牛客原生页面完成人机验证',
+        { verification_source: 'nowcoder-submit' }
+      )
+      return
+    }
+    await prepareNowcoderNativeVerification(task, message)
+  }
+
   async function submitNowcoderDirect (task) {
     const providerData = task.provider_data || {}
     const pageInfo = unsafeWindow.pageInfo || {}
@@ -820,14 +1001,15 @@
       { Referer: referer, Origin: 'https://www.nowcoder.com' }
     )
     if (nowcoderVerificationRequired(payload)) {
-      await prepareNowcoderNativeVerification(task, payload.msg)
-      return
+      await requestNowcoderVerification(task, payload.msg)
+      return false
     }
     if (nowcoderAuthRequired(payload)) throw new Error(payload.msg || '牛客登录状态已失效')
     if (payload.code !== 0 && payload.code !== '0' && payload.code !== undefined) {
       throw new Error(payload.msg || `牛客提交失败，code=${payload.code}`)
     }
     acceptNowcoderSubmission(task, body, payload)
+    return true
   }
 
   async function bootNowcoderTask (task) {
@@ -869,10 +1051,15 @@
       await submitNowcoderDirect(task)
     } catch (error) {
       const message = error.message || '牛客提交失败'
-      if (message.includes('验证') || message.includes('安全') || message.includes('风控')) {
-        await prepareNowcoderNativeVerification(task, message)
+      if (nowcoderVerificationRequired(error.payload) || message.includes('验证') || message.includes('安全') || message.includes('风控')) {
+        await requestNowcoderVerification(task, message)
       } else if (message.includes('登录') || message.toLowerCase().includes('token')) {
         publishBridgeEvent(task, 'AUTH_REQUIRED', { message })
+        if (!window.location.pathname.startsWith('/login')) {
+          const callback = new URL(task.target_url)
+          callback.hash = ''
+          window.location.assign(`/login?callBack=${encodeURIComponent(callback.toString())}`)
+        }
       } else {
         publishBridgeEvent(task, 'FAILED', { message })
         discardTask(task)
@@ -880,8 +1067,8 @@
     }
   }
 
-  function luoguPageContext () {
-    const node = document.getElementById('lentille-context')
+  function luoguPageContext (root = document) {
+    const node = root.getElementById('lentille-context')
     if (!node) return null
     try {
       return JSON.parse(node.textContent || '{}')
@@ -890,11 +1077,13 @@
     }
   }
 
-  function luoguChallengeVisible () {
-    const title = document.title.toLowerCase()
-    return !luoguPageContext() && (
+  function luoguChallengeVisible (root = document, html = '') {
+    const title = String(root.title || '').toLowerCase()
+    const source = String(html || '').toLowerCase()
+    return !luoguPageContext(root) && (
       title.includes('just a moment') ||
-      Boolean(document.querySelector('iframe[src*="challenges.cloudflare.com"], [id^="challenge-"]'))
+      Boolean(root.querySelector('iframe[src*="challenges.cloudflare.com"], [id^="challenge-"], #challenge-form')) ||
+      source.includes('challenges.cloudflare.com') || source.includes('cf-chl-')
     )
   }
 
@@ -970,7 +1159,9 @@
           {'x-lentille-request': 'content-only'}
         )
         if (payload.template === 'login' || luoguAuthRequired(payload)) {
-          publishBridgeEvent(task, 'AUTH_REQUIRED', { message: '洛谷登录状态已失效' })
+          const message = '洛谷登录状态已失效'
+          if (window.location.origin === OJ_ORIGIN) openProviderActionTab(task, 'AUTH_REQUIRED', message)
+          else publishBridgeEvent(task, 'AUTH_REQUIRED', { message })
           return
         }
         const record = luoguRecordData(payload)
@@ -992,7 +1183,14 @@
         })
         returnToOj(task)
         return
-      } catch (error) {}
+      } catch (error) {
+        if (luoguAuthRequired(error.payload) || error.status === 401) {
+          const message = error.message || '洛谷登录状态已失效'
+          if (window.location.origin === OJ_ORIGIN) openProviderActionTab(task, 'AUTH_REQUIRED', message)
+          else publishBridgeEvent(task, 'AUTH_REQUIRED', { message })
+          return
+        }
+      }
       await sleep(1500)
     }
     publishBridgeEvent(task, 'JUDGING', {
@@ -1099,41 +1297,84 @@
     throw new Error('洛谷提交面板没有及时加载，请刷新当前标签页后重试')
   }
 
+  async function requestLuoguVerification (task, message, verificationSource = 'luogu-submit') {
+    if (window.location.origin === OJ_ORIGIN) {
+      openProviderActionTab(
+        task,
+        'VERIFICATION_REQUIRED',
+        message || '请在洛谷原生页面完成人机验证',
+        { verification_source: verificationSource }
+      )
+      return
+    }
+    await prepareLuoguNativeVerification(task)
+  }
+
   async function submitLuoguDirect (task) {
     const problemId = String((task.provider_data || {}).problem_id || task.problem_id || '')
-    const csrf = document.querySelector('meta[name="csrf-token"]')
-    if (!problemId || !csrf) throw new Error('洛谷题目页缺少提交信息')
-    const response = await fetch(`/fe/api/problem/submit/${encodeURIComponent(problemId)}`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        'Content-Type': 'application/json;charset=UTF-8',
-        'X-CSRF-TOKEN': csrf.getAttribute('content') || '',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: JSON.stringify({
+    if (!problemId) throw new Error('洛谷题目缺少 problemId')
+    const referer = task.target_url.split('#')[0]
+    let root = document
+    if (window.location.origin === OJ_ORIGIN) {
+      const pageResponse = await gmRawRequest('GET', referer, null, {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      })
+      const html = pageResponse.responseText || ''
+      root = new DOMParser().parseFromString(html, 'text/html')
+      if (luoguChallengeVisible(root, html)) {
+        await requestLuoguVerification(task, '请在洛谷页面完成浏览器安全验证', 'luogu-cloudflare')
+        return false
+      }
+      const finalUrl = new URL(pageResponse.finalUrl || referer)
+      const context = luoguPageContext(root)
+      if (finalUrl.pathname.startsWith('/auth/login') || !context || !context.user) {
+        openProviderActionTab(task, 'AUTH_REQUIRED', '洛谷登录状态已失效，请重新登录')
+        return false
+      }
+      if (pageResponse.status < 200 || pageResponse.status >= 300) {
+        throw new Error(`洛谷题目页返回 HTTP ${pageResponse.status}`)
+      }
+    }
+
+    const csrf = root.querySelector('meta[name="csrf-token"]')
+    if (!csrf || !csrf.getAttribute('content')) throw new Error('洛谷题目页缺少 CSRF 信息')
+    const response = await gmRawRequest(
+      'POST',
+      `https://www.luogu.com.cn/fe/api/problem/submit/${encodeURIComponent(problemId)}`,
+      JSON.stringify({
         lang: Number(task.language_id),
         code: task.code,
         enableO2: 0
-      })
-    })
+      }),
+      {
+        Accept: 'application/json, text/plain, */*',
+        'Content-Type': 'application/json;charset=UTF-8',
+        'X-CSRF-TOKEN': csrf.getAttribute('content') || '',
+        'X-Requested-With': 'XMLHttpRequest',
+        Origin: 'https://www.luogu.com.cn',
+        Referer: referer
+      }
+    )
     let payload
     try {
-      payload = await response.json()
+      payload = responseJson(response)
     } catch (error) {
       throw new Error(`洛谷提交接口返回 HTTP ${response.status}`)
     }
     const submissionId = luoguSubmissionId(payload)
     if (submissionId) {
       acceptLuoguSubmission(task, submissionId)
-      return
+      return true
     }
     if (luoguCaptchaRequired(payload)) {
-      await prepareLuoguNativeVerification(task)
-      return
+      await requestLuoguVerification(task, payload.message || '洛谷要求完成人机验证')
+      return false
     }
     if (luoguAuthRequired(payload) || response.status === 401 || response.status === 403) {
+      if (window.location.origin === OJ_ORIGIN) {
+        openProviderActionTab(task, 'AUTH_REQUIRED', '洛谷登录状态已失效，请重新登录')
+        return false
+      }
       throw new Error('洛谷账号尚未登录或登录状态已失效')
     }
     throw new Error(payload.message || payload.errorMessage || `洛谷提交失败，HTTP ${response.status}`)
@@ -1175,6 +1416,7 @@
       const message = error.message || '洛谷提交失败'
       if (message.includes('登录')) {
         publishBridgeEvent(task, 'AUTH_REQUIRED', { message })
+        if (!window.location.pathname.startsWith('/auth/login')) window.location.assign('/auth/login')
       } else {
         publishBridgeEvent(task, 'FAILED', { message })
         discardTask(task)
@@ -1182,19 +1424,85 @@
     }
   }
 
-  function startRemoteTask (event) {
+  function resumeOjJudgingTask (task) {
+    if (!task || ojPollingSubmissions.has(task.submission_id)) return Promise.resolve()
+    if ((task.adapter_state || {}).phase !== 'JUDGING' && task.provider !== 'CODEFORCES') {
+      return Promise.resolve()
+    }
+    ojPollingSubmissions.add(task.submission_id)
+    const poller = task.provider === 'CODEFORCES'
+      ? pollCodeforcesRun(task)
+      : task.provider === 'NOWCODER'
+        ? pollNowcoderRun(task)
+        : task.provider === 'LUOGU'
+          ? pollLuoguRecord(task)
+          : Promise.resolve()
+    return Promise.resolve(poller).finally(() => ojPollingSubmissions.delete(task.submission_id))
+  }
+
+  async function runRemoteTaskFromOj (task) {
+    publishBridgeEvent(task, 'OPENING', { message: `正在后台连接 ${task.provider}` })
+    if (task.provider === 'CODEFORCES') {
+      await submitCodeforcesFromOj(task)
+      return
+    }
+    if (task.provider === 'NOWCODER') {
+      try {
+        const accepted = await submitNowcoderDirect(task)
+        if (accepted) await resumeOjJudgingTask(task)
+      } catch (error) {
+        const message = error.message || '牛客提交失败'
+        if (nowcoderVerificationRequired(error.payload) || message.includes('验证') || message.includes('安全') || message.includes('风控')) {
+          await requestNowcoderVerification(task, message)
+        } else if (nowcoderAuthRequired(error.payload) || message.includes('登录') || message.toLowerCase().includes('token')) {
+          openProviderActionTab(task, 'AUTH_REQUIRED', message)
+        } else {
+          throw error
+        }
+      }
+      return
+    }
+    if (task.provider === 'LUOGU') {
+      const accepted = await submitLuoguDirect(task)
+      if (accepted) await resumeOjJudgingTask(task)
+      return
+    }
+    throw new Error(`不支持的远程平台：${task.provider}`)
+  }
+
+  async function startRemoteTask (event) {
     let task
     try {
       task = normalizeTask(event && event.detail)
       GM_setValue(taskStorageKey(task.submission_id), task)
       GM_setValue(activeTaskStorageKey(task.provider), task.submission_id)
       publishBridgeEvent(task, 'QUEUED', { message: '远程提交任务已交给浏览器脚本' })
-      GM_openInTab(task.target_url, { active: true, insert: true, setParent: true })
     } catch (error) {
       const rawTask = event && event.detail && event.detail.task
       if (rawTask && rawTask.submission_id && rawTask.provider) {
         publishBridgeEvent(rawTask, 'FAILED', { message: error.message || '远程提交任务无效' })
       }
+      return
+    }
+    try {
+      await runRemoteTaskFromOj(task)
+    } catch (error) {
+      const response = error && error.response
+      if (task.provider === 'CODEFORCES' && response) {
+        const html = response.responseText || ''
+        const root = new DOMParser().parseFromString(html, 'text/html')
+        if (codeforcesVerificationVisible(root, html)) {
+          openProviderActionTab(
+            task,
+            'VERIFICATION_REQUIRED',
+            '请在 Codeforces 页面完成人机验证',
+            { verification_source: 'codeforces-cloudflare' }
+          )
+          return
+        }
+      }
+      publishBridgeEvent(task, 'FAILED', { message: error.message || '远程提交失败' })
+      discardTask(task)
     }
   }
 
@@ -1215,20 +1523,15 @@
   }
 
   function bootOjBridge () {
-    const polling = new Set()
     const resumeJudging = event => {
-      if (!event || event.status !== 'JUDGING' || polling.has(event.submission_id)) return
+      if (!event) return
       const task = GM_getValue(taskStorageKey(event.submission_id), null)
-      if (!task || task.schema !== TASK_SCHEMA || (task.adapter_state || {}).phase !== 'JUDGING') return
-      polling.add(event.submission_id)
-      const poller = task.provider === 'CODEFORCES'
-        ? pollCodeforcesRun(task)
-        : task.provider === 'NOWCODER'
-          ? pollNowcoderRun(task)
-          : task.provider === 'LUOGU'
-            ? pollLuoguRecord(task)
-            : Promise.resolve()
-      Promise.resolve(poller).finally(() => polling.delete(event.submission_id))
+      if (!task || task.schema !== TASK_SCHEMA) return
+      const phase = (task.adapter_state || {}).phase
+      const shouldResume = event.status === 'JUDGING' && phase === 'JUDGING'
+      const codeforcesAwaitingId = task.provider === 'CODEFORCES' && event.status === 'OPENING' && phase === 'AWAITING_ID'
+      if (!shouldResume && !codeforcesAwaitingId) return
+      resumeOjJudgingTask(task)
     }
     window.addEventListener(SUBMIT_EVENT, startRemoteTask)
     window.addEventListener(IMPORT_EVENT, startRemoteImport)
@@ -1286,7 +1589,7 @@
       detail: {
         version,
         provider,
-        capabilities: ['bridge-protocol-v1', 'remote-import-v1', 'provider-tab-detection']
+        capabilities: ['bridge-protocol-v1', 'background-submit-v1', 'remote-import-v1', 'provider-tab-detection']
       }
     }))
     return true

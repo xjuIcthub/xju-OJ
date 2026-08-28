@@ -26,7 +26,7 @@ export function remoteBridgeVersion () {
 export function isRemoteBridgeInstalled () {
   const parts = remoteBridgeVersion().split('.').map(value => Number.parseInt(value, 10))
   if (parts.some(Number.isNaN)) return false
-  return (parts[0] || 0) > 0 || (parts[1] || 0) >= 2
+  return (parts[0] || 0) > 0 || (parts[1] || 0) >= 5
 }
 
 export function dispatchRemoteSubmission (task, code) {

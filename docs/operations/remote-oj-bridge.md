@@ -27,14 +27,13 @@ Submitting -> Judging -> provider verdict
 ```
 
 The OJ creates the submission row first and sends a validated, allowlisted task to
-the userscript. The userscript opens the provider problem page and submits with
-the provider account that is already logged in to that browser.
+the userscript. The userscript first submits through credentialed background
+requests using the provider account already logged in to that browser.
 
 If the provider requests Turnstile, NetEase/YIDUN, an image CAPTCHA, login, or a
-risk-control check, the provider's native page remains open for the user to
-complete it. The OJ never attempts to solve or proxy the challenge. Once the
-provider accepts the submission, the provider tab closes, focus returns to the
-OJ, and the userscript continues polling the provider result in the OJ tab.
+risk-control check, the userscript opens the provider's native page for the user
+to complete it. The OJ never attempts to solve or proxy the challenge. Once the
+provider accepts the submission, result polling continues in the OJ tab.
 
 Supported browser-side adapters:
 
@@ -94,6 +93,7 @@ sh -n deploy.sh
 node --check frontend/static/userscripts/xju-oj-remote-bridge.user.js
 pnpm --dir frontend run lint:modern
 pnpm --dir frontend run test:routes
+pnpm --dir frontend run test:remote-bridge
 pnpm --dir frontend run build
 ```
 
