@@ -9,7 +9,7 @@ function isoFromNow (days, hour = 10) {
 export const MOCK_PROBLEMS = [
   {
     _id: '1001',
-    title: 'A+B with Integers',
+    title: 'Integer Addition',
     difficulty: 'Low',
     rule_type: 'ACM',
     submission_number: 428,
@@ -23,8 +23,8 @@ export const MOCK_PROBLEMS = [
     output_description: '<p>Print <code>a + b</code> on one line.</p>',
     samples: [{ input: '2 3', output: '5' }],
     hint: 'Use a 64-bit integer type if your language needs it.',
-    source: 'XJU-OJ warm-up set',
-    test_case_id: 'mock-a-plus-b-int',
+    source: 'XJU-OJ problem set',
+    test_case_id: 'mock-1001-integer-addition',
     test_case_score: [{ input_name: '1.in', output_name: '1.out', score: 0 }],
     time_limit: 1000,
     memory_limit: 128,
@@ -40,7 +40,7 @@ export const MOCK_PROBLEMS = [
   },
   {
     _id: '1002',
-    title: 'A+B with Doubles',
+    title: 'Decimal Addition',
     difficulty: 'Mid',
     rule_type: 'ACM',
     submission_number: 276,
@@ -54,8 +54,8 @@ export const MOCK_PROBLEMS = [
     output_description: '<p>Print the sum of <code>a</code> and <code>b</code>, rounded to two decimal places.</p>',
     samples: [{ input: '1.25 2.50', output: '3.75' }],
     hint: 'Use fixed-point formatting and a small epsilon when comparing floating-point values.',
-    source: 'XJU-OJ precision set',
-    test_case_id: 'mock-a-plus-b-double',
+    source: 'XJU-OJ problem set',
+    test_case_id: 'mock-1002-decimal-addition',
     test_case_score: [{ input_name: '1.in', output_name: '1.out', score: 0 }],
     time_limit: 1000,
     memory_limit: 128,
@@ -69,47 +69,12 @@ export const MOCK_PROBLEMS = [
     },
     statistic_info: { '0': 218, '-1': 58 }
   },
-  {
-    _id: '1003',
-    title: 'Special Judge A+B',
-    difficulty: 'High',
-    rule_type: 'ACM',
-    submission_number: 164,
-    accepted_number: 97,
-    tags: ['special-judge', 'constructive'],
-    spj: true,
-    visible: true,
-    my_status: null,
-    id: '1003',
-    description: '<p>Read two integers <code>a</code> and <code>b</code>. Output any two integers <code>x</code> and <code>y</code> satisfying <code>x + y = a + b</code>. This problem uses a Special Judge.</p>',
-    input_description: '<p>The only line contains two integers <code>a</code> and <code>b</code>.</p>',
-    output_description: '<p>Output any two integers <code>x</code> and <code>y</code> whose sum equals <code>a + b</code>.</p>',
-    samples: [{ input: '7 8', output: '10 5' }],
-    hint: 'The checker validates the arithmetic relation instead of comparing one fixed output string.',
-    source: 'XJU-OJ special judge set',
-    test_case_id: 'mock-a-plus-b-spj',
-    spj_language: 'C++',
-    spj_code: '#include <fstream>\nint main(int argc, char** argv) {\n    std::ifstream in(argv[1]);\n    std::ifstream out(argv[2]);\n    long long a, b, x, y;\n    if (!(in >> a >> b) || !(out >> x >> y)) return 1;\n    return x + y == a + b ? 0 : 1;\n}',
-    spj_compile_ok: true,
-    spj_version: 'mock-spj-a-plus-b',
-    test_case_score: [{ input_name: '1.in', score: 0 }],
-    time_limit: 1000,
-    memory_limit: 128,
-    io_mode: { io_mode: 'Standard IO' },
-    created_by: { username: 'XJU-ICTHub' },
-    languages: ['C++', 'Python3'],
-    template: {
-      'C++': '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    long long a, b;\n    cin >> a >> b;\n    cout << a << " " << b << "\\n";\n    return 0;\n}',
-      Python3: 'a, b = map(int, input().split())\nprint(a, b)'
-    },
-    statistic_info: { '0': 97, '-1': 67 }
-  }
 ]
 
 export const MOCK_CONTESTS = [
   {
     id: 101,
-    title: 'A+B Warm-up Contest',
+    title: 'Integer Addition Practice',
     start_time: isoFromNow(2, 19),
     end_time: isoFromNow(2, 21),
     rule_type: 'ACM',
@@ -117,22 +82,22 @@ export const MOCK_CONTESTS = [
     status: '1',
     problem_ids: ['1001', '1002'],
     problems: ['1001', '1002'],
-    description: '<h3>Contest overview</h3><p>Start with the integer A+B warm-up, then handle decimal precision carefully. Both problems are selected from the public problem set.</p>',
+    description: '<h3>Contest overview</h3><p>Practice the two official XJU-OJ problem-set entries covering integer and decimal addition.</p>',
     now: new Date().toISOString(),
     created_by: { id: 'mock-admin', username: 'XJU-ICTHub' },
     real_time_rank: true
   },
   {
     id: 102,
-    title: 'Special Judge Challenge',
+    title: 'Decimal Addition Challenge',
     start_time: isoFromNow(7, 14),
     end_time: isoFromNow(7, 17),
     rule_type: 'OI',
     contest_type: 'Public',
     status: '1',
-    problem_ids: ['1002', '1003'],
-    problems: ['1002', '1003'],
-    description: '<h3>Contest overview</h3><p>This challenge combines floating-point output with a Special Judge. Each contestant solves exactly the two listed problems.</p>',
+    problem_ids: ['1001', '1002'],
+    problems: ['1001', '1002'],
+    description: '<h3>Contest overview</h3><p>This challenge revisits both official problem-set entries with attention to numeric formatting and precision.</p>',
     now: new Date().toISOString(),
     created_by: { id: 'mock-admin', username: 'XJU-ICTHub' },
     real_time_rank: true
@@ -161,7 +126,7 @@ function submissionIso (minutesAgo) {
   return new Date(Date.now() - minutesAgo * 60 * 1000).toISOString()
 }
 
-export const MOCK_SUBMISSIONS = ['1001', '1002', '1003'].flatMap((problem, problemIndex) => [
+export const MOCK_SUBMISSIONS = ['1001', '1002'].flatMap((problem, problemIndex) => [
   { id: `mock-${problem}-1`, problem, username: 'alice', result: 0, language: 'C++', create_time: submissionIso(problemIndex * 3 + 4), statistic_info: { time_cost: 12, memory_cost: 16384 } },
   { id: `mock-${problem}-2`, problem, username: 'bob', result: 0, language: 'Python3', create_time: submissionIso(problemIndex * 3 + 16), statistic_info: { time_cost: 26, memory_cost: 18432 } },
   { id: `mock-${problem}-3`, problem, username: 'charlie', result: -1, language: 'C++', create_time: submissionIso(problemIndex * 3 + 32), statistic_info: { time_cost: 0, memory_cost: 0 } },
@@ -171,6 +136,46 @@ export const MOCK_SUBMISSIONS = ['1001', '1002', '1003'].flatMap((problem, probl
 
 export function cloneFixtures (items) {
   return items.map(item => JSON.parse(JSON.stringify(item)))
+}
+
+const developmentProblemFields = [
+  'title', 'description', 'input_description', 'output_description', 'samples',
+  'hint', 'source', 'tags', 'difficulty', 'rule_type', 'languages', 'template'
+]
+
+export function applyDevelopmentProblemFixture (problem) {
+  if (!problem) return problem
+  const displayId = String(problem._id)
+  if (displayId === '1003') return null
+  const fixture = MOCK_PROBLEMS.find(item => String(item._id) === displayId)
+  if (!fixture) return problem
+  const normalized = { ...problem }
+  developmentProblemFields.forEach(field => {
+    normalized[field] = JSON.parse(JSON.stringify(fixture[field]))
+  })
+  return normalized
+}
+
+export function applyDevelopmentProblemFixtures (problems = []) {
+  return problems.map(applyDevelopmentProblemFixture).filter(Boolean)
+}
+
+export function applyDevelopmentContestFixtures (contests = []) {
+  return contests.map(contest => {
+    const fixture = MOCK_CONTESTS.find(item => String(item.id) === String(contest.id))
+    if (!fixture) return contest
+    return {
+      ...contest,
+      title: fixture.title,
+      description: fixture.description,
+      problem_ids: fixture.problem_ids.slice(),
+      problems: fixture.problems.slice()
+    }
+  })
+}
+
+export function applyDevelopmentTagFixtures (tags = []) {
+  return tags.filter(tag => !['special-judge', 'constructive'].includes(tag.name))
 }
 
 export function filterMockProblems (query = {}) {

@@ -6,7 +6,8 @@
           <Menu accordion @on-select="goRoute" :activeName="activeName" style="text-align: center;" width="auto">
             <div class="avatar-editor">
               <div class="avatar-container">
-                <img class="avatar" :src="profile.avatar"/>
+                <img v-if="profile.avatar && !avatarFailed" class="avatar" :src="profile.avatar" @error="avatarFailed = true"/>
+                <div v-else class="avatar avatar-fallback">{{ avatarInitial }}</div>
                 <div class="avatar-mask">
                   <a @click.stop="goRoute({name: 'profile-setting'})">
                     <div class="mask-content">
@@ -19,7 +20,6 @@
             </div>
 
             <Menu-item name="/setting/profile">{{$t('m.Profile')}}</Menu-item>
-            <Menu-item name="/setting/account">{{$t('m.Account')}}</Menu-item>
             <Menu-item name="/setting/security">{{$t('m.Security')}}</Menu-item>
           </Menu>
         </div>
@@ -39,6 +39,11 @@
 
   export default {
     name: 'profile',
+    data () {
+      return {
+        avatarFailed: false
+      }
+    },
     methods: {
       goRoute (routePath) {
         this.$router.push(routePath)
@@ -48,6 +53,14 @@
       ...mapGetters(['profile']),
       activeName () {
         return this.$route.path
+      },
+      avatarInitial () {
+        return (this.profile.user?.username || '?').slice(0, 1).toUpperCase()
+      }
+    },
+    watch: {
+      'profile.avatar' () {
+        this.avatarFailed = false
       }
     }
   }
@@ -84,6 +97,15 @@
             display: block;
             border-radius: @avatar-radius;
             box-shadow: 0px 0px 1px 0px;
+          }
+          .avatar-fallback {
+            aspect-ratio: 1;
+            align-items: center;
+            justify-content: center;
+            background: var(--color-bg-subtle);
+            color: var(--color-text-muted);
+            font-size: 30px;
+            font-weight: 600;
           }
           .avatar-mask {
             transition: opacity .2s ease-in;

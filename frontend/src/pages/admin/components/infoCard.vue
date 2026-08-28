@@ -68,10 +68,14 @@
       justify-content: center;
     }
     &-icon {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      line-height: @card-height;
+      padding-top: 4px;
+      line-height: 1;
       color: white;
     }
     &-text {

@@ -17,7 +17,7 @@
         <Card :padding="20" class="flex-child">
           <template #title><span  style="line-height: 20px">{{session.ip}}</span></template>
           <template #extra><div >
-            <Tag v-if="session.current_session" color="green">Current</Tag>
+            <span v-if="session.current_session" class="session-current-pill">Current</span>
             <LegacyButton v-else
                     type="warning"
                     size="small"
@@ -226,6 +226,21 @@
     font-size: 16px;
     margin-bottom: 20px;
     display: inline-block;
+  }
+
+  .session-current-pill {
+    display: inline-flex;
+    height: 24px;
+    align-items: center;
+    padding: 0 10px;
+    border: 1px solid #b9dfc6;
+    border-radius: 9999px;
+    background: #edf8f0;
+    color: #277a45;
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .oj-relative {

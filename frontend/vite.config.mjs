@@ -24,6 +24,23 @@ function envBoolean (name, fallback) {
   return /^(1|true|yes|on)$/i.test(value)
 }
 
+function contentTypeFor (filePath) {
+  const extension = path.extname(filePath).toLowerCase()
+  return {
+    '.avif': 'image/avif',
+    '.bmp': 'image/bmp',
+    '.gif': 'image/gif',
+    '.ico': 'image/x-icon',
+    '.jpeg': 'image/jpeg',
+    '.jpg': 'image/jpeg',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.webp': 'image/webp',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2'
+  }[extension] || 'application/octet-stream'
+}
+
 function devRuntimeConfig () {
   const frontendDevMode = envBoolean('OJ_FRONTEND_DEV_MODE', false)
   return {
@@ -46,6 +63,39 @@ function devRuntimeConfigPlugin () {
     configureServer (server) {
       server.middlewares.use((req, res, next) => {
         const pathname = (req.url || '').split('?', 1)[0]
+        const publicDirectory = process.env.OJ_DEV_PUBLIC_DIR
+        if (publicDirectory && pathname.startsWith('/public/') && ['GET', 'HEAD'].includes(req.method)) {
+          let relativePath
+          try {
+            relativePath = decodeURIComponent(pathname.slice('/public/'.length))
+          } catch (_) {
+            res.statusCode = 400
+            res.end('Invalid public path')
+            return
+          }
+          const publicRoot = path.resolve(publicDirectory)
+          const filePath = path.resolve(publicRoot, relativePath)
+          if (filePath !== publicRoot && !filePath.startsWith(`${publicRoot}${path.sep}`)) {
+            res.statusCode = 403
+            res.end('Forbidden')
+            return
+          }
+          try {
+            if (fs.statSync(filePath).isFile()) {
+              res.statusCode = 200
+              res.setHeader('Content-Type', contentTypeFor(filePath))
+              res.setHeader('Cache-Control', 'no-store')
+              if (req.method === 'HEAD') {
+                res.end()
+              } else {
+                fs.createReadStream(filePath).on('error', next).pipe(res)
+              }
+              return
+            }
+          } catch (_) {
+            // Let the regular proxy return its normal 404 for missing files.
+          }
+        }
         if (pathname === '/admin') {
           res.statusCode = 301
           res.setHeader('Location', '/admin/')

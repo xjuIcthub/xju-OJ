@@ -62,7 +62,7 @@
   import utils from '@/utils/utils'
   import Pagination from '@/pages/oj/components/Pagination'
   import { CONTEST_STATUS_REVERSE, CONTEST_TYPE } from '@/utils/constants'
-  import { cloneFixtures, filterMockContests, MOCK_CONTESTS } from '@oj/mocks/fixtures'
+  import { applyDevelopmentContestFixtures, cloneFixtures, filterMockContests, MOCK_CONTESTS } from '@oj/mocks/fixtures'
 
   const limit = 10
 
@@ -106,9 +106,10 @@
         api.getContestList(offset, this.limit, this.query).then((res) => {
           const payload = res.data.data || {}
           const results = payload.results || []
+          const normalized = applyDevelopmentContestFixtures(results)
           const fallback = filterMockContests(this.query)
-          this.contests = results.length ? this.withContestProblems(results) : cloneFixtures(fallback)
-          this.total = payload.total || (results.length ? results.length : fallback.length)
+          this.contests = normalized.length ? this.withContestProblems(normalized) : cloneFixtures(fallback)
+          this.total = payload.total || (normalized.length || fallback.length)
         }, () => {
           const fallback = filterMockContests(this.query)
           this.contests = cloneFixtures(fallback)

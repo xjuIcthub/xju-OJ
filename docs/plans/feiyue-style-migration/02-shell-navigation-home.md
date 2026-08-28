@@ -32,7 +32,7 @@
 
 在不新增后端接口的前提下，将 `views/general/Home.vue` 组织成 Feiyue 式信息看板：
 
-1. **主体双栏信息区**：左栏上下排列 **Upcoming Contests** 与按提交量降序展示的 **Problems Set** 热门题目；右栏为更窄的 **Notice Board**。
+1. **主体双栏信息区**：左栏上下排列 **Recent Contests** 与按提交量降序展示的 **Problems Set** 热门题目；右栏为更窄的 **Notice Board**。
 2. **即将开始的比赛与公告**：保留现有 contest/announcement API，使用轻卡片和轻列表；日期、时长、规则与标题链接行为不变。
 3. 首页不再显示额外 hero 标题或 Quick access 入口，避免信息层级与用户需要的比赛/题库/公告看板冲突。
 5. 空状态使用普通弱文字或小提示卡，不再用带重阴影的大面板。
@@ -55,4 +55,4 @@
 - 桌面和窄屏没有新增不可接受的横向溢出；固定 header、dialog、dropdown、BackTop z-index 正常。
 - 可见品牌和页脚文案分别为 `XJU-OJ`、`Powered by XJU-ICTHub · Version 0.2.0`。
 
-实施结果：用户端 header、搜索、登录/注册/用户菜单、首页比赛/热门题目/公告看板和 footer 已完成；按页面需求移除了 hero 与 Quick Access。首页左栏上下排列 Upcoming Contests/Problems Set，右栏为窄版 Notice Board，并在公告下方加入 A题数、ACM Ranklist、OI Ranklist 三项 User Ranking；日期使用 nowrap 保证 `Aug 29` 等月份日期始终一行。admin 侧栏、顶栏、面包屑、登录页与工作区改为暖白细边框主题。Lucide 图标通过兼容层接入，历史 Icon type 模板无需改动。
+实施结果：用户端 header、搜索、登录/注册/用户菜单、首页比赛/热门题目/公告看板和 footer 已完成；按页面需求移除了 hero 与 Quick Access。首页左栏上下排列 Recent Contests/Problems Set，右栏为窄版 Notice Board，并在公告下方加入 A题数、ACM Rank、OI Rank 三项 User Ranking；日期使用 nowrap 保证 `Aug 29` 等月份日期始终一行。admin 侧栏、顶栏、面包屑、登录页与工作区改为暖白细边框主题。Lucide 图标通过兼容层接入，历史 Icon type 模板无需改动。

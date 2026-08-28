@@ -17,3 +17,19 @@ export function filterMockProblems () {
 export function filterMockContests () {
   return []
 }
+
+export function applyDevelopmentProblemFixture (problem) {
+  return problem
+}
+
+export function applyDevelopmentProblemFixtures (problems = []) {
+  return problems
+}
+
+export function applyDevelopmentContestFixtures (contests = []) {
+  return contests
+}
+
+export function applyDevelopmentTagFixtures (tags = []) {
+  return tags
+}

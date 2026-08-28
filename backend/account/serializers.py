@@ -72,6 +72,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     real_name = serializers.SerializerMethodField()
+    student_id = serializers.SerializerMethodField()
 
     class Meta:
         model = UserProfile
@@ -83,6 +84,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_real_name(self, obj):
         return obj.real_name if self.show_real_name else None
+
+    def get_student_id(self, obj):
+        return obj.student_id if self.show_real_name else None
 
 
 class EditUserSerializer(serializers.Serializer):
@@ -100,7 +104,8 @@ class EditUserSerializer(serializers.Serializer):
 
 
 class EditUserProfileSerializer(serializers.Serializer):
-    real_name = serializers.CharField(max_length=32, allow_null=True, required=False)
+    real_name = serializers.CharField(max_length=32, allow_blank=False, allow_null=False, required=True)
+    student_id = serializers.CharField(max_length=32, allow_blank=False, allow_null=False, required=True)
     avatar = serializers.CharField(max_length=256, allow_blank=True, required=False)
     blog = serializers.URLField(max_length=256, allow_blank=True, required=False)
     mood = serializers.CharField(max_length=256, allow_blank=True, required=False)
@@ -139,7 +144,11 @@ class FileUploadForm(forms.Form):
 
 class RankInfoSerializer(serializers.ModelSerializer):
     user = UsernameSerializer()
+    student_id = serializers.SerializerMethodField()
 
     class Meta:
         model = UserProfile
         fields = "__all__"
+
+    def get_student_id(self, obj):
+        return None

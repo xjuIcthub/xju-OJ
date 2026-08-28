@@ -44,8 +44,8 @@
     },
     emits: ['update:value', 'input', 'changeLang', 'changeTheme', 'resetCode'],
     data () { return { mode: { 'C++': 'text/x-csrc' }, themes: [
-      {label: this.$t('m.Monokai'), value: 'monokai'}, {label: this.$t('m.Solarized_Light'), value: 'solarized'},
-      {label: this.$t('m.Material'), value: 'material'} ] } },
+      {label: 'Monokai', value: 'monokai'}, {label: 'Solarized Light', value: 'solarized'},
+      {label: 'Material', value: 'material'} ] } },
     mounted () { utils.getLanguages().then(languages => { const mode = {}; languages.forEach(lang => { mode[lang.name] = lang.content_type }); this.mode = mode; this.$refs.myEditor.focus() }) },
     methods: {
       onEditorCodeChange (value) { this.$emit('update:value', value); this.$emit('input', value) },

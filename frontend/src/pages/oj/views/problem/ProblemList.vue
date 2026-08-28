@@ -73,7 +73,12 @@
   import utils from '@/utils/utils'
   import { ProblemMixin } from '@oj/components/mixins'
   import Pagination from '@oj/components/Pagination'
-  import { cloneFixtures, filterMockProblems } from '@oj/mocks/fixtures'
+  import {
+    applyDevelopmentProblemFixtures,
+    applyDevelopmentTagFixtures,
+    cloneFixtures,
+    filterMockProblems
+  } from '@oj/mocks/fixtures'
 
   export default {
     name: 'ProblemList',
@@ -196,9 +201,11 @@
           this.loadings.table = false
           const payload = res.data.data || {}
           const results = payload.results || []
+          const normalized = applyDevelopmentProblemFixtures(results)
           const fallback = filterMockProblems(this.query)
-          this.total = payload.total || (results.length ? results.length : fallback.length)
-          this.problemList = results.length ? results : cloneFixtures(fallback)
+          const removedCount = Math.max(0, results.length - normalized.length)
+          this.total = payload.total ? Math.max(0, payload.total - removedCount) : (normalized.length || fallback.length)
+          this.problemList = normalized.length ? normalized : cloneFixtures(fallback)
           if (this.isAuthenticated) {
             this.addStatusColumn(this.problemTableColumns, this.problemList)
           }
@@ -211,7 +218,8 @@
       },
       getTagList () {
         api.getProblemTagList().then(res => {
-          this.tagList = res.data.data && res.data.data.length ? res.data.data : this.getMockTags()
+          const normalized = applyDevelopmentTagFixtures(res.data.data || [])
+          this.tagList = normalized.length ? normalized : this.getMockTags()
           this.loadings.tag = false
         }, res => {
           this.tagList = this.getMockTags()
@@ -222,9 +230,7 @@
         return [
           { name: 'math' },
           { name: 'beginner' },
-          { name: 'precision' },
-          { name: 'special-judge' },
-          { name: 'constructive' }
+          { name: 'precision' }
         ]
       },
       filterByTag (tagName) {

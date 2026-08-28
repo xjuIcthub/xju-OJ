@@ -64,7 +64,7 @@ export const m = {
   Not_Checked: 'Not Checked',
   Check_It: 'Check It',
   // ACMRank.vue
-  ACM_Ranklist: 'ACM Ranklist',
+  ACM_Ranklist: 'ACM Ranking',
   mood: 'mood',
   AC: 'AC',
   Rating: 'Rating',
@@ -173,7 +173,7 @@ export const m = {
   Judge: 'Judge',
   Special_Judge: 'Special Judge',
   OI_Standings: 'OI standings',
-  Upcoming_Contests: 'Upcoming Contests',
+  Upcoming_Contests: 'Recent Contests',
   View_All: 'View all',
   Problems_Set: 'Problems Set',
   Notice_Board: 'Notice Board',
@@ -184,7 +184,7 @@ export const m = {
   Accepted_Count: 'Accepted',
   ACM_Standings: 'ACM standings',
   OI_Score_Standings: 'OI score standings',
-  No_Upcoming_Contests: 'No upcoming contests yet.',
+  No_Upcoming_Contests: 'No recent contests yet.',
   No_Problems_Yet: 'No problems yet.',
   // announcements.vue
   Refresh: 'Refresh',
@@ -201,14 +201,20 @@ export const m = {
   // ProfileSetting.vue
   Avatar_Setting: 'Avatar Setting',
   Change_Avatar: 'Change avatar',
+  Reupload_Avatar: 'Upload again',
+  Avatar_Auto_Upload_Hint: 'The image is center-cropped, compressed to WebP, uploaded, and refreshed automatically.',
   Profile_Setting: 'Profile Setting',
-  Profile_Onboarding_Notice: 'Profile fields are optional. Save now and complete them later. Your username, email, and password remain managed by Authentik.',
+  Profile_Onboarding_Notice: 'Real name and student ID are required. Your username, email, and password remain managed by Authentik.',
+  Student_ID: 'Student ID',
+  Profile_Required_Title: 'Required information missing',
+  Profile_Required_Fields: 'Please enter: {fields}',
   Drop_or_Select_Avatar: 'Drop an image here, or click to select a file',
   Upload_Avatar: 'Upload avatar',
   Avatar_Will_Be_Set: 'Your avatar will be set to:',
   Upload: 'Upload',
   Avatar_Updated: 'Avatar updated successfully',
   Avatar_Compression_Failed: 'Avatar compression failed. Please try another image.',
+  Avatar_Upload_Failed: 'Avatar upload failed. Please try again later.',
   Unsupported_File_Type: 'Unsupported file type',
   Select_Image_File: 'Choose a JPG, PNG, GIF, BMP, or WebP image.',
   Image_Too_Large: 'Image is too large',
@@ -239,7 +245,7 @@ export const m = {
   Authentik_Bound: 'Authentik account is bound',
   Welcome_back: 'Welcome back to OJ',
   // OIRank.vue
-  OI_Ranklist: 'OI Ranklist',
+  OI_Ranklist: 'OI Ranking',
   // OIContestRank.vue
   Total_Score: 'Total Score',
   // ProblemList.vue

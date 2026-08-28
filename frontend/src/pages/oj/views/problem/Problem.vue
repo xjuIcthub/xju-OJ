@@ -229,7 +229,7 @@
   import {JUDGE_STATUS, CONTEST_STATUS, buildProblemCodeKey} from '@/utils/constants'
   import api from '@oj/api'
   import {pie, largePie} from './chartData'
-  import { cloneFixtures, MOCK_PROBLEMS, MOCK_SUBMISSIONS } from '@oj/mocks/fixtures'
+  import { applyDevelopmentProblemFixture, cloneFixtures, MOCK_PROBLEMS, MOCK_SUBMISSIONS } from '@oj/mocks/fixtures'
 
   // 只显示这些状态的图形占用
   const filtedStatus = ['-1', '-2', '0', '1', '2', '3', '4', '8']
@@ -302,7 +302,9 @@
         this.problemID = this.$route.params.problemID
         let func = this.$route.name === 'problem-details' ? 'getProblem' : 'getContestProblem'
         api[func](this.problemID, this.contestID).then(res => {
-          this.applyProblem(res.data.data)
+          const problem = applyDevelopmentProblemFixture(res.data.data)
+          if (problem) this.applyProblem(problem)
+          else this.$Loading.error()
         }).catch(() => {
           const fallback = MOCK_PROBLEMS.find(problem => String(problem._id) === String(this.problemID))
           if (fallback) {

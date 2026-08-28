@@ -3,75 +3,47 @@
     <Alert v-if="onboardingRequired" type="warning" show-icon>
       {{ $t('m.Profile_Onboarding_Notice') }}
     </Alert>
-    <div class="section-title">{{$t('m.Avatar_Setting')}}</div>
-    <template v-if="!avatarOption.imgSrc">
-      <Upload type="drag"
-              class="mini-container"
-              accept=".jpg,.jpeg,.png,.bmp,.gif,.webp"
-              action=""
-              :before-upload="handleSelectFile">
-        <div style="padding: 30px 0">
-          <Icon type="ios-cloud-upload" size="52" style="color: #3399ff"></Icon>
-          <p>{{ $t('m.Drop_or_Select_Avatar') }}</p>
-        </div>
-      </Upload>
-    </template>
 
-    <template v-else>
-      <div class="flex-container">
-        <div class="cropper-main inline">
-          <vueCropper
-            ref="cropper"
-            autoCrop
-            fixed
-            :autoCropWidth="200"
-            :autoCropHeight="200"
-            :img="avatarOption.imgSrc"
-            :outputSize="avatarOption.size"
-            :outputType="avatarOption.outputType"
-            :info="true"
-            @realTime="realTime">
-          </vueCropper>
-        </div>
-        <ButtonGroup vertical class="cropper-btn">
-          <LegacyButton @click="rotate('left')">
-            <Icon type="arrow-return-left" size="20"></Icon>
-          </LegacyButton>
-          <LegacyButton @click="rotate('right')">
-            <Icon type="arrow-return-right" size="20"></Icon>
-          </LegacyButton>
-          <LegacyButton @click="reselect">
-            <Icon type="refresh" size="20"></Icon>
-          </LegacyButton>
-          <LegacyButton @click="finishCrop">
-            <Icon type="checkmark-round" size="20"></Icon>
-          </LegacyButton>
-        </ButtonGroup>
-        <div class="cropper-preview" :style="previewStyle">
-          <div :style=" preview.div">
-            <img :src="avatarOption.imgSrc" :style="preview.img">
-          </div>
-        </div>
+    <div class="section-title">{{$t('m.Avatar_Setting')}}</div>
+    <div class="avatar-setting-card">
+      <div class="avatar-preview" :class="{'is-loading': loadingUploadBtn}">
+        <img v-if="avatarSrc && !avatarFailed"
+             :src="avatarSrc"
+             :alt="$t('m.Avatar_Setting')"
+             @error="avatarFailed = true">
+        <span v-else class="avatar-fallback">{{ avatarInitial }}</span>
+        <span v-if="loadingUploadBtn" class="avatar-loading" aria-hidden="true">
+          <Icon type="loading" size="22"></Icon>
+        </span>
       </div>
-    </template>
-    <Modal v-model="uploadModalVisible"
-           :title="$t('m.Upload_Avatar')">
-      <div class="upload-modal">
-        <p class="notice">{{ $t('m.Avatar_Will_Be_Set') }}</p>
-        <img :src="uploadImgSrc"/>
+      <div class="avatar-setting-content">
+        <p class="avatar-hint">{{ $t('m.Avatar_Auto_Upload_Hint') }}</p>
+        <LegacyButton type="primary"
+                      class="avatar-upload-button"
+                      :loading="loadingUploadBtn"
+                      :disabled="loadingUploadBtn"
+                      @click="openAvatarPicker">
+          <Icon v-if="!loadingUploadBtn" type="upload" size="17"></Icon>
+          {{ $t('m.Reupload_Avatar') }}
+        </LegacyButton>
+        <input ref="avatarInput"
+               class="avatar-file-input"
+               type="file"
+               accept="image/jpeg,image/png,image/bmp,image/gif,image/webp"
+               @change="handleAvatarChange">
       </div>
-      <template #footer><div >
-        <LegacyButton type="primary" @click="uploadAvatar" :loading="loadingUploadBtn">{{ $t('m.Upload') }}</LegacyButton>
-      </div></template>
-    </Modal>
+    </div>
 
     <div class="section-title">{{$t('m.Profile_Setting')}}</div>
     <Form ref="formProfile" :model="formProfile">
       <Row type="flex" :gutter="30" justify="space-around">
         <Col :span="11">
-          <FormItem :label="$t('m.Real_Name')">
+          <FormItem :label="$t('m.Real_Name')" required>
             <Input v-model="formProfile.real_name"/>
           </FormItem>
+          <Form-item :label="$t('m.Student_ID')" required>
+            <Input v-model="formProfile.student_id"/>
+          </Form-item>
           <Form-item :label="$t('m.School')">
             <Input v-model="formProfile.school"/>
           </Form-item>
@@ -103,33 +75,28 @@
     </Form>
   </div>
 </template>
+
 <script>
   import api from '@oj/api'
   import utils from '@/utils/utils'
-  import {VueCropper} from 'vue-cropper'
   import {types} from '@/store'
   import {languages} from '@/i18n'
 
+  const MAX_SOURCE_SIZE = 12 * 1024 * 1024
+  const AVATAR_SIZE = 512
+
   export default {
-    components: {
-      VueCropper
-    },
     data () {
       return {
         loadingSaveBtn: false,
         loadingUploadBtn: false,
-        uploadModalVisible: false,
-        preview: {},
-        uploadImgSrc: '',
-        uploadBlob: null,
-        avatarOption: {
-          imgSrc: '',
-          size: 0.86,
-          outputType: 'webp'
-        },
+        avatarFailed: false,
+        avatarPreviewUrl: '',
+        avatarVersion: 0,
         languages: languages,
         formProfile: {
           real_name: '',
+          student_id: '',
           mood: '',
           major: '',
           blog: '',
@@ -140,7 +107,7 @@
       }
     },
     mounted () {
-      let profile = this.$store.state.user.profile
+      const profile = this.$store.state.user.profile
       Object.keys(this.formProfile).forEach(element => {
         if (profile[element] !== undefined) {
           this.formProfile[element] = profile[element]
@@ -148,11 +115,15 @@
       })
     },
     beforeUnmount () {
-      this.clearUploadPreview()
+      this.clearAvatarPreview()
     },
     methods: {
+      openAvatarPicker () {
+        if (!this.loadingUploadBtn) this.$refs.avatarInput?.click()
+      },
       checkFileType (file) {
-        if (!/\.(gif|jpg|jpeg|png|bmp|webp)$/i.test(file.name)) {
+        const supportedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/bmp', 'image/gif', 'image/webp'])
+        if (!supportedMimeTypes.has(file.type) && !/\.(gif|jpg|jpeg|png|bmp|webp)$/i.test(file.name)) {
           this.$Notice.warning({
             title: this.$t('m.Unsupported_File_Type'),
             desc: this.$t('m.Select_Image_File')
@@ -162,9 +133,7 @@
         return true
       },
       checkFileSize (file) {
-        // The selected source may be larger; the cropped result is compressed
-        // to a small WebP before it is sent to the 2 MB backend endpoint.
-        if (file.size > 12 * 1024 * 1024) {
+        if (file.size > MAX_SOURCE_SIZE) {
           this.$Notice.warning({
             title: this.$t('m.Image_Too_Large'),
             desc: this.$t('m.Avatar_Source_Size_Limit')
@@ -173,66 +142,39 @@
         }
         return true
       },
-      handleSelectFile (file) {
-        this.clearUploadPreview()
-        let isOk = this.checkFileType(file) && this.checkFileSize(file)
-        if (!isOk) {
-          return false
+      async handleAvatarChange (event) {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        if (!file || !this.checkFileType(file) || !this.checkFileSize(file)) return
+
+        this.loadingUploadBtn = true
+        this.avatarFailed = false
+        let uploadStarted = false
+        try {
+          const avatarBlob = await this.createAvatarBlob(file)
+          this.setAvatarPreview(avatarBlob)
+          const form = new window.FormData()
+          form.append('image', new window.File([avatarBlob], 'avatar.webp', {type: 'image/webp'}))
+          uploadStarted = true
+          await api.uploadAvatar(form)
+          await this.$store.dispatch('getProfile')
+          this.avatarVersion = Date.now()
+          this.clearAvatarPreview()
+          this.$success(this.$t('m.Avatar_Updated'))
+        } catch (error) {
+          this.clearAvatarPreview()
+          this.$error(this.$t(uploadStarted ? 'm.Avatar_Upload_Failed' : 'm.Avatar_Compression_Failed'))
+        } finally {
+          this.loadingUploadBtn = false
         }
-        let reader = new window.FileReader()
-        reader.onload = (e) => {
-          this.avatarOption.imgSrc = e.target.result
-        }
-        reader.readAsDataURL(file)
-        return false
       },
-      realTime (data) {
-        this.preview = data
-      },
-      rotate (direction) {
-        if (direction === 'left') {
-          this.$refs.cropper.rotateLeft()
-        } else {
-          this.$refs.cropper.rotateRight()
-        }
-      },
-      reselect () {
-        this.$Modal.confirm({
-          content: this.$t('m.Discard_Avatar_Changes'),
-          onOk: () => {
-            this.clearUploadPreview()
-            this.avatarOption.imgSrc = ''
-          }
-        })
-      },
-      finishCrop () {
-        this.$refs.cropper.getCropBlob(async blob => {
-          try {
-            this.clearUploadPreview()
-            this.uploadBlob = await this.compressAvatar(blob)
-            this.uploadImgSrc = URL.createObjectURL(this.uploadBlob)
-            this.uploadModalVisible = true
-          } catch (_) {
-            this.$error(this.$t('m.Avatar_Compression_Failed'))
-          }
-        })
-      },
-      compressAvatar (blob) {
+      loadImage (file) {
         return new Promise((resolve, reject) => {
-          const sourceUrl = URL.createObjectURL(blob)
+          const sourceUrl = URL.createObjectURL(file)
           const image = new window.Image()
           image.onload = () => {
-            const maxSide = 512
-            const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight))
-            const canvas = document.createElement('canvas')
-            canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
-            canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
-            const context = canvas.getContext('2d')
-            context.imageSmoothingEnabled = true
-            context.imageSmoothingQuality = 'high'
-            context.drawImage(image, 0, 0, canvas.width, canvas.height)
             URL.revokeObjectURL(sourceUrl)
-            canvas.toBlob(result => result ? resolve(result) : reject(new Error('WebP encoding failed')), 'image/webp', 0.82)
+            resolve(image)
           }
           image.onerror = () => {
             URL.revokeObjectURL(sourceUrl)
@@ -241,31 +183,66 @@
           image.src = sourceUrl
         })
       },
-      clearUploadPreview () {
-        if (this.uploadImgSrc && this.uploadImgSrc.startsWith('blob:')) URL.revokeObjectURL(this.uploadImgSrc)
-        this.uploadImgSrc = ''
-        this.uploadBlob = null
+      canvasToWebP (canvas) {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob(blob => {
+            if (!blob || blob.type !== 'image/webp') {
+              reject(new Error('WebP encoding failed'))
+              return
+            }
+            resolve(blob)
+          }, 'image/webp', 0.84)
+        })
       },
-      async uploadAvatar () {
-        if (!this.uploadBlob) return
-        const form = new window.FormData()
-        const file = new window.File([this.uploadBlob], 'avatar.webp', { type: 'image/webp' })
-        form.append('image', file)
-        this.loadingUploadBtn = true
-        try {
-          await api.uploadAvatar(form)
-          await this.$store.dispatch('getProfile')
-          this.$success(this.$t('m.Avatar_Updated'))
-          this.uploadModalVisible = false
-          this.avatarOption.imgSrc = ''
-          this.clearUploadPreview()
-        } finally {
-          this.loadingUploadBtn = false
-        }
+      async createAvatarBlob (file) {
+        const image = await this.loadImage(file)
+        const sourceSize = Math.min(image.naturalWidth, image.naturalHeight)
+        if (!sourceSize) throw new Error('Image has no pixels')
+
+        const sourceX = Math.round((image.naturalWidth - sourceSize) / 2)
+        const sourceY = Math.round((image.naturalHeight - sourceSize) / 2)
+        const canvas = document.createElement('canvas')
+        canvas.width = AVATAR_SIZE
+        canvas.height = AVATAR_SIZE
+        const context = canvas.getContext('2d')
+        if (!context) throw new Error('Canvas is unavailable')
+        context.imageSmoothingEnabled = true
+        context.imageSmoothingQuality = 'high'
+        context.drawImage(
+          image,
+          sourceX,
+          sourceY,
+          sourceSize,
+          sourceSize,
+          0,
+          0,
+          AVATAR_SIZE,
+          AVATAR_SIZE
+        )
+        return this.canvasToWebP(canvas)
+      },
+      setAvatarPreview (blob) {
+        this.clearAvatarPreview()
+        this.avatarPreviewUrl = URL.createObjectURL(blob)
+      },
+      clearAvatarPreview () {
+        if (this.avatarPreviewUrl) URL.revokeObjectURL(this.avatarPreviewUrl)
+        this.avatarPreviewUrl = ''
       },
       updateProfile () {
+        const missing = []
+        if (!String(this.formProfile.real_name || '').trim()) missing.push(this.$t('m.Real_Name'))
+        if (!String(this.formProfile.student_id || '').trim()) missing.push(this.$t('m.Student_ID'))
+        if (missing.length) {
+          const separator = ['zh-CN', 'zh-TW'].includes(this.$i18n.locale) ? '、' : ', '
+          this.$Notice.warning({
+            title: this.$t('m.Profile_Required_Title'),
+            desc: this.$t('m.Profile_Required_Fields', {fields: missing.join(separator)})
+          })
+          return
+        }
         this.loadingSaveBtn = true
-        let updateData = utils.filterEmptyValue(Object.assign({}, this.formProfile))
+        const updateData = utils.filterEmptyValue(Object.assign({}, this.formProfile))
         api.updateProfile(updateData).then(res => {
           this.$success('Success')
           this.$store.commit(types.CHANGE_PROFILE, {profile: res.data.data})
@@ -282,59 +259,125 @@
       onboardingRequired () {
         return this.$route.query.onboarding === '1' || this.$store.state.user.profile.oj_onboarding_completed === false
       },
-      previewStyle () {
-        return {
-          'width': this.preview.w + 'px',
-          'height': this.preview.h + 'px',
-          'overflow': 'hidden'
-        }
+      avatarSrc () {
+        if (this.avatarPreviewUrl) return this.avatarPreviewUrl
+        const avatar = this.$store.state.user.profile.avatar
+        if (!avatar) return ''
+        if (!this.avatarVersion) return avatar
+        return `${avatar}${avatar.includes('?') ? '&' : '?'}v=${this.avatarVersion}`
+      },
+      avatarInitial () {
+        const username = this.$store.state.user.profile.user?.username || '?'
+        return username.slice(0, 1).toUpperCase()
       }
     }
   }
 </script>
 
 <style lang="less" scoped>
-  .inline {
-    display: inline-block;
+  :deep(.el-form-item.is-required .el-form-item__label::before) {
+    color: #c94f4f;
   }
 
-  .copper-img {
-    width: 400px;
-    height: 300px;
+  .avatar-setting-card {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: min(100%, 560px);
+    margin-bottom: 28px;
+    padding: 18px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
   }
 
-  .flex-container {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    margin-bottom: 10px;
-    .cropper-main {
-      flex: none;
-      .copper-img;
-    }
-    .cropper-btn {
-      flex: none;
-      vertical-align: top;
-    }
-    .cropper-preview {
-      flex: none;
-      /*margin: 10px;*/
-      margin-left: 20px;
-      box-shadow: 0 0 1px 0;
-      .copper-img;
-    }
-  }
+  .avatar-preview {
+    position: relative;
+    flex: 0 0 112px;
+    width: 112px;
+    height: 112px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-bg-subtle);
 
-  .upload-modal {
-    .notice {
-      font-size: 16px;
-      display: inline-block;
-      vertical-align: top;
-      padding: 10px;
-      padding-right: 15px;
+    img,
+    .avatar-fallback {
+      display: grid;
+      width: 100%;
+      height: 100%;
+      place-items: center;
     }
+
     img {
-      box-shadow: 0 0 1px 0;
-      border-radius: 50%;
+      object-fit: cover;
     }
+
+    .avatar-fallback {
+      color: var(--color-text-muted);
+      font-size: 34px;
+      font-weight: 600;
+    }
+  }
+
+  .avatar-loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgb(255 255 255 / 72%);
+
+    :deep(svg) {
+      animation: avatar-spin 900ms linear infinite;
+    }
+  }
+
+  .avatar-setting-content {
+    min-width: 0;
+  }
+
+  .avatar-hint {
+    max-width: 340px;
+    margin: 0 0 14px;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .avatar-upload-button :deep(.legacy-icon) {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .avatar-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @keyframes avatar-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 760px) {
+    .avatar-setting-card {
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .avatar-preview {
+      flex-basis: 88px;
+      width: 88px;
+      height: 88px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .avatar-loading :deep(svg) { animation-duration: 1.8s; }
   }
 </style>

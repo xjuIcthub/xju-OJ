@@ -117,9 +117,9 @@
 
 ## 6. 本轮计划状态
 
-本轮已完成视觉迁移和本地演示数据验收。新增 Feiyue 令牌/全局样式、Element Plus 主题映射、Lucide 兼容层、用户端与 admin 壳层、首页信息看板和 Problem 提交状态样式；Rank 页面使用无卡片直出表格。题目、比赛和虚拟用户 fixtures 现在只在 `OJ_FRONTEND_DEV_MODE=true` 且通过 Vite development 模式启动时进入前端依赖图，正式构建改用空 fixtures 模块。开发数据库中补充了 1001/1002/1003 三道带完整题面与样例的公开题目，包含可编译的 Special Judge；比赛 101/102 分别索引两道真实题目，前端详情页显示可跳转的题目 ID。首页右栏 Notice Board 下方增加 User Ranking，Upcoming Contests 日期强制单行显示。已在 5173 对关键路由执行 Chrome headless 截图烟测。`lint:modern`、`test:routes`、`build`、`git diff --check` 与 `sh -n deploy.sh` 均通过。额外补上了只作用于 Vite dev server 的 admin history fallback，直接访问 `/admin/login` 现可加载 admin 入口。
+本轮已完成视觉迁移和本地演示数据验收。新增 Feiyue 令牌/全局样式、Element Plus 主题映射、Lucide 兼容层、用户端与 admin 壳层、首页信息看板和 Problem 提交状态样式；Rank 页面使用无卡片直出表格。题目、比赛和虚拟用户 fixtures 现在只在 `OJ_FRONTEND_DEV_MODE=true` 且通过 Vite development 模式启动时进入前端依赖图，正式构建改用空 fixtures 模块。开发态展示两道正式题目 1001/1002（均含完整题面、样例和 starter code），比赛 101/102 均索引 1001/1002；旧演示 API 行仅在开发归一化层中替换或隐藏，不进入生产构建。首页右栏 Notice Board 下方增加 User Ranking，Recent Contests 日期强制单行显示。已在 5173 对关键路由执行 Chrome headless 截图烟测。`lint:modern`、`test:routes`、`build`、`git diff --check` 与 `sh -n deploy.sh` 均通过。额外补上了只作用于 Vite dev server 的 admin history fallback，直接访问 `/admin/login` 现可加载 admin 入口。
 
-本地数据库题目、比赛和 `/data/test_case` 测试点属于开发环境运行时种子，不写入仓库迁移文件，也不会改变生产 API、数据库 schema 或鉴权合同；换环境时需重新导入同等演示数据才会看到相同内容。
+本地数据库中可能仍保留旧演示题目行；前端开发归一化层会将 1001/1002 映射到正式题面并隐藏 1003，未写入删除性数据迁移。`/data/test_case` 测试点属于开发环境运行时数据，不写入仓库迁移文件，也不会改变生产 API、路由或鉴权合同。
 
 ## 7. 2026-08-27 跟进修复计划与结果
 
@@ -130,6 +130,7 @@
 | 3 | Contests/Problems/Problem | 比赛筛选与状态胶囊继续统一；题名左对齐、侧栏 tag 按内容自适应；题目详情的最近提交区域取消 hover 变色并补齐中文空状态 |
 | 4 | 头像上传 | 裁剪结果在浏览器压缩为 WebP，再调用原头像上传端点；成功后重新读取 profile，后端仅扩展 WebP 后缀白名单 |
 | 5 | 开发/生产隔离 | 新增 `OJ_FRONTEND_DEV_MODE`；生产禁止开启并使用空 fixtures，开发开启时关闭 OIDC 跳转、启用本地登录并提供 admin 快速登录 |
-| 6 | 验证 | `sh -n deploy.sh`、`lint:modern`、`test:routes`、production build、`git diff --check` 通过；production dist 未检出开发 fixture 标识字符串 |
+| 6 | 个人资料与设置 | 个人资料新增真实姓名/学号必填校验与后端 `student_id` 字段迁移；账号设置菜单隐藏，安全页 Current 使用 Feiyue 胶囊；头像继续保持 WebP 自动上传 |
+| 7 | 验证 | `sh -n deploy.sh`、`lint:modern`、`test:routes`、production build、`git diff --check` 通过；production dist 未检出开发 fixture 标识字符串 |
 
 本次没有改变题目、比赛、提交或用户 API 的路径/请求字段，没有修改路由表、CSRF/Session 合同、提交 payload 或 CodeMirror 编辑行为。头像接口只增加 `.webp` 文件格式支持。

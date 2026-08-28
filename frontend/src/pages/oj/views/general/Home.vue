@@ -17,9 +17,7 @@
           <div class="section-heading"><h2>{{ $t('m.Problems_Set') }}</h2><a href="/problem" @click.prevent="go('/problem')">{{ $t('m.View_All') }}</a></div>
           <div v-if="problems.length" class="problem-list">
             <button v-for="problem in problems" :key="problem._id" class="problem-card" @click="goProblem(problem)">
-              <span class="problem-id">#{{ problem._id }}</span>
-              <span class="problem-main"><strong>{{ problem.title }}</strong><small>{{ problem.submission_number || 0 }} {{ $t('m.Submissions') }} · {{ formatDifficulty(problem.difficulty) }}</small></span>
-              <Icon type="arrow-down-b" class="problem-arrow" />
+              <span class="problem-main"><strong>{{ problem.title }}</strong></span>
             </button>
           </div>
           <div v-else class="empty-card">{{ $t('m.No_Problems_Yet') }}</div>
@@ -43,12 +41,12 @@
             </button>
             <button class="ranking-link" @click="go('/acm-rank')">
               <span class="ranking-icon"><Icon type="trophy" /></span>
-              <span><strong>{{ $t('m.ACM_Ranklist') }}</strong><small>{{ $t('m.ACM_Standings') }}</small></span>
+              <span><strong>{{ $t('m.ACM_Rank') }}</strong></span>
               <Icon type="arrow-down-b" class="ranking-arrow" />
             </button>
             <button class="ranking-link" @click="go('/oi-rank')">
               <span class="ranking-icon"><Icon type="stats-bars" /></span>
-              <span><strong>{{ $t('m.OI_Ranklist') }}</strong><small>{{ $t('m.OI_Score_Standings') }}</small></span>
+              <span><strong>{{ $t('m.OI_Rank') }}</strong><small>{{ $t('m.OI_Score_Standings') }}</small></span>
               <Icon type="arrow-down-b" class="ranking-arrow" />
             </button>
           </div>
@@ -61,7 +59,15 @@
 import Announcements from './Announcements.vue'
 import api from '@oj/api'
 import { CONTEST_STATUS, RULE_TYPE } from '@/utils/constants'
-import { cloneFixtures, filterMockContests, filterMockProblems, MOCK_ACM_RANK, MOCK_CONTESTS } from '@oj/mocks/fixtures'
+import {
+  applyDevelopmentContestFixtures,
+  applyDevelopmentProblemFixtures,
+  cloneFixtures,
+  filterMockContests,
+  filterMockProblems,
+  MOCK_ACM_RANK,
+  MOCK_CONTESTS
+} from '@oj/mocks/fixtures'
 
 export default {
   name: 'home', components: { Announcements },
@@ -75,11 +81,13 @@ export default {
   mounted () {
     api.getContestList(0, 5, { status: CONTEST_STATUS.NOT_START }).then(res => {
       const results = (res.data.data && res.data.data.results) || []
-      this.contests = results.length ? this.withContestProblems(results) : cloneFixtures(filterMockContests({ status: CONTEST_STATUS.NOT_START }))
+      const normalized = applyDevelopmentContestFixtures(results)
+      this.contests = normalized.length ? this.withContestProblems(normalized) : cloneFixtures(filterMockContests({ status: CONTEST_STATUS.NOT_START }))
     }).catch(() => { this.contests = cloneFixtures(filterMockContests({ status: CONTEST_STATUS.NOT_START })) })
     api.getProblemList(0, 20, {}).then(res => {
       const results = (res.data.data && res.data.data.results) || []
-      const source = results.length ? results : filterMockProblems()
+      const normalized = applyDevelopmentProblemFixtures(results)
+      const source = normalized.length ? normalized : filterMockProblems()
       this.problems = source.slice().sort((a, b) => (b.submission_number || 0) - (a.submission_number || 0)).slice(0, 6)
     }).catch(() => { this.problems = cloneFixtures(filterMockProblems()) })
     api.getUserRank(0, 3, RULE_TYPE.ACM).then(res => {
@@ -96,7 +104,6 @@ export default {
     formatContestDate (value) {
       return new Intl.DateTimeFormat(this.$i18n.locale, { month: 'short', day: 'numeric' }).format(new Date(value))
     },
-    formatDifficulty (difficulty) { return difficulty ? this.$t('m.Difficulty_' + difficulty) : this.$t('m.Practice') },
     getLeaderSummary () { return this.acceptedLeaders.map(item => `${item.user.username} ${item.accepted_number}`).join(' · ') },
     withContestProblems (contests) {
       return contests.map(contest => {
@@ -127,7 +134,7 @@ export default {
 .home-right-column { display: grid; gap: 24px; min-width: 0; }
 .home-columns > .home-section, .home-left-column > .home-section, .home-right-column > .home-section { padding-top: 0; }
 .contest-list { display: grid; gap: 8px; }.contest-card { padding: 14px 16px; gap: 14px; }.contest-date { display: inline-flex; flex: 0 0 62px; width: 62px; align-items: center; white-space: nowrap; color: var(--cat-competition); font: 600 16px var(--font-serif); }.empty-card { padding: 26px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); color: var(--color-text-faint); text-align: center; }
-.problem-list { display: grid; gap: 8px; }.problem-card { appearance: none; display: flex; align-items: center; width: 100%; min-height: 58px; padding: 12px 16px; gap: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text); text-align: left; cursor: pointer; transition: background-color var(--transition), border-color var(--transition), box-shadow var(--transition), transform 180ms ease; }.problem-card:hover { background: var(--color-bg-subtle); border-color: var(--line-strong); box-shadow: var(--shadow-card); }.problem-card:active { transform: scale(.99); }.problem-id { flex: none; min-width: 48px; color: var(--cat-tools); font: 600 14px var(--font-serif); }.problem-main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }.problem-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }.problem-main small { overflow: hidden; color: var(--color-text-muted); text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }.problem-arrow { flex: none; color: var(--color-text-faint); transform: rotate(-90deg); }
+.problem-list { display: grid; gap: 6px; }.problem-card { appearance: none; display: flex; align-items: center; width: 100%; min-height: 44px; padding: 9px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text); text-align: left; cursor: pointer; transition: background-color var(--transition), border-color var(--transition), box-shadow var(--transition), transform 180ms ease; }.problem-card:hover { background: var(--color-bg-subtle); border-color: var(--line-strong); box-shadow: var(--shadow-card); }.problem-card:active { transform: scale(.99); }.problem-main { display: flex; min-width: 0; flex: 1; align-items: center; }.problem-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .announcement-board { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
 .notice-board-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-subtle); }
 .notice-icon { display: grid; width: 32px; height: 32px; place-items: center; border-radius: var(--radius-sm); color: var(--cat-research); background: var(--tag-research-bg); }
