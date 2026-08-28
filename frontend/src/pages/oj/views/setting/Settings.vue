@@ -6,7 +6,12 @@
           <Menu accordion @on-select="goRoute" :activeName="activeName" style="text-align: center;" width="auto">
             <div class="avatar-editor">
               <div class="avatar-container">
-                <img v-if="profile.avatar && !avatarFailed" class="avatar" :src="profile.avatar" @error="avatarFailed = true"/>
+                <img v-if="profile.avatar && !avatarFailed"
+                     :key="profile.avatar"
+                     class="avatar"
+                     :src="profile.avatar"
+                     @load="avatarFailed = false"
+                     @error="avatarFailed = true"/>
                 <div v-else class="avatar avatar-fallback">{{ avatarInitial }}</div>
                 <div class="avatar-mask">
                   <a @click.stop="goRoute({name: 'profile-setting'})">

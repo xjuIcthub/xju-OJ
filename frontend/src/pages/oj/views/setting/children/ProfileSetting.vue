@@ -8,8 +8,10 @@
     <div class="avatar-setting-card">
       <div class="avatar-preview" :class="{'is-loading': loadingUploadBtn}">
         <img v-if="avatarSrc && !avatarFailed"
+             :key="avatarSrc"
              :src="avatarSrc"
              :alt="$t('m.Avatar_Setting')"
+             @load="avatarFailed = false"
              @error="avatarFailed = true">
         <span v-else class="avatar-fallback">{{ avatarInitial }}</span>
         <span v-if="loadingUploadBtn" class="avatar-loading" aria-hidden="true">
@@ -17,7 +19,6 @@
         </span>
       </div>
       <div class="avatar-setting-content">
-        <p class="avatar-hint">{{ $t('m.Avatar_Auto_Upload_Hint') }}</p>
         <LegacyButton type="primary"
                       class="avatar-upload-button"
                       :loading="loadingUploadBtn"
@@ -159,7 +160,7 @@
           await api.uploadAvatar(form)
           await this.$store.dispatch('getProfile')
           this.avatarVersion = Date.now()
-          this.clearAvatarPreview()
+          await this.showStoredAvatar()
           this.$success(this.$t('m.Avatar_Updated'))
         } catch (error) {
           this.clearAvatarPreview()
@@ -229,6 +230,15 @@
         if (this.avatarPreviewUrl) URL.revokeObjectURL(this.avatarPreviewUrl)
         this.avatarPreviewUrl = ''
       },
+      async showStoredAvatar () {
+        const previewUrl = this.avatarPreviewUrl
+        this.avatarPreviewUrl = ''
+        this.avatarFailed = false
+        // Switch the rendered image away from the blob URL before revoking it.
+        // Otherwise the revoke can emit an error and lock the UI on initials.
+        await this.$nextTick()
+        if (previewUrl) URL.revokeObjectURL(previewUrl)
+      },
       updateProfile () {
         const missing = []
         if (!String(this.formProfile.real_name || '').trim()) missing.push(this.$t('m.Real_Name'))
@@ -269,6 +279,11 @@
       avatarInitial () {
         const username = this.$store.state.user.profile.user?.username || '?'
         return username.slice(0, 1).toUpperCase()
+      }
+    },
+    watch: {
+      avatarSrc () {
+        this.avatarFailed = false
       }
     }
   }
@@ -334,14 +349,6 @@
 
   .avatar-setting-content {
     min-width: 0;
-  }
-
-  .avatar-hint {
-    max-width: 340px;
-    margin: 0 0 14px;
-    color: var(--color-text-muted);
-    font-size: 13px;
-    line-height: 1.65;
   }
 
   .avatar-upload-button :deep(.legacy-icon) {

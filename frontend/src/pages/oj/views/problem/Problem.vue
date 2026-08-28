@@ -63,9 +63,11 @@
             <div class="status" v-if="statusVisible">
               <template v-if="!this.contestID || (this.contestID && OIContestRealTimePermission)">
                 <span>{{$t('m.Status')}}</span>
-                <Tag type="dot" :color="submissionStatus.color" @click="handleRoute('/status/'+submissionId)">
+                <button type="button"
+                        :class="['judge-status-badge', 'submission-status-link', `is-${submissionStatus.type}`]"
+                        @click="handleRoute('/status/'+submissionId)">
                   {{$t('m.' + submissionStatus.text.replace(/ /g, "_"))}}
-                </Tag>
+                </button>
               </template>
               <template v-else-if="this.contestID && !OIContestRealTimePermission">
                 <Alert type="success" show-icon>{{$t('m.Submitted_successfully')}}</Alert>
@@ -114,10 +116,12 @@
         <div class="recent-submission-divider"></div>
         <div class="recent-submission-list">
           <div v-for="submission in recentSubmissions" :key="submission.id" class="recent-submission-row">
-            <span :class="['submission-status-dot', submissionStatusClass(submission)]"></span>
             <span class="recent-submission-main">
               <strong>{{submission.username}}</strong>
-              <small>{{submissionStatusLabel(submission)}} · {{submission.language}}</small>
+              <small>{{submission.language}}</small>
+            </span>
+            <span :class="['judge-status-badge', submissionStatusClass(submission)]">
+              {{submissionStatusLabel(submission)}}
             </span>
             <time>{{formatSubmissionTime(submission.create_time)}}</time>
           </div>
@@ -420,7 +424,8 @@
       },
       submissionStatusLabel (submission) {
         const status = JUDGE_STATUS[String(submission.result)] || {}
-        return status.short || status.name || 'Pending'
+        const statusName = status.name || 'Pending'
+        return this.$t(`m.${statusName.replace(/ /g, '_')}`)
       },
       submissionStatusClass (submission) {
         const status = JUDGE_STATUS[String(submission.result)] || {}
@@ -552,9 +557,10 @@
         return this.contestStatus === CONTEST_STATUS.ENDED
       },
       submissionStatus () {
+        const status = JUDGE_STATUS[this.result.result] || JUDGE_STATUS['6']
         return {
-          text: JUDGE_STATUS[this.result.result]['name'],
-          color: JUDGE_STATUS[this.result.result]['color']
+          text: status.name,
+          type: status.type || 'info'
         }
       },
       submissionRoute () {
@@ -658,11 +664,11 @@
     margin-top: 20px;
     margin-bottom: 20px;
     .status {
-      float: left;
-      span {
-        margin-right: 10px;
-        margin-left: 10px;
-      }
+      display: flex;
+      min-height: 40px;
+      align-items: center;
+      gap: 10px;
+      > span { color: var(--color-text-muted); font-size: 13px; font-weight: 600; }
     }
     .submit-controls { display: flex; align-items: center; justify-content: flex-end; gap: 13px; flex-wrap: wrap; }
     .captcha-container { display: flex; align-items: center; gap: 8px; }
@@ -705,18 +711,39 @@
   .recent-submission-arrow { color: var(--color-text-faint); transform: rotate(-90deg); }
   .recent-submission-divider { width: 34px; height: 1px; margin: 0 16px 4px; background: var(--line-strong); }
   .recent-submission-list { padding: 2px 16px 8px; }
-  .recent-submission-row { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--color-border); }
+  .recent-submission-row { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 9px; padding: 9px 0; border-bottom: 1px solid var(--color-border); }
   .recent-submission-row:last-child { border-bottom: 0; }
-  .submission-status-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--color-text-faint); }
-  .submission-status-dot.is-success { background: var(--oj-success); }
-  .submission-status-dot.is-error { background: var(--oj-danger); }
-  .submission-status-dot.is-warning { background: var(--oj-warning); }
-  .submission-status-dot.is-info { background: var(--oj-info); }
   .recent-submission-main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
   .recent-submission-main strong { overflow: hidden; color: var(--color-text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
   .recent-submission-main small, .recent-submission-row time { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
   .recent-submission-row time { flex: none; color: var(--color-text-faint); }
   .recent-submission-empty { padding: 14px 0 10px; color: var(--color-text-faint); font-size: 12px; }
+
+  .judge-status-badge {
+    display: inline-flex;
+    width: fit-content;
+    min-width: 72px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 9px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .judge-status-badge.is-success { color: var(--cat-tools); background: var(--tag-tools-bg); }
+  .judge-status-badge.is-error { color: var(--cat-research); background: var(--tag-research-bg); }
+  .judge-status-badge.is-warning { color: var(--cat-course); background: var(--tag-course-bg); }
+  .judge-status-badge.is-info { color: var(--cat-kaggle); background: var(--tag-kaggle-bg); }
+  .submission-status-link {
+    cursor: pointer;
+    transition: filter var(--transition), box-shadow var(--transition);
+  }
+  .submission-status-link:hover { filter: saturate(1.08) brightness(.98); }
+  .submission-status-link:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
 
   #info {
     margin-bottom: 20px;

@@ -46,7 +46,7 @@
             </button>
             <button class="ranking-link" @click="go('/oi-rank')">
               <span class="ranking-icon"><Icon type="stats-bars" /></span>
-              <span><strong>{{ $t('m.OI_Rank') }}</strong><small>{{ $t('m.OI_Score_Standings') }}</small></span>
+              <span><strong>{{ $t('m.OI_Rank') }}</strong></span>
               <Icon type="arrow-down-b" class="ranking-arrow" />
             </button>
           </div>
