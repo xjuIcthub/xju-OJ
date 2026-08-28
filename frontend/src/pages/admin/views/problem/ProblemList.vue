@@ -66,6 +66,13 @@
           </template>
         </el-table-column>
         <el-table-column
+          width="120"
+          label="Judge">
+          <template #default="scope">
+            {{ scope.row.judge_mode === 'REMOTE' ? scope.row.remote_oj : 'LOCAL' }}
+          </template>
+        </el-table-column>
+        <el-table-column
           fixed="right"
           label="Operation"
           width="168">
@@ -73,7 +80,8 @@
             <icon-btn name="Edit" icon="edit" @click="goEdit(scope.row.id)"></icon-btn>
             <icon-btn v-if="contestId" name="Make Public" icon="clone"
                       @click="makeContestProblemPublic(scope.row.id)"></icon-btn>
-            <icon-btn icon="download" name="Download TestCase"
+            <icon-btn v-if="scope.row.judge_mode !== 'REMOTE'"
+                      icon="download" name="Download TestCase"
                       @click="downloadTestCase(scope.row.id)"></icon-btn>
             <icon-btn icon="trash" name="Delete Problem"
                       @click="deleteProblem(scope.row.id)"></icon-btn>
@@ -83,6 +91,12 @@
       <div class="panel-options">
         <el-button type="primary" size="small"
                    @click="goCreateProblem"><Icon type="plus" />Create
+        </el-button>
+        <el-button v-if="!contestId" type="success" size="small"
+                   @click="remoteImportDialogVisible = true"><Icon type="download" />Import Remote
+        </el-button>
+        <el-button v-if="contestId" type="success" size="small"
+                   @click="remoteImportDialogVisible = true"><Icon type="download" />Import Remote
         </el-button>
         <el-button v-if="contestId" type="primary"
                    size="small"
@@ -117,12 +131,49 @@
                @close-on-click-modal="false">
       <add-problem-component :contestID="contestId" @on-change="getProblemList"></add-problem-component>
     </LegacyDialog>
+    <LegacyDialog :title="contestId ? 'Import Remote Problem Into Contest' : 'Import Remote Problem'"
+               width="520px"
+               :visible="remoteImportDialogVisible" @update:visible="remoteImportDialogVisible = $event"
+               @close-on-click-modal="false">
+      <el-form label-position="top">
+        <el-form-item label="Remote OJ" required>
+          <el-select v-model="remoteImportForm.provider" style="width: 100%">
+            <el-option label="Nowcoder / 牛客" value="NOWCODER"></el-option>
+            <el-option label="Luogu / 洛谷" value="LUOGU"></el-option>
+            <el-option label="Codeforces" value="CODEFORCES"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="remoteImportIdLabel" required>
+          <el-input v-model="remoteImportForm.remote_id"
+                    :placeholder="remoteImportPlaceholder"></el-input>
+        </el-form-item>
+        <el-form-item :label="contestId ? 'Contest Display ID' : 'Display ID'"
+                      :required="Boolean(contestId)">
+          <el-input v-model="remoteImportForm.display_id"
+                    :placeholder="remoteImportDisplayIdPlaceholder"></el-input>
+        </el-form-item>
+        <el-form-item v-if="contestId" label="Public Library Display ID">
+          <el-input v-model="remoteImportForm.public_display_id"
+                    :placeholder="remoteImportPublicDisplayIdPlaceholder"></el-input>
+        </el-form-item>
+        <el-alert type="info" :closable="false"
+                  :title="contestId
+                    ? 'If this is a new remote problem, it will automatically enter the public library after the contest ends.'
+                    : 'The imported problem is immediately available for remote practice submissions.'"></el-alert>
+      </el-form>
+      <template #footer><span>
+        <cancel @click="remoteImportDialogVisible = false"></cancel>
+        <el-button type="primary" :loading="remoteImportLoading"
+                   @click="importRemoteProblem">Import</el-button>
+      </span></template>
+    </LegacyDialog>
   </div>
 </template>
 <script>
   import api from '../../api.js'
   import utils from '@/utils/utils'
   import AddProblemComponent from './AddPublicProblem.vue'
+  import { collectCodeforcesProblemPage, supportsRemoteProblemImport } from '../../remoteBridge'
 
   export default {
     name: 'ProblemList',
@@ -144,13 +195,52 @@
         currentRow: {},
         InlineEditDialogVisible: false,
         makePublicDialogVisible: false,
-        addProblemDialogVisible: false
+        addProblemDialogVisible: false,
+        remoteImportDialogVisible: false,
+        remoteImportLoading: false,
+        remoteImportForm: {
+          provider: 'NOWCODER',
+          remote_id: '',
+          display_id: '',
+          public_display_id: ''
+        }
       }
     },
     mounted () {
       this.routeName = this.$route.name
       this.contestId = this.$route.params.contestId
       this.getProblemList(this.currentPage)
+    },
+    computed: {
+      remoteImportIdLabel () {
+        return {
+          NOWCODER: 'Nowcoder NC problem ID or ACM problem URL',
+          LUOGU: 'Luogu problem ID or URL',
+          CODEFORCES: 'Codeforces problem ID or URL'
+        }[this.remoteImportForm.provider]
+      },
+      remoteImportPlaceholder () {
+        return {
+          NOWCODER: 'NC322024 or https://ac.nowcoder.com/acm/problem/322024',
+          LUOGU: 'P1001',
+          CODEFORCES: '4A'
+        }[this.remoteImportForm.provider]
+      },
+      remoteImportDisplayIdPlaceholder () {
+        if (this.contestId) return 'A, B, C...'
+        return {
+          NOWCODER: 'Leave blank to use NC322024',
+          LUOGU: 'Leave blank to use LG-P1001',
+          CODEFORCES: 'Leave blank to use CF-4A'
+        }[this.remoteImportForm.provider]
+      },
+      remoteImportPublicDisplayIdPlaceholder () {
+        return {
+          NOWCODER: 'Leave blank to use NC322024',
+          LUOGU: 'Leave blank to use LG-P1001',
+          CODEFORCES: 'Leave blank to use CF-4A'
+        }[this.remoteImportForm.provider]
+      }
     },
     methods: {
       handleDblclick (row) {
@@ -169,6 +259,54 @@
         } else if (this.routeName === 'contest-problem-list') {
           this.$router.push({name: 'create-contest-problem', params: {contestId: this.contestId}})
         }
+      },
+      async importRemoteProblem () {
+        if (!this.remoteImportForm.remote_id.trim()) {
+          this.$error('Remote problem ID or URL is required')
+          return
+        }
+        if (this.contestId && !this.remoteImportForm.display_id.trim()) {
+          this.$error('Contest display ID is required')
+          return
+        }
+        this.remoteImportLoading = true
+        let pageHtml = ''
+        if (this.remoteImportForm.provider === 'CODEFORCES') {
+          if (!supportsRemoteProblemImport()) {
+            this.remoteImportLoading = false
+            this.$error('Codeforces 导题需要最新版远程提交助手，已为你打开安装页')
+            window.open('/remote-bridge', '_blank', 'noopener')
+            return
+          }
+          try {
+            pageHtml = await collectCodeforcesProblemPage(this.remoteImportForm.remote_id.trim())
+          } catch (error) {
+            this.remoteImportLoading = false
+            this.$error(error.message || 'Codeforces 题面读取失败')
+            return
+          }
+        }
+        api.importRemoteProblem({
+          provider: this.remoteImportForm.provider,
+          remote_id: this.remoteImportForm.remote_id.trim(),
+          display_id: this.remoteImportForm.display_id.trim(),
+          contest_id: this.contestId || null,
+          public_display_id: this.remoteImportForm.public_display_id.trim(),
+          page_html: pageHtml
+        }).then(() => {
+          this.remoteImportLoading = false
+          this.remoteImportDialogVisible = false
+          this.remoteImportForm = {
+            provider: 'NOWCODER',
+            remote_id: '',
+            display_id: '',
+            public_display_id: ''
+          }
+          this.$success('Remote problem imported')
+          this.getProblemList(1)
+        }).catch(() => {
+          this.remoteImportLoading = false
+        })
       },
       // 切换页码回调
       currentChange (page) {

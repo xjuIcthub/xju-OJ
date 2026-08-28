@@ -8,7 +8,7 @@
         <Menu-item name="/contest" @mouseenter="prefetchRoute('/contest')"><Icon type="trophy" />{{$t('m.Contests')}}</Menu-item>
         <Menu-item name="/status" @mouseenter="prefetchRoute('/status')"><Icon type="ios-pulse-strong" />{{$t('m.NavStatus')}}</Menu-item>
         <Submenu name="rank" @mouseenter="prefetchRoutes(['/acm-rank', '/oi-rank'])"><template #title><Icon type="podium" />{{$t('m.Rank')}}</template><Menu-item name="/acm-rank">{{$t('m.ACM_Rank')}}</Menu-item><Menu-item name="/oi-rank">{{$t('m.OI_Rank')}}</Menu-item></Submenu>
-        <Submenu name="about" @mouseenter="prefetchRoutes(['/about', '/faq'])"><template #title><Icon type="information-circled" />{{$t('m.About')}}</template><Menu-item name="/about">{{$t('m.Judger')}}</Menu-item><Menu-item name="/faq">{{$t('m.FAQ')}}</Menu-item></Submenu>
+        <Submenu name="about" @mouseenter="prefetchRoutes(['/about', '/faq', '/remote-bridge'])"><template #title><Icon type="information-circled" />{{$t('m.About')}}</template><Menu-item name="/about">{{$t('m.Judger')}}</Menu-item><Menu-item name="/faq">{{$t('m.FAQ')}}</Menu-item><Menu-item name="/remote-bridge">{{$t('m.Remote_Bridge')}}</Menu-item></Submenu>
       </Menu>
       <div class="nav-actions">
         <div class="nav-search"><Input v-model="searchKeyword" :placeholder="$t('m.Search_Problems')" @on-enter="handleSearch"><template #prefix><Icon type="search" /></template></Input></div>
@@ -82,7 +82,7 @@ export default {
       const path = this.$route.path
       if (path === '/') return '/'
       if (path === '/acm-rank' || path === '/oi-rank') return 'rank'
-      if (path === '/about' || path === '/faq') return 'about'
+      if (path === '/about' || path === '/faq' || path === '/remote-bridge') return 'about'
       return '/' + path.split('/')[1]
     },
     modalVisible: { get () { return this.modalStatus.visible }, set (value) { this.changeModalStatus({ visible: value }) } }

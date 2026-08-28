@@ -6,6 +6,7 @@ const Logout = () => import('./user/Logout.vue')
 const UserHome = () => import('./user/UserHome.vue')
 const About = () => import('./help/About.vue')
 const FAQ = () => import('./help/FAQ.vue')
+const RemoteBridge = () => import('./help/RemoteBridge.vue')
 const Announcements = () => import('./general/Announcements.vue')
 
 const SubmissionList = () => import('@oj/views/submission/SubmissionList.vue')
@@ -21,7 +22,7 @@ const Problem = () => import('@oj/views/problem/Problem.vue')
 
 export {
   Home, NotFound, Announcements,
-  Logout, UserHome, About, FAQ,
+  Logout, UserHome, About, FAQ, RemoteBridge,
   ProblemList, Problem,
   ACMRank, OIRank,
   SubmissionList, SubmissionDetails,

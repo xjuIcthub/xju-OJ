@@ -1,16 +1,27 @@
 import copy
 import hashlib
+import json
 import os
 import shutil
 from datetime import timedelta
+from unittest.mock import Mock, patch
 from zipfile import ZipFile
 
 from django.conf import settings
+from django.utils import timezone
 
 from utils.api.tests import APITestCase
 
 from .models import ProblemTag, ProblemIOMode
-from .models import Problem, ProblemRuleType
+from .models import Problem, ProblemRuleType, ProblemJudgeMode, RemoteOJ
+from .remote.codeforces import (parse_codeforces_problem_page,
+                                parse_codeforces_reference)
+from .remote.luogu import parse_luogu_problem_page, parse_luogu_reference
+from .remote.nowcoder import (parse_nowcoder_acm_problem_page,
+                              parse_nowcoder_problem_page,
+                              parse_nowcoder_reference)
+from .publication import publish_due_contest_problems
+from .tasks import schedule_contest_problem_publication
 from contest.models import Contest
 from contest.tests import DEFAULT_CONTEST_DATA
 
@@ -28,6 +39,95 @@ DEFAULT_PROBLEM_DATA = {"_id": "A-110", "title": "test", "description": "<p>test
                         "io_mode": {"io_mode": ProblemIOMode.standard, "input": "input.txt", "output": "output.txt"},
                         "share_submission": False,
                         "rule_type": "ACM", "hint": "<p>test</p>", "source": "test"}
+
+NOWCODER_PROBLEM_UUID = "c4030190499f4da3acd744d33f39627b"
+NOWCODER_PROBLEM_HTML = f"""
+<html>
+  <body>
+    <h1 class="crumbs-end js-question-title">Remote test problem</h1>
+    <span>时间限制：C/C++ 1秒，其他语言2秒</span>
+    <span>空间限制：C/C++ 256M，其他语言512M</span>
+    <div class="nc-post-content"><p>Count the answer.</p><script>bad()</script></div>
+    <h5><b>输入描述:</b></h5><pre>Two integers.<br />Read them.</pre>
+    <h5><b>输出描述:</b></h5><pre>Print the answer.</pre>
+    <div class="question-oi-hd">示例1</div>
+    <h2>输入</h2><div class="question-oi-cont"><pre>1 2</pre></div>
+    <h2>输出</h2><div class="question-oi-cont"><pre>3</pre></div>
+    <script>
+      window.problem = {{ id: 11742270, uuid: '{NOWCODER_PROBLEM_UUID}', type: 4 }};
+      window.codeJudgeType = '0';
+      window.supportLang = 'java,cpp';
+    </script>
+  </body>
+</html>
+"""
+
+NOWCODER_ACM_PROBLEM_HTML = """
+<html><body>
+  <div class="question-title"><i class="icon-list"></i>小月的数组</div>
+  <span>时间限制：C/C++/Rust/Pascal 2秒，其他语言4秒</span>
+  <span>空间限制：C/C++/Rust/Pascal 256 M，其他语言512 M</span>
+  <div class="subject-question"><p>计算答案。</p><script>bad()</script></div>
+  <h2>输入描述:</h2><pre>两个整数。</pre>
+  <h2>输出描述:</h2><pre>输出答案。</pre>
+  <textarea data-clipboard-text-id="input1">1 0
+</textarea>
+  <textarea data-clipboard-text-id="output1">1
+</textarea>
+  <script>
+    window.codeJudgeType = '0';
+    window.supportLang = 'java,cpp';
+    window.pageInfo = {
+      questionId: '11776488',
+      problemId: '322024',
+      uuid: '7cb1f9696c1048e5bc790256bb7f2bac',
+      tagId: '4'
+    };
+  </script>
+</body></html>
+"""
+
+CODEFORCES_PROBLEM_HTML = """
+<div class="problem-statement">
+  <div class="header">
+    <div class="title">A. Watermelon</div>
+    <div class="time-limit"><div class="property-title">time limit per test</div>1 second</div>
+    <div class="memory-limit"><div class="property-title">memory limit per test</div>64 megabytes</div>
+  </div>
+  <div><p>Decide whether it can be split.<script>bad()</script></p></div>
+  <div class="input-specification"><div class="section-title">Input</div><p>An integer.</p></div>
+  <div class="output-specification"><div class="section-title">Output</div><p>YES or NO.</p></div>
+  <div class="sample-tests"><div class="sample-test">
+    <div class="input"><div class="title">Input</div><pre>8<br /></pre></div>
+    <div class="output"><div class="title">Output</div><pre>YES<br /></pre></div>
+  </div></div>
+  <div class="note"><div class="section-title">Note</div><p>A note.</p></div>
+</div>
+"""
+
+LUOGU_PROBLEM_HTML = """
+<script id="lentille-context" type="application/json">{context}</script>
+""".format(context=json.dumps({
+    "template": "problem.show",
+    "data": {
+        "problem": {
+            "pid": "P1001",
+            "type": "P",
+            "name": "A+B Problem",
+            "difficulty": 1,
+            "contenu": {
+                "background": "**Background**",
+                "description": "Add two integers.",
+                "formatI": "Two integers.",
+                "formatO": "Their sum.",
+                "hint": "No hint.",
+            },
+            "acceptLanguages": [2, 12, 33, 7, 14, 9],
+            "samples": [["20 30\n", "50\n"]],
+            "limits": {"time": [1000], "memory": [524288]},
+        }
+    },
+}))
 
 
 class ProblemCreateTestBase(APITestCase):
@@ -175,6 +275,222 @@ class ProblemAdminAPITest(APITestCase):
         data["id"] = problem_id
         resp = self.client.put(self.url, data=data)
         self.assertSuccess(resp)
+
+
+class NowcoderProblemImportTest(APITestCase):
+    def setUp(self):
+        self.url = self.reverse("remote_problem_import_api")
+        self.admin = self.create_super_admin()
+
+    def _response(self):
+        response = Mock()
+        response.status_code = 200
+        response.text = NOWCODER_PROBLEM_HTML
+        return response
+
+    def test_parse_reference_and_page(self):
+        self.assertEqual(
+            parse_nowcoder_reference(
+                f"https://www.nowcoder.com/questionTerminal/{NOWCODER_PROBLEM_UUID}"
+            ),
+            NOWCODER_PROBLEM_UUID,
+        )
+        data = parse_nowcoder_problem_page(NOWCODER_PROBLEM_HTML, NOWCODER_PROBLEM_UUID)
+        self.assertEqual(data["question_id"], "11742270")
+        self.assertEqual(data["languages"], ["Java", "C++"])
+        self.assertEqual(data["samples"], [{"input": "1 2", "output": "3"}])
+        self.assertNotIn("<script", data["description"])
+        self.assertNotIn("bad()", data["description"])
+
+        self.assertEqual(parse_nowcoder_reference("NC322024"), "NC322024")
+        self.assertEqual(parse_nowcoder_reference("322024"), "NC322024")
+        self.assertEqual(
+            parse_nowcoder_reference("https://ac.nowcoder.com/acm/problem/322024"),
+            "NC322024",
+        )
+        acm = parse_nowcoder_acm_problem_page(NOWCODER_ACM_PROBLEM_HTML, "322024")
+        self.assertEqual(acm["remote_id"], "NC322024")
+        self.assertEqual(acm["question_id"], "11776488")
+        self.assertEqual(acm["samples"], [{"input": "1 0", "output": "1"}])
+        self.assertEqual(acm["time_limit"], 2000)
+        self.assertEqual(acm["memory_limit"], 256)
+        self.assertNotIn("bad()", acm["description"])
+
+    def test_parse_luogu_and_codeforces_pages(self):
+        self.assertEqual(parse_luogu_reference("https://www.luogu.com.cn/problem/P1001"), "P1001")
+        luogu = parse_luogu_problem_page(LUOGU_PROBLEM_HTML, "P1001")
+        self.assertEqual(luogu["title"], "A+B Problem")
+        self.assertEqual(luogu["samples"], [{"input": "20 30\n", "output": "50\n"}])
+        self.assertEqual(luogu["memory_limit"], 512)
+        self.assertIn("<strong>Background</strong>", luogu["description"])
+
+        self.assertEqual(parse_codeforces_reference("https://codeforces.com/problemset/problem/4/A"), (4, "A"))
+        codeforces = parse_codeforces_problem_page(CODEFORCES_PROBLEM_HTML, 4, "A")
+        self.assertEqual(codeforces["title"], "Watermelon")
+        self.assertEqual(codeforces["samples"], [{"input": "8", "output": "YES"}])
+        self.assertEqual(codeforces["time_limit"], 1000)
+        self.assertEqual(codeforces["memory_limit"], 64)
+        self.assertNotIn("bad()", codeforces["description"])
+
+    @patch("problem.tasks.publish_contest_problems.send_with_options")
+    def test_schedule_post_contest_publication(self, mock_send):
+        end_time = timezone.now() + timedelta(seconds=60)
+        schedule_contest_problem_publication(23, end_time)
+        options = mock_send.call_args.kwargs
+        self.assertEqual(options["args"], (23,))
+        self.assertGreaterEqual(options["delay"], 59000)
+        self.assertLessEqual(options["delay"], 61000)
+
+    @patch("problem.remote.nowcoder.requests.get")
+    def test_import_nowcoder_problem(self, mock_get):
+        mock_get.return_value = self._response()
+        resp = self.client.post(self.url, data={
+            "provider": RemoteOJ.NOWCODER,
+            "remote_id": NOWCODER_PROBLEM_UUID,
+            "display_id": "NC-TEST",
+        })
+        self.assertSuccess(resp)
+        problem = Problem.objects.get(_id="NC-TEST")
+        self.assertEqual(problem.judge_mode, ProblemJudgeMode.REMOTE)
+        self.assertEqual(problem.remote_oj, RemoteOJ.NOWCODER)
+        self.assertEqual(problem.remote_problem_id, NOWCODER_PROBLEM_UUID)
+        self.assertEqual(problem.remote_problem_data["question_id"], "11742270")
+        self.assertEqual(problem.test_case_id, "")
+        self.assertTrue(problem.visible)
+        self.assertTrue(problem.tags.filter(name="牛客").exists())
+
+        duplicate = self.client.post(self.url, data={
+            "provider": RemoteOJ.NOWCODER,
+            "remote_id": NOWCODER_PROBLEM_UUID,
+            "display_id": "NC-TEST-2",
+        })
+        self.assertFailed(duplicate, "Remote problem already exists")
+
+        contest = Contest.objects.create(created_by=self.admin, **DEFAULT_CONTEST_DATA)
+        add_to_contest = self.client.post(
+            self.reverse("add_contest_problem_from_public_api"),
+            data={
+                "problem_id": problem.id,
+                "contest_id": contest.id,
+                "display_id": "A",
+            },
+        )
+        self.assertSuccess(add_to_contest)
+        contest_problem = Problem.objects.get(contest=contest, _id="A")
+        self.assertEqual(contest_problem.judge_mode, ProblemJudgeMode.REMOTE)
+        self.assertEqual(contest_problem.remote_problem_id, NOWCODER_PROBLEM_UUID)
+        self.assertEqual(contest_problem.test_case_id, "")
+        self.assertTrue(contest_problem.visible)
+
+    @patch("problem.views.admin.fetch_remote_problem")
+    def test_import_luogu_and_codeforces_problem(self, mock_fetch):
+        def remote_problem(provider, reference):
+            remote_id = "P1001" if provider == RemoteOJ.LUOGU else "4A"
+            title = "A+B Problem" if provider == RemoteOJ.LUOGU else "Watermelon"
+            prefix = "LG" if provider == RemoteOJ.LUOGU else "CF"
+            return {
+                "remote_id": remote_id,
+                "default_display_id": f"{prefix}-{remote_id}",
+                "title": title,
+                "description": "<p>Description</p>",
+                "input_description": "<p>Input</p>",
+                "output_description": "<p>Output</p>",
+                "samples": [{"input": "1", "output": "1"}],
+                "hint": "",
+                "languages": ["C++"],
+                "time_limit": 1000,
+                "memory_limit": 256,
+                "difficulty": "Low",
+                "source": f"{provider} {remote_id}",
+                "tag": provider,
+                "metadata": {"language_ids": {"C++": "12"}},
+            }
+
+        mock_fetch.side_effect = remote_problem
+        for provider, expected_id in (
+                (RemoteOJ.LUOGU, "LG-P1001"),
+                (RemoteOJ.CODEFORCES, "CF-4A")):
+            response = self.client.post(self.url, data={
+                "provider": provider,
+                "remote_id": expected_id.split("-", 1)[1],
+                "display_id": "",
+            })
+            self.assertSuccess(response)
+            problem = Problem.objects.get(_id=expected_id)
+            self.assertEqual(problem.remote_oj, provider)
+            self.assertEqual(problem.test_case_id, "")
+            self.assertTrue(problem.visible)
+
+    @patch("problem.remote.codeforces._fetch_problem_metadata")
+    def test_import_codeforces_problem_from_browser_page(self, mock_metadata):
+        mock_metadata.return_value = {
+            "name": "Watermelon",
+            "rating": 800,
+            "tags": ["brute force", "math"],
+        }
+        response = self.client.post(self.url, data={
+            "provider": RemoteOJ.CODEFORCES,
+            "remote_id": "4A",
+            "display_id": "CF-BROWSER-4A",
+            "page_html": CODEFORCES_PROBLEM_HTML,
+        })
+        self.assertSuccess(response)
+        problem = Problem.objects.get(_id="CF-BROWSER-4A")
+        self.assertEqual(problem.remote_oj, RemoteOJ.CODEFORCES)
+        self.assertEqual(problem.remote_problem_id, "4A")
+        self.assertEqual(problem.title, "Watermelon")
+        self.assertEqual(problem.samples, [{"input": "8", "output": "YES"}])
+        self.assertEqual(problem.remote_problem_data["rating"], 800)
+        mock_metadata.assert_called_once_with(4, "A")
+
+    @patch("problem.views.admin.fetch_remote_problem")
+    def test_import_new_remote_problem_into_contest_and_publish_after_end(self, mock_fetch):
+        mock_fetch.return_value = {
+            "remote_id": "71A",
+            "default_display_id": "CF-71A",
+            "title": "Way Too Long Words",
+            "description": "<p>Description</p>",
+            "input_description": "<p>Input</p>",
+            "output_description": "<p>Output</p>",
+            "samples": [{"input": "1", "output": "1"}],
+            "hint": "",
+            "languages": ["C++"],
+            "time_limit": 1000,
+            "memory_limit": 256,
+            "difficulty": "Low",
+            "source": "Codeforces 71A",
+            "tag": "Codeforces",
+            "metadata": {
+                "contest_id": 71,
+                "index": "A",
+                "url": "https://codeforces.com/problemset/problem/71/A",
+                "language_ids": {"C++": "54"},
+            },
+        }
+        contest = Contest.objects.create(created_by=self.admin, **DEFAULT_CONTEST_DATA)
+        response = self.client.post(self.url, data={
+            "provider": RemoteOJ.CODEFORCES,
+            "remote_id": "71A",
+            "display_id": "A",
+            "contest_id": contest.id,
+            "public_display_id": "CF-71A",
+        })
+        self.assertSuccess(response)
+        contest_problem = Problem.objects.get(contest=contest, _id="A")
+        self.assertTrue(contest_problem.publish_after_contest)
+        self.assertEqual(contest_problem.post_contest_display_id, "CF-71A")
+        self.assertFalse(Problem.objects.filter(contest_id__isnull=True, remote_problem_id="71A").exists())
+
+        contest.end_time = timezone.now() - timedelta(seconds=1)
+        contest.save(update_fields=("end_time",))
+        published = publish_due_contest_problems([contest.id])
+        self.assertEqual(len(published), 1)
+        public_problem = Problem.objects.get(contest_id__isnull=True, remote_problem_id="71A")
+        self.assertEqual(public_problem._id, "CF-71A")
+        self.assertTrue(public_problem.visible)
+        contest_problem.refresh_from_db()
+        self.assertTrue(contest_problem.is_public)
+        self.assertFalse(contest_problem.publish_after_contest)
 
 
 class ProblemAPITest(ProblemCreateTestBase):

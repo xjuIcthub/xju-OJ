@@ -1,9 +1,11 @@
 from copy import deepcopy
 from unittest import mock
 
-from problem.models import Problem, ProblemTag
+from problem.models import (Problem, ProblemJudgeMode, ProblemTag, RemoteOJ)
 from utils.api.tests import APITestCase
-from .models import Submission
+from .models import (JudgeStatus, RemoteSubmissionStatus, Submission,
+                     SubmissionJudgeMode)
+from .remote import map_remote_verdict
 
 DEFAULT_PROBLEM_DATA = {"_id": "A-110", "title": "test", "description": "<p>test</p>", "input_description": "test",
                         "output_description": "test", "time_limit": 1000, "memory_limit": 256, "difficulty": "Low",
@@ -76,3 +78,81 @@ class SubmissionAPITest(SubmissionPrepare):
         self.assertDictEqual(resp.data, {"error": "invalid-language",
                                          "data": "language: Python2 is not a valid language"})
         judge_task.assert_not_called()
+
+    def _configure_remote_problem(self):
+        self.problem.judge_mode = ProblemJudgeMode.REMOTE
+        self.problem.remote_oj = RemoteOJ.CODEFORCES
+        self.problem.remote_problem_id = "4A"
+        self.problem.remote_problem_data = {
+            "contest_id": 4,
+            "index": "A",
+            "url": "https://codeforces.com/problemset/problem/4/A",
+            "language_ids": {"C": "43", "C++": "54"},
+        }
+        self.problem.test_case_id = ""
+        self.problem.save()
+
+    def test_create_remote_submission_returns_browser_task(self, judge_task):
+        self._configure_remote_problem()
+        resp = self.client.post(self.url, self.submission_data)
+        self.assertSuccess(resp)
+        judge_task.assert_not_called()
+
+        response_data = resp.data["data"]
+        task = response_data["remote_task"]
+        submission = Submission.objects.get(id=response_data["submission_id"])
+        self.assertEqual(task["provider"], RemoteOJ.CODEFORCES)
+        self.assertEqual(task["problem_id"], "4A")
+        self.assertEqual(task["language_id"], "43")
+        self.assertEqual(submission.judge_mode, SubmissionJudgeMode.REMOTE)
+        self.assertEqual(submission.remote_status, RemoteSubmissionStatus.QUEUED)
+
+    def test_remote_submission_event_lifecycle(self, judge_task):
+        self._configure_remote_problem()
+        create = self.client.post(self.url, self.submission_data)
+        self.assertSuccess(create)
+        submission_id = create.data["data"]["submission_id"]
+        event_url = self.reverse("remote_submission_event_api")
+
+        for status, extra in (
+                (RemoteSubmissionStatus.OPENING, {}),
+                (RemoteSubmissionStatus.SUBMITTED, {"remote_submission_id": "10001"}),
+                (RemoteSubmissionStatus.JUDGING, {"remote_submission_id": "10001"})):
+            response = self.client.post(event_url, {
+                "submission_id": submission_id,
+                "provider": RemoteOJ.CODEFORCES,
+                "status": status,
+                **extra,
+            })
+            self.assertSuccess(response)
+
+        finished = self.client.post(event_url, {
+            "submission_id": submission_id,
+            "provider": RemoteOJ.CODEFORCES,
+            "status": RemoteSubmissionStatus.FINISHED,
+            "remote_submission_id": "10001",
+            "remote_url": "https://codeforces.com/contest/4/submission/10001",
+            "verdict": "OK",
+            "time_ms": 31,
+            "memory_bytes": 4096,
+            "verification_source": "codeforces-api",
+        })
+        self.assertSuccess(finished)
+
+        submission = Submission.objects.get(id=submission_id)
+        self.problem.refresh_from_db()
+        self.user.userprofile.refresh_from_db()
+        self.assertEqual(submission.result, JudgeStatus.ACCEPTED)
+        self.assertEqual(submission.remote_status, RemoteSubmissionStatus.FINISHED)
+        self.assertEqual(submission.remote_submission_id, "10001")
+        self.assertEqual(submission.statistic_info["time_cost"], 31)
+        self.assertEqual(self.problem.submission_number, 1)
+        self.assertEqual(self.problem.accepted_number, 1)
+        self.assertEqual(self.user.userprofile.submission_number, 1)
+
+
+class RemoteVerdictMappingTest(APITestCase):
+    def test_common_remote_verdicts(self):
+        self.assertEqual(map_remote_verdict("OK"), JudgeStatus.ACCEPTED)
+        self.assertEqual(map_remote_verdict("COMPILATION_ERROR"), JudgeStatus.COMPILE_ERROR)
+        self.assertEqual(map_remote_verdict("答案错误"), JudgeStatus.WRONG_ANSWER)

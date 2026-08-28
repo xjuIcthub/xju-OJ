@@ -5,6 +5,7 @@ from account.decorators import check_contest_permission
 from ..models import ProblemTag, Problem, ProblemRuleType
 from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerializer
 from contest.models import ContestRuleType
+from ..publication import publish_due_contest_problems
 
 
 class ProblemTagAPI(APIView):
@@ -46,6 +47,7 @@ class ProblemAPI(APIView):
                     problem["my_status"] = oi_problems_status.get(str(problem["id"]), {}).get("status")
 
     def get(self, request):
+        publish_due_contest_problems()
         # 问题详情页
         problem_id = request.GET.get("problem_id")
         if problem_id:

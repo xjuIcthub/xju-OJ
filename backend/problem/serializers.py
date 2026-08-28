@@ -7,7 +7,8 @@ from utils.api import UsernameSerializer, serializers
 from utils.constants import Difficulty
 from utils.serializers import LanguageNameMultiChoiceField, SPJLanguageNameChoiceField, LanguageNameChoiceField
 
-from .models import Problem, ProblemRuleType, ProblemTag, ProblemIOMode
+from .models import (Problem, ProblemRuleType, ProblemTag, ProblemIOMode,
+                     ProblemJudgeMode, RemoteOJ)
 from .utils import parse_problem_template
 
 
@@ -51,8 +52,8 @@ class CreateOrEditProblemSerializer(serializers.Serializer):
     description = serializers.CharField()
     input_description = serializers.CharField()
     output_description = serializers.CharField()
-    samples = serializers.ListField(child=CreateSampleSerializer(), allow_empty=False)
-    test_case_id = serializers.CharField(max_length=32)
+    samples = serializers.ListField(child=CreateSampleSerializer(), allow_empty=True)
+    test_case_id = serializers.CharField(max_length=32, allow_blank=True)
     test_case_score = serializers.ListField(child=CreateTestCaseScoreSerializer(), allow_empty=True)
     time_limit = serializers.IntegerField(min_value=1, max_value=1000 * 60)
     memory_limit = serializers.IntegerField(min_value=1, max_value=1024)
@@ -70,6 +71,29 @@ class CreateOrEditProblemSerializer(serializers.Serializer):
     hint = serializers.CharField(allow_blank=True, allow_null=True)
     source = serializers.CharField(max_length=256, allow_blank=True, allow_null=True)
     share_submission = serializers.BooleanField()
+    judge_mode = serializers.ChoiceField(choices=ProblemJudgeMode.choices(), default=ProblemJudgeMode.LOCAL)
+    remote_oj = serializers.ChoiceField(choices=RemoteOJ.choices(), allow_null=True, required=False, default=None)
+    remote_problem_id = serializers.CharField(max_length=128, allow_blank=True, allow_null=True,
+                                              required=False, default=None)
+    remote_problem_data = serializers.DictField(required=False, default=dict)
+
+    def validate(self, attrs):
+        if attrs["judge_mode"] == ProblemJudgeMode.REMOTE:
+            if not attrs.get("remote_oj") or not attrs.get("remote_problem_id"):
+                raise serializers.ValidationError("Remote judge metadata is required")
+            if attrs["rule_type"] != ProblemRuleType.ACM:
+                raise serializers.ValidationError("Remote judge currently supports ACM problems only")
+            if attrs["spj"]:
+                raise serializers.ValidationError("Remote judge problem cannot use local SPJ")
+        else:
+            if not attrs["samples"]:
+                raise serializers.ValidationError("Sample is required")
+            if not attrs["test_case_id"]:
+                raise serializers.ValidationError("Test case is required")
+            attrs["remote_oj"] = None
+            attrs["remote_problem_id"] = None
+            attrs["remote_problem_data"] = {}
+        return attrs
 
 
 class CreateProblemSerializer(CreateOrEditProblemSerializer):
@@ -87,6 +111,16 @@ class CreateContestProblemSerializer(CreateOrEditProblemSerializer):
 class EditContestProblemSerializer(CreateOrEditProblemSerializer):
     id = serializers.IntegerField()
     contest_id = serializers.IntegerField()
+
+
+class RemoteProblemImportSerializer(serializers.Serializer):
+    provider = serializers.ChoiceField(choices=RemoteOJ.choices())
+    remote_id = serializers.CharField(max_length=512)
+    display_id = serializers.CharField(max_length=32, allow_blank=True, required=False, default="")
+    contest_id = serializers.IntegerField(required=False, allow_null=True, default=None)
+    public_display_id = serializers.CharField(max_length=32, allow_blank=True, required=False, default="")
+    page_html = serializers.CharField(max_length=2 * 1024 * 1024, allow_blank=True,
+                                      required=False, default="", trim_whitespace=False)
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -123,7 +157,7 @@ class ProblemSerializer(BaseProblemSerializer):
     class Meta:
         model = Problem
         exclude = ("test_case_score", "test_case_id", "visible", "is_public",
-                   "spj_code", "spj_version", "spj_compile_ok")
+                   "spj_code", "spj_version", "spj_compile_ok", "remote_problem_data")
 
 
 class ProblemSafeSerializer(BaseProblemSerializer):
@@ -133,7 +167,8 @@ class ProblemSafeSerializer(BaseProblemSerializer):
         model = Problem
         exclude = ("test_case_score", "test_case_id", "visible", "is_public",
                    "spj_code", "spj_version", "spj_compile_ok",
-                   "difficulty", "submission_number", "accepted_number", "statistic_info")
+                   "difficulty", "submission_number", "accepted_number", "statistic_info",
+                   "remote_problem_data")
 
 
 class ContestProblemMakePublicSerializer(serializers.Serializer):

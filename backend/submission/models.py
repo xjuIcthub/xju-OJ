@@ -22,6 +22,24 @@ class JudgeStatus:
     PARTIALLY_ACCEPTED = 8
 
 
+class SubmissionJudgeMode:
+    LOCAL = "LOCAL"
+    REMOTE = "REMOTE"
+
+
+class RemoteSubmissionStatus:
+    QUEUED = "QUEUED"
+    OPENING = "OPENING"
+    AUTH_REQUIRED = "AUTH_REQUIRED"
+    VERIFICATION_REQUIRED = "VERIFICATION_REQUIRED"
+    SUBMITTED = "SUBMITTED"
+    JUDGING = "JUDGING"
+    FINISHED = "FINISHED"
+    FAILED = "FAILED"
+
+    TERMINAL = frozenset({FINISHED, FAILED})
+
+
 class Submission(models.Model):
     id = models.TextField(default=rand_str, primary_key=True, db_index=True)
     contest = models.ForeignKey(Contest, null=True, on_delete=models.CASCADE)
@@ -39,6 +57,14 @@ class Submission(models.Model):
     # {time_cost: "", memory_cost: "", err_info: "", score: 0}
     statistic_info = JSONField(default=dict)
     ip = models.TextField(null=True)
+    judge_mode = models.TextField(default=SubmissionJudgeMode.LOCAL)
+    remote_oj = models.TextField(null=True)
+    remote_submission_id = models.TextField(null=True, db_index=True)
+    remote_status = models.TextField(null=True)
+    remote_url = models.TextField(null=True)
+    remote_message = models.TextField(null=True)
+    remote_data = JSONField(default=dict)
+    remote_update_time = models.DateTimeField(null=True)
 
     def check_user_permission(self, user, check_share=True):
         if self.user_id == user.id or user.is_super_admin() or user.can_mgmt_all_problem() or self.problem.created_by_id == user.id:

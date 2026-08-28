@@ -198,6 +198,7 @@
   import {FormMixin} from '@oj/components/mixins'
   import {JUDGE_STATUS, CONTEST_STATUS, buildProblemCodeKey} from '@/utils/constants'
   import api from '@oj/api'
+  import { dispatchRemoteSubmission, isRemoteBridgeInstalled, subscribeRemoteBridgeEvents } from '@oj/remoteBridge'
   import { applyDevelopmentProblemFixture, cloneFixtures, MOCK_PROBLEMS, MOCK_SUBMISSIONS } from '@oj/mocks/fixtures'
 
   export default {
@@ -224,6 +225,8 @@
         acceptedCelebrationVisible: false,
         acceptedCelebrationKey: 0,
         acceptedCelebrationTimer: null,
+        remoteBridgeUnsubscribe: null,
+        remoteNoticeStatus: '',
         problemLoaded: false,
         recentSubmissions: [],
         result: {
@@ -245,6 +248,7 @@
       }
     },
     mounted () {
+      this.remoteBridgeUnsubscribe = subscribeRemoteBridgeEvents(this.handleRemoteBridgeEvent)
       const problemCode = storage.get(buildProblemCodeKey(this.$route.params.problemID, this.$route.params.contestID))
       if (problemCode) {
         this.language = problemCode.language
@@ -360,6 +364,28 @@
         if (!value) return ''
         return this.$filters.localtime(value, 'MMM D HH:mm')
       },
+      handleRemoteBridgeEvent (payload) {
+        if (!payload || String(payload.submission_id) !== String(this.submissionId)) return
+        api.updateRemoteSubmission(payload).then(res => {
+          const submission = res.data.data || {}
+          this.result = submission
+          if (payload.status === 'AUTH_REQUIRED' && this.remoteNoticeStatus !== payload.status) {
+            this.remoteNoticeStatus = payload.status
+            this.$Modal.info({
+              title: this.$t('m.Remote_Bridge_Account_Required_Title'),
+              content: this.$t('m.Remote_Bridge_Account_Required')
+            })
+          } else if (payload.status === 'VERIFICATION_REQUIRED' && this.remoteNoticeStatus !== payload.status) {
+            this.remoteNoticeStatus = payload.status
+            this.$Modal.info({
+              title: this.$t('m.Remote_Bridge_Verification_Title'),
+              content: this.$t('m.Remote_Bridge_Verification')
+            })
+          } else if (payload.status === 'FAILED') {
+            this.$error(payload.message || this.$t('m.Remote_Bridge_Submit_Failed'))
+          }
+        }).catch(() => {})
+      },
       onResetToTemplate () {
         this.$Modal.confirm({
           content: this.$t('m.Are_you_sure_you_want_to_reset_your_code'),
@@ -408,8 +434,17 @@
           this.$error(this.$t('m.Code_can_not_be_empty'))
           return
         }
+        if (this.problem.judge_mode === 'REMOTE' && !isRemoteBridgeInstalled()) {
+          this.$Modal.confirm({
+            title: this.$t('m.Remote_Bridge_Missing_Title'),
+            content: this.$t('m.Remote_Bridge_Missing_Submit'),
+            onOk: () => window.open('/remote-bridge', '_blank', 'noopener,noreferrer')
+          })
+          return
+        }
         this.submissionId = ''
         this.result = {result: 9}
+        this.remoteNoticeStatus = ''
         this.hideAcceptedCelebration()
         this.submitting = true
         let data = {
@@ -424,7 +459,11 @@
         const submitFunc = (data, detailsVisible) => {
           this.statusVisible = true
           api.submitCode(data).then(res => {
-            this.submissionId = res.data.data && res.data.data.submission_id
+            const responseData = res.data.data || {}
+            this.submissionId = responseData.submission_id
+            if (responseData.remote_task) {
+              dispatchRemoteSubmission(responseData.remote_task, data.code)
+            }
             // 定时检查状态
             this.submitting = false
             this.submissionExists = true
@@ -529,6 +568,7 @@
     beforeUnmount () {
       clearTimeout(this.refreshStatus)
       clearTimeout(this.acceptedCelebrationTimer)
+      if (this.remoteBridgeUnsubscribe) this.remoteBridgeUnsubscribe()
     },
     watch: {
       '$route' () {

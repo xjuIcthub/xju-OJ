@@ -220,6 +220,11 @@ export default {
       data
     })
   },
+  importRemoteProblem (data) {
+    return ajax('admin/remote_problem/import', 'post', {
+      data
+    })
+  },
   editProblem (data) {
     return ajax('admin/problem', 'put', {
       data

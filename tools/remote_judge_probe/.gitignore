@@ -1,0 +1,5 @@
+*.cookies.json
+*.captcha.png
+*.token
+*.openapp.json
+.profiles/

@@ -11,6 +11,7 @@ import {
   OIRank,
   Problem,
   ProblemList,
+  RemoteBridge,
   ResetPassword,
   SubmissionDetails,
   SubmissionList,
@@ -180,6 +181,12 @@ export default [
     name: 'faq',
     meta: {title: 'FAQ'},
     component: FAQ
+  },
+  {
+    path: '/remote-bridge',
+    name: 'remote-bridge',
+    meta: {title: 'Remote Submission Bridge'},
+    component: RemoteBridge
   },
   {
     path: '/:pathMatch(.*)*',

@@ -2,6 +2,10 @@
   <div class="problem">
 
     <Panel :title="title">
+      <el-alert v-if="problem.judge_mode === 'REMOTE'" type="warning" :closable="false"
+                :title="'Remote problem: ' + problem.remote_oj + ' / ' + problem.remote_problem_id"
+                description="No local test cases are required. Keep it hidden until remote judging is enabled.">
+      </el-alert>
       <el-form ref="form" :model="problem" :rules="rules" label-position="top" label-width="70px">
         <el-row :gutter="20">
           <el-col :span="6">
@@ -160,7 +164,7 @@
             </el-col>
           </el-row>
         </el-form-item>
-        <el-form-item :label="$t('m.Special_Judge')" :error="error.spj">
+        <el-form-item v-if="problem.judge_mode !== 'REMOTE'" :label="$t('m.Special_Judge')" :error="error.spj">
           <el-col :span="24">
             <el-checkbox v-model="problem.spj" @click.prevent="switchSpj()">{{$t('m.Use_Special_Judge')}}</el-checkbox>
           </el-col>
@@ -193,7 +197,7 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
-          <el-col :span="6">
+          <el-col v-if="problem.judge_mode !== 'REMOTE'" :span="6">
             <el-form-item :label="$t('m.TestCase')" :error="error.testcase">
               <el-upload
                 action="/api/admin/test_case"
@@ -227,7 +231,7 @@
             </el-form-item>
           </el-col>
 
-          <el-col :span="24">
+          <el-col v-if="problem.judge_mode !== 'REMOTE'" :span="24">
             <el-table
               :data="problem.test_case_score"
               style="width: 100%">
@@ -344,6 +348,10 @@
           rule_type: 'ACM',
           hint: '',
           source: '',
+          judge_mode: 'LOCAL',
+          remote_oj: null,
+          remote_problem_id: null,
+          remote_problem_data: {},
           io_mode: {'io_mode': 'Standard IO', 'input': 'input.txt', 'output': 'output.txt'}
         }
         let contestID = this.$route.params.contestId
@@ -372,7 +380,10 @@
             }
             data.spj_language = data.spj_language || 'C'
             this.problem = data
-            this.testCaseUploaded = true
+            this.testCaseUploaded = data.judge_mode === 'REMOTE' || Boolean(data.test_case_id)
+            if (data.judge_mode === 'REMOTE') {
+              this.disableRuleType = true
+            }
           })
         } else {
           this.title = this.$t('m.Add_Problem')
@@ -506,7 +517,7 @@
         })
       },
       submit () {
-        if (!this.problem.samples.length) {
+        if (this.problem.judge_mode !== 'REMOTE' && !this.problem.samples.length) {
           this.$error('Sample is required')
           return
         }
@@ -538,7 +549,7 @@
           this.$error(this.error.languages)
           return
         }
-        if (!this.testCaseUploaded) {
+        if (this.problem.judge_mode !== 'REMOTE' && !this.testCaseUploaded) {
           this.error.testCase = 'Test case is not uploaded yet'
           this.$error(this.error.testCase)
           return

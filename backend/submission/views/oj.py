@@ -2,16 +2,22 @@ import ipaddress
 
 from account.decorators import login_required, check_contest_permission
 from contest.models import ContestStatus, ContestRuleType
+from django.db import transaction
+from django.utils import timezone
 from judge.tasks import judge_task
 from options.options import SysOptions
 # from judge.dispatcher import JudgeDispatcher
-from problem.models import Problem, ProblemRuleType
+from problem.models import Problem, ProblemJudgeMode, ProblemRuleType
 from utils.api import APIView, validate_serializer
 from utils.cache import cache
 from utils.captcha import Captcha
 from utils.throttling import TokenBucket
-from ..models import Submission
+from ..models import (RemoteSubmissionStatus, Submission,
+                      SubmissionJudgeMode)
+from ..remote import (RemoteSubmissionError, apply_remote_submission_event,
+                      build_remote_task)
 from ..serializers import (CreateSubmissionSerializer, SubmissionModelSerializer,
+                           RemoteSubmissionEventSerializer,
                            ShareSubmissionSerializer)
 from ..serializers import SubmissionSafeModelSerializer, SubmissionListSerializer
 
@@ -72,20 +78,39 @@ class SubmissionAPI(APIView):
         if data["language"] not in problem.languages:
             language_name = data["language"]
             return self.error(f"{language_name} is not allowed in the problem")
-        submission = Submission.objects.create(user_id=request.user.id,
-                                               username=request.user.username,
-                                               language=data["language"],
-                                               code=data["code"],
-                                               problem_id=problem.id,
-                                               ip=request.session["ip"],
-                                               contest_id=data.get("contest_id"))
+        remote_task = None
+        try:
+            with transaction.atomic():
+                is_remote = problem.judge_mode == ProblemJudgeMode.REMOTE
+                submission = Submission.objects.create(
+                    user_id=request.user.id,
+                    username=request.user.username,
+                    language=data["language"],
+                    code=data["code"],
+                    problem_id=problem.id,
+                    ip=request.session["ip"],
+                    contest_id=data.get("contest_id"),
+                    judge_mode=SubmissionJudgeMode.REMOTE if is_remote else SubmissionJudgeMode.LOCAL,
+                    remote_oj=problem.remote_oj if is_remote else None,
+                    remote_status=RemoteSubmissionStatus.QUEUED if is_remote else None,
+                    remote_update_time=timezone.now() if is_remote else None,
+                )
+                if is_remote:
+                    remote_task = build_remote_task(problem, submission)
+        except RemoteSubmissionError as exc:
+            return self.error(str(exc))
+
         # use this for debug
         # JudgeDispatcher(submission.id, problem.id).judge()
-        judge_task.send(submission.id, problem.id)
+        if remote_task is None:
+            judge_task.send(submission.id, problem.id)
         if hide_id:
             return self.success()
         else:
-            return self.success({"submission_id": submission.id})
+            response = {"submission_id": submission.id}
+            if remote_task is not None:
+                response["remote_task"] = remote_task
+            return self.success(response)
 
     @login_required
     def get(self, request):
@@ -202,3 +227,14 @@ class SubmissionExistsAPI(APIView):
         return self.success(request.user.is_authenticated and
                             Submission.objects.filter(problem_id=request.GET["problem_id"],
                                                       user_id=request.user.id).exists())
+
+
+class RemoteSubmissionEventAPI(APIView):
+    @validate_serializer(RemoteSubmissionEventSerializer)
+    @login_required
+    def post(self, request):
+        try:
+            submission = apply_remote_submission_event(request.user, request.data)
+        except RemoteSubmissionError as exc:
+            return self.error(str(exc))
+        return self.success(SubmissionModelSerializer(submission).data)

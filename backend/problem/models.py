@@ -30,6 +30,17 @@ class ProblemIOMode(Choices):
     file = "File IO"
 
 
+class ProblemJudgeMode(Choices):
+    LOCAL = "LOCAL"
+    REMOTE = "REMOTE"
+
+
+class RemoteOJ(Choices):
+    NOWCODER = "NOWCODER"
+    LUOGU = "LUOGU"
+    CODEFORCES = "CODEFORCES"
+
+
 def _default_io_mode():
     return {"io_mode": ProblemIOMode.standard, "input": "input.txt", "output": "output.txt"}
 
@@ -81,10 +92,29 @@ class Problem(models.Model):
     # {JudgeStatus.ACCEPTED: 3, JudgeStaus.WRONG_ANSWER: 11}, the number means count
     statistic_info = JSONField(default=dict)
     share_submission = models.BooleanField(default=False)
+    judge_mode = models.TextField(default=ProblemJudgeMode.LOCAL)
+    remote_oj = models.TextField(null=True)
+    remote_problem_id = models.TextField(null=True, db_index=True)
+    remote_problem_data = JSONField(default=dict)
+    # Contest-only flag: publish a copy into the public problem library after
+    # the contest ends. The future public display ID is kept separately from
+    # the contest's A/B/C style display ID.
+    publish_after_contest = models.BooleanField(default=False)
+    post_contest_display_id = models.TextField(null=True)
 
     class Meta:
         db_table = "problem"
         unique_together = (("_id", "contest"),)
+        constraints = (
+            models.UniqueConstraint(
+                fields=("remote_oj", "remote_problem_id"),
+                condition=models.Q(
+                    contest__isnull=True,
+                    judge_mode=ProblemJudgeMode.REMOTE,
+                ),
+                name="unique_public_remote_problem",
+            ),
+        )
         ordering = ("create_time",)
 
     def add_submission_number(self):

@@ -5,6 +5,7 @@
   ],
   "deep_links": [
     "/problem/1",
+    "/remote-bridge",
     "/contest/1/problems",
     "/admin/problem/create",
     "/admin/contest"

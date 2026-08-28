@@ -211,6 +211,11 @@ export default {
       data
     })
   },
+  updateRemoteSubmission (data) {
+    return ajax('remote_submission/event', 'post', {
+      data
+    })
+  },
   getSubmissionList (offset, limit, params) {
     params.limit = limit
     params.offset = offset

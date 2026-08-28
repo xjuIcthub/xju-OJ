@@ -4,6 +4,7 @@ import zipfile
 from ipaddress import ip_network
 
 import dateutil.parser
+from django.db import transaction
 from django.http import FileResponse
 
 from account.decorators import check_contest_permission, ensure_created_by
@@ -15,6 +16,9 @@ from utils.constants import CacheKey
 from utils.shortcuts import rand_str
 from utils.tasks import delete_files
 from ..models import Contest, ContestAnnouncement, ACMContestRank
+from problem.models import Problem
+from problem.publication import publish_due_contest_problems
+from problem.tasks import schedule_contest_problem_publication
 from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer,
                            CreateConetestSeriaizer, CreateContestAnnouncementSerializer,
                            EditConetestSeriaizer, EditContestAnnouncementSerializer,
@@ -66,6 +70,11 @@ class ContestAPI(APIView):
         for k, v in data.items():
             setattr(contest, k, v)
         contest.save()
+        publish_due_contest_problems([contest.id])
+        if Problem.objects.filter(contest=contest, publish_after_contest=True).exists():
+            transaction.on_commit(lambda: schedule_contest_problem_publication(
+                contest.id, contest.end_time
+            ))
         return self.success(ContestAdminSerializer(contest).data)
 
     def get(self, request):

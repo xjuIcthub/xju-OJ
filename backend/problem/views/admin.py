@@ -10,6 +10,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.http import StreamingHttpResponse, FileResponse
+from django.utils import timezone
 
 from account.decorators import problem_permission_required, ensure_created_by
 from contest.models import Contest, ContestStatus
@@ -21,13 +22,17 @@ from utils.api import APIView, CSRFExemptAPIView, validate_serializer, APIError
 from utils.constants import Difficulty
 from utils.shortcuts import rand_str, natural_sort_key
 from utils.tasks import delete_files
-from ..models import Problem, ProblemRuleType, ProblemTag
+from ..models import (Problem, ProblemRuleType, ProblemTag, ProblemJudgeMode,
+                      ProblemIOMode)
+from ..remote import RemoteProblemError, fetch_remote_problem
+from ..publication import publish_due_contest_problems
+from ..tasks import schedule_contest_problem_publication
 from ..serializers import (CreateContestProblemSerializer, CompileSPJSerializer,
                            CreateProblemSerializer, EditProblemSerializer, EditContestProblemSerializer,
                            ProblemAdminSerializer, TestCaseUploadForm, ContestProblemMakePublicSerializer,
                            AddContestProblemSerializer, ExportProblemSerializer,
                            ExportProblemRequestSerialzier, UploadProblemForm, ImportProblemSerializer,
-                           FPSProblemSerializer)
+                           FPSProblemSerializer, RemoteProblemImportSerializer)
 from ..utils import TEMPLATE_BASE, build_problem_template
 
 
@@ -237,6 +242,7 @@ class ProblemAPI(ProblemBase):
             except Problem.DoesNotExist:
                 return self.error("Problem does not exist")
 
+        publish_due_contest_problems()
         problems = Problem.objects.filter(contest_id__isnull=True).order_by("-create_time")
         if rule_type:
             if rule_type not in ProblemRuleType.choices():
@@ -305,6 +311,122 @@ class ProblemAPI(ProblemBase):
         #     shutil.rmtree(d, ignore_errors=True)
         problem.delete()
         return self.success()
+
+
+class RemoteProblemImportAPI(APIView):
+    @problem_permission_required
+    @validate_serializer(RemoteProblemImportSerializer)
+    def post(self, request):
+        data = request.data
+        try:
+            if data.get("page_html"):
+                remote = fetch_remote_problem(
+                    data["provider"], data["remote_id"], page_html=data["page_html"]
+                )
+            else:
+                remote = fetch_remote_problem(data["provider"], data["remote_id"])
+        except RemoteProblemError as exc:
+            return self.error(str(exc))
+
+        contest = None
+        contest_id = data.get("contest_id")
+        if contest_id:
+            try:
+                contest = Contest.objects.get(id=contest_id)
+                ensure_created_by(contest, request.user)
+            except Contest.DoesNotExist:
+                return self.error("Contest does not exist")
+            if contest.status == ContestStatus.CONTEST_ENDED:
+                return self.error("Contest has ended")
+            if contest.rule_type != ProblemRuleType.ACM:
+                return self.error("Remote problems only support ACM contests")
+            if not data["display_id"]:
+                return self.error("Contest display ID is required")
+            if Problem.objects.filter(contest=contest, _id=data["display_id"]).exists():
+                return self.error("Duplicate display id in this contest")
+            if Problem.objects.filter(
+                contest=contest,
+                remote_oj=data["provider"],
+                remote_problem_id=remote["remote_id"],
+            ).exists():
+                return self.error("Remote problem already exists in this contest")
+
+        public_problem = Problem.objects.filter(
+            contest_id__isnull=True,
+            judge_mode=ProblemJudgeMode.REMOTE,
+            remote_oj=data["provider"],
+            remote_problem_id=remote["remote_id"],
+        ).first()
+        if contest is None and public_problem is not None:
+            return self.error("Remote problem already exists")
+
+        display_id = data["display_id"] or remote["default_display_id"]
+        future_public_id = data.get("public_display_id") or remote["default_display_id"]
+        if contest is None and Problem.objects.filter(_id=display_id, contest_id__isnull=True).exists():
+            return self.error("Display ID already exists")
+        if contest is not None and public_problem is None and Problem.objects.filter(
+            _id=future_public_id, contest_id__isnull=True
+        ).exists():
+            return self.error("Future public display ID already exists")
+
+        with transaction.atomic():
+            if contest is not None and public_problem is not None:
+                tags = list(public_problem.tags.all())
+                public_problem.pk = None
+                public_problem.contest = contest
+                public_problem._id = display_id
+                public_problem.is_public = True
+                public_problem.visible = True
+                public_problem.publish_after_contest = False
+                public_problem.post_contest_display_id = None
+                public_problem.submission_number = 0
+                public_problem.accepted_number = 0
+                public_problem.statistic_info = {}
+                public_problem.save()
+                public_problem.tags.set(tags)
+                return self.success(ProblemAdminSerializer(public_problem).data)
+
+            problem = Problem.objects.create(
+                _id=display_id,
+                contest=contest,
+                title=remote["title"],
+                description=remote["description"],
+                input_description=remote["input_description"],
+                output_description=remote["output_description"],
+                samples=remote["samples"],
+                test_case_id="",
+                test_case_score=[],
+                hint=remote.get("hint", ""),
+                languages=remote["languages"],
+                template={},
+                last_update_time=timezone.now(),
+                created_by=request.user,
+                time_limit=remote["time_limit"],
+                memory_limit=remote["memory_limit"],
+                io_mode={"io_mode": ProblemIOMode.standard, "input": "input.txt", "output": "output.txt"},
+                spj=False,
+                spj_language=None,
+                spj_code=None,
+                spj_compile_ok=False,
+                rule_type=ProblemRuleType.ACM,
+                visible=True,
+                difficulty=remote["difficulty"],
+                source=remote["source"],
+                share_submission=False,
+                judge_mode=ProblemJudgeMode.REMOTE,
+                remote_oj=data["provider"],
+                remote_problem_id=remote["remote_id"],
+                remote_problem_data=remote["metadata"],
+                publish_after_contest=contest is not None,
+                post_contest_display_id=future_public_id if contest is not None else None,
+            )
+            tag, _ = ProblemTag.objects.get_or_create(name=remote["tag"])
+            problem.tags.add(tag)
+            if contest is not None:
+                transaction.on_commit(lambda: schedule_contest_problem_publication(
+                    contest.id, contest.end_time
+                ))
+        return self.success(ProblemAdminSerializer(problem).data)
 
 
 class ContestProblemAPI(ProblemBase):
@@ -453,14 +575,19 @@ class MakeContestProblemPublicAPIView(APIView):
 
         if not problem.contest or problem.is_public:
             return self.error("Already be a public problem")
+        ensure_created_by(problem.contest, request.user)
         problem.is_public = True
-        problem.save()
+        problem.publish_after_contest = False
+        problem.post_contest_display_id = None
+        problem.save(update_fields=("is_public", "publish_after_contest", "post_contest_display_id"))
         # https://docs.djangoproject.com/en/1.11/topics/db/queries/#copying-model-instances
         tags = problem.tags.all()
         problem.pk = None
         problem.contest = None
         problem._id = display_id
         problem.visible = False
+        problem.publish_after_contest = False
+        problem.post_contest_display_id = None
         problem.submission_number = problem.accepted_number = 0
         problem.statistic_info = {}
         problem.save()
@@ -478,6 +605,10 @@ class AddContestProblemAPI(APIView):
         except (Contest.DoesNotExist, Problem.DoesNotExist):
             return self.error("Contest or Problem does not exist")
 
+        ensure_created_by(contest, request.user)
+        if problem.contest_id is not None:
+            return self.error("Only public library problems can be added")
+
         if contest.status == ContestStatus.CONTEST_ENDED:
             return self.error("Contest has ended")
         if Problem.objects.filter(contest=contest, _id=data["display_id"]).exists():
@@ -491,6 +622,8 @@ class AddContestProblemAPI(APIView):
         problem._id = request.data["display_id"]
         problem.submission_number = problem.accepted_number = 0
         problem.statistic_info = {}
+        problem.publish_after_contest = False
+        problem.post_contest_display_id = None
         problem.save()
         problem.tags.set(tags)
         return self.success()

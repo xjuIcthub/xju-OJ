@@ -185,6 +185,19 @@ class JudgeDispatcher(DispatcherBase):
                 self.submission.result = JudgeStatus.PARTIALLY_ACCEPTED
         self.submission.save()
 
+        self.finalize_submission()
+
+        # 至此判题结束，尝试处理任务队列中剩余的任务
+        process_pending_task()
+
+    def finalize_submission(self):
+        """Update problem, user, and contest statistics after a final verdict.
+
+        Browser-bridged remote submissions reuse this method after their
+        external verdict has been persisted, keeping local and remote judging
+        consistent without sending remote code to judge-server.
+        """
+
         if self.contest_id:
             if self.contest.status != ContestStatus.CONTEST_UNDERWAY or \
                     User.objects.get(id=self.submission.user_id).is_contest_admin(self.contest):
@@ -199,9 +212,6 @@ class JudgeDispatcher(DispatcherBase):
                 self.update_problem_status_rejudge()
             else:
                 self.update_problem_status()
-
-        # 至此判题结束，尝试处理任务队列中剩余的任务
-        process_pending_task()
 
     def update_problem_status_rejudge(self):
         result = str(self.submission.result)
