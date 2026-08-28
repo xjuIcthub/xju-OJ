@@ -4,11 +4,11 @@
       <Menu theme="light" mode="horizontal" @on-select="handleRoute" :active-name="activeMenu" class="oj-menu">
         <div class="logo" aria-label="XJU-OJ"><span class="brand-mark">XJ</span><span class="brand-name">XJU-OJ</span></div>
         <Menu-item name="/"><Icon type="home" />{{$t('m.Home')}}</Menu-item>
-        <Menu-item name="/problem"><Icon type="ios-keypad" />{{$t('m.NavProblems')}}</Menu-item>
-        <Menu-item name="/contest"><Icon type="trophy" />{{$t('m.Contests')}}</Menu-item>
-        <Menu-item name="/status"><Icon type="ios-pulse-strong" />{{$t('m.NavStatus')}}</Menu-item>
-        <Submenu name="rank"><template #title><Icon type="podium" />{{$t('m.Rank')}}</template><Menu-item name="/acm-rank">{{$t('m.ACM_Rank')}}</Menu-item><Menu-item name="/oi-rank">{{$t('m.OI_Rank')}}</Menu-item></Submenu>
-        <Submenu name="about"><template #title><Icon type="information-circled" />{{$t('m.About')}}</template><Menu-item name="/about">{{$t('m.Judger')}}</Menu-item><Menu-item name="/faq">{{$t('m.FAQ')}}</Menu-item></Submenu>
+        <Menu-item name="/problem" @mouseenter="prefetchRoute('/problem')"><Icon type="ios-keypad" />{{$t('m.NavProblems')}}</Menu-item>
+        <Menu-item name="/contest" @mouseenter="prefetchRoute('/contest')"><Icon type="trophy" />{{$t('m.Contests')}}</Menu-item>
+        <Menu-item name="/status" @mouseenter="prefetchRoute('/status')"><Icon type="ios-pulse-strong" />{{$t('m.NavStatus')}}</Menu-item>
+        <Submenu name="rank" @mouseenter="prefetchRoutes(['/acm-rank', '/oi-rank'])"><template #title><Icon type="podium" />{{$t('m.Rank')}}</template><Menu-item name="/acm-rank">{{$t('m.ACM_Rank')}}</Menu-item><Menu-item name="/oi-rank">{{$t('m.OI_Rank')}}</Menu-item></Submenu>
+        <Submenu name="about" @mouseenter="prefetchRoutes(['/about', '/faq'])"><template #title><Icon type="information-circled" />{{$t('m.About')}}</template><Menu-item name="/about">{{$t('m.Judger')}}</Menu-item><Menu-item name="/faq">{{$t('m.FAQ')}}</Menu-item></Submenu>
       </Menu>
       <div class="nav-actions">
         <div class="nav-search"><Input v-model="searchKeyword" :placeholder="$t('m.Search_Problems')" @on-enter="handleSearch"><template #prefix><Icon type="search" /></template></Input></div>
@@ -33,11 +33,27 @@ import register from '@oj/views/user/Register'
 import api from '@oj/api'
 import runtime from '@/utils/runtime'
 import UserAvatar from '@/shared/ui/UserAvatar.vue'
+
+const prefetchedRoutes = new Set()
+
 export default {
   components: { login, register, UserAvatar }, data () { return { searchKeyword: '', devLoginLoading: false } }, mounted () { this.getProfile() },
   methods: {
     ...mapActions(['getProfile', 'changeModalStatus']),
     handleRoute (route) { if (route && route.indexOf('admin') < 0) this.$router.push(route); else window.open('/admin/') },
+    prefetchRoute (target) {
+      if (!target || prefetchedRoutes.has(target)) return
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+      if (connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || ''))) return
+      prefetchedRoutes.add(target)
+      const matched = this.$router.resolve(target).matched
+      for (const record of matched) {
+        for (const component of Object.values(record.components || {})) {
+          if (typeof component === 'function') Promise.resolve(component()).catch(() => prefetchedRoutes.delete(target))
+        }
+      }
+    },
+    prefetchRoutes (targets) { targets.forEach(target => this.prefetchRoute(target)) },
     async handleBtnClick (mode) {
       if (mode === 'login' && runtime.OJ_FRONTEND_DEV_MODE) {
         this.devLoginLoading = true

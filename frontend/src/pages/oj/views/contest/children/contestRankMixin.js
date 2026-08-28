@@ -3,11 +3,14 @@ import { mapGetters, mapState } from '@/store/compat'
 import { types } from '@/store'
 import { CONTEST_STATUS } from '@/utils/constants'
 import { cloneFixtures, MOCK_CONTEST_ACM_RANK, MOCK_CONTEST_OI_RANK } from '@oj/mocks/fixtures'
+import { readRankPreferences, updateRankPreferences } from './rankPreferences'
 
 export default {
   data () {
+    const rankPreferences = readRankPreferences()
     return {
-      autoRefresh: false,
+      autoRefresh: rankPreferences.autoRefresh,
+      rankPreferences,
       rankRequestSerial: 0
     }
   },
@@ -57,6 +60,7 @@ export default {
     handleAutoRefresh (status) {
       clearInterval(this.refreshFunc)
       this.autoRefresh = status === true
+      updateRankPreferences({autoRefresh: this.autoRefresh})
       if (this.autoRefresh) {
         this.refreshFunc = setInterval(() => {
           this.page = 1
@@ -93,6 +97,7 @@ export default {
       },
       set (value) {
         this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {chart: value})
+        updateRankPreferences({chart: value === true})
         this.$nextTick(() => {
           if (this.showChart) this.$refs.chart?.resize?.()
           this.$refs.tableRank?.handleResize?.()
@@ -105,6 +110,7 @@ export default {
       },
       set (value) {
         this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {realName: value})
+        updateRankPreferences({realName: value === true})
         this.syncRealNameColumn(value)
       }
     },
@@ -114,6 +120,7 @@ export default {
       },
       set (value) {
         this.$store.commit(types.CHANGE_RANK_FORCE_UPDATE, {value: value})
+        updateRankPreferences({forceUpdate: value === true})
       }
     },
     limit: {
@@ -129,7 +136,16 @@ export default {
     }
   },
   mounted () {
-    this.syncRealNameColumn(this.showRealName)
+    const showRealName = this.isContestAdmin && this.rankPreferences.realName
+    const forceUpdate = this.isContestAdmin && this.rankPreferences.forceUpdate
+    this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {
+      chart: this.rankPreferences.chart,
+      realName: showRealName
+    })
+    this.$store.commit(types.CHANGE_RANK_FORCE_UPDATE, {value: forceUpdate})
+    this.syncRealNameColumn(showRealName)
+    if (this.autoRefresh && !this.refreshDisabled) this.handleAutoRefresh(true)
+    else this.autoRefresh = false
   },
   beforeUnmount () {
     clearInterval(this.refreshFunc)

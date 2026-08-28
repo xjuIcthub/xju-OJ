@@ -41,6 +41,17 @@ function contentTypeFor (filePath) {
   }[extension] || 'application/octet-stream'
 }
 
+function dependencyChunk (id) {
+  const value = id.replaceAll('\\', '/')
+  if (!value.includes('/node_modules/')) return undefined
+  if (value.includes('@codemirror') || value.includes('@lezer')) return 'vendor-editor'
+  if (value.includes('/element-plus/')) return 'vendor-element'
+  if (value.includes('/katex/') || value.includes('/highlight.js/')) return 'vendor-markdown'
+  if (value.includes('@tiptap') || value.includes('/prosemirror-')) return 'vendor-richtext'
+  if (value.includes('/node_modules/vue/') || value.includes('/node_modules/@vue/') || value.includes('/vue-router/') || value.includes('/vue-i18n/') || value.includes('/pinia/')) return 'vendor-vue'
+  return undefined
+}
+
 function devRuntimeConfig () {
   const frontendDevMode = envBoolean('OJ_FRONTEND_DEV_MODE', false)
   return {
@@ -187,6 +198,7 @@ export default defineConfig(({ mode }) => {
           admin: resolve('admin/index.html')
         },
         output: {
+          manualChunks: dependencyChunk,
           entryFileNames: 'static/js/[name]-[hash].js',
           chunkFileNames: 'static/js/[name]-[hash].js',
           assetFileNames: 'static/assets/[name]-[hash][extname]'

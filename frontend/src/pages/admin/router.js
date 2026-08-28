@@ -1,7 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// 引入 view 组件
-import { Announcement, Contest, ContestList, Home, JudgeServer, Login,
-  Problem, ProblemList, User, PruneTestCase, Dashboard, ProblemImportOrExport } from './views'
+
+const Home = () => import('./views/Home.vue')
+const Login = () => import('./views/general/Login.vue')
+const Dashboard = () => import('./views/general/Dashboard.vue')
+const Announcement = () => import('./views/general/Announcement.vue')
+const User = () => import('./views/general/User.vue')
+const JudgeServer = () => import('./views/general/JudgeServer.vue')
+const PruneTestCase = () => import('./views/general/PruneTestCase.vue')
+const Problem = () => import('./views/problem/Problem.vue')
+const ProblemList = () => import('./views/problem/ProblemList.vue')
+const ProblemImportOrExport = () => import('./views/problem/ImportAndExport.vue')
+const Contest = () => import('./views/contest/Contest.vue')
+const ContestList = () => import('./views/contest/ContestList.vue')
+
 export default createRouter({
   history: createWebHistory('/admin/'),
   scrollBehavior: () => ({top: 0}),

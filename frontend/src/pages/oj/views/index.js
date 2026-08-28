@@ -1,13 +1,13 @@
-import ProblemList from './problem/ProblemList.vue'
-import Logout from './user/Logout.vue'
-import UserHome from './user/UserHome.vue'
-import About from './help/About.vue'
-import FAQ from './help/FAQ.vue'
 import NotFound from './general/404.vue'
 import Home from './general/Home.vue'
-import Announcements from './general/Announcements.vue'
 
-// Grouping Components in the Same Chunk
+const ProblemList = () => import('./problem/ProblemList.vue')
+const Logout = () => import('./user/Logout.vue')
+const UserHome = () => import('./user/UserHome.vue')
+const About = () => import('./help/About.vue')
+const FAQ = () => import('./help/FAQ.vue')
+const Announcements = () => import('./general/Announcements.vue')
+
 const SubmissionList = () => import('@oj/views/submission/SubmissionList.vue')
 const SubmissionDetails = () => import('@oj/views/submission/SubmissionDetails.vue')
 

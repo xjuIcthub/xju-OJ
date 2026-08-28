@@ -13,7 +13,7 @@
         <span>{{$t('m.download_csv')}}</span>
       </button>
     </div>
-    <div v-show="showChart" class="echarts">
+    <div v-if="showChart" class="echarts">
       <ECharts :options="options" ref="chart" auto-resize></ECharts>
     </div>
     <Table ref="tableRank" :columns="columns" :data="dataRank" disabled-hover></Table>
