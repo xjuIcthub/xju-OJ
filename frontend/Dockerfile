@@ -46,4 +46,7 @@ LABEL org.opencontainers.image.source="xju-OJ" \
 COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.d/ /docker-entrypoint.d/
 COPY --from=frontend-build /src/dist/ /usr/share/nginx/html/
+COPY --from=frontend-build /src/static/userscripts/ /usr/share/nginx/html/static/userscripts/
+RUN test -s /usr/share/nginx/html/static/userscripts/xju-oj-remote-bridge.user.js && \
+    grep -Fq '// ==UserScript==' /usr/share/nginx/html/static/userscripts/xju-oj-remote-bridge.user.js
 EXPOSE 80

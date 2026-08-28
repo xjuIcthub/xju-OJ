@@ -57,6 +57,20 @@ fail() {
     exit 1
 }
 
+REMOTE_USERSCRIPT_PATH="$ROOT/frontend/static/userscripts/xju-oj-remote-bridge.user.js"
+REMOTE_USERSCRIPT_URL_PATH="/static/userscripts/xju-oj-remote-bridge.user.js"
+
+remote_userscript_source_guard() {
+    [ -s "$REMOTE_USERSCRIPT_PATH" ] || fail "remote OJ userscript is missing: $REMOTE_USERSCRIPT_PATH"
+    grep -Fq '// ==UserScript==' "$REMOTE_USERSCRIPT_PATH" || fail "remote OJ userscript metadata header is missing"
+    grep -Fq '@downloadURL  https://oj.icthub.top/static/userscripts/xju-oj-remote-bridge.user.js' \
+        "$REMOTE_USERSCRIPT_PATH" || fail "remote OJ userscript download URL is invalid"
+    grep -Fq '@updateURL    https://oj.icthub.top/static/userscripts/xju-oj-remote-bridge.user.js' \
+        "$REMOTE_USERSCRIPT_PATH" || fail "remote OJ userscript update URL is invalid"
+}
+
+remote_userscript_source_guard
+
 command -v docker >/dev/null 2>&1 || fail "docker is required"
 command -v python3 >/dev/null 2>&1 || fail "python3 is required"
 docker compose version >/dev/null 2>&1 || fail "docker compose is required"
@@ -1156,6 +1170,19 @@ PY
     esac
 fi
 
+frontend_userscript_image_smoke() {
+    docker run --rm --entrypoint sh "$FRONTEND_IMAGE_REF" -c '
+        script=/usr/share/nginx/html/static/userscripts/xju-oj-remote-bridge.user.js
+        test -s "$script" &&
+        grep -Fq "// ==UserScript==" "$script" &&
+        grep -Fq "@version" "$script"
+    '
+}
+
+if [ "$DEV_MODE" -eq 0 ]; then
+    frontend_userscript_image_smoke || fail "frontend image does not contain the remote OJ userscript"
+fi
+
 frontend_backend_ready() {
     compose ps --status running --services | grep -qx 'backend-api'
     curl --noproxy '*' --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 1 \
@@ -1168,6 +1195,8 @@ frontend_http_smoke() {
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 "$http_url/admin/" >/dev/null
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 "$http_url/api/website/" | grep -q '"error"'
     curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 "$http_url/runtime-config.js" | grep -q '__XJU_RUNTIME_CONFIG__'
+    curl --noproxy '*' --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 \
+        "$http_url$REMOTE_USERSCRIPT_URL_PATH" | grep -Fq '// ==UserScript=='
 }
 
 if [ "$FRONTEND_ONLY" -eq 1 ]; then
