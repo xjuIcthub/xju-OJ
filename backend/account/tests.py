@@ -1,3 +1,6 @@
+import os
+import stat
+import tempfile
 import time
 
 from unittest import mock
@@ -5,6 +8,8 @@ from datetime import timedelta
 from copy import deepcopy
 
 from django.contrib import auth
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.utils.timezone import now
 from otpauth import OtpAuth
 
@@ -268,6 +273,32 @@ class UserProfileAPITest(APITestCase):
 
         resp = self.client.put(self.url, data={"real_name": "Studio User"}, format="json")
         self.assertEqual(resp.data["error"], "invalid-student_id")
+
+
+class AvatarUploadAPITest(APITestCase):
+    def setUp(self):
+        self.create_user("test", "test123")
+        self.url = self.reverse("avatar_upload_api")
+        self.avatar_directory = tempfile.TemporaryDirectory()
+        self.settings_override = override_settings(AVATAR_UPLOAD_DIR=self.avatar_directory.name)
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+        self.addCleanup(self.avatar_directory.cleanup)
+
+    def test_uploaded_avatar_is_publicly_readable(self):
+        avatar = SimpleUploadedFile(
+            "avatar.webp",
+            b"RIFF-avatar-test-WEBP",
+            content_type="image/webp",
+        )
+
+        resp = self.client.post(self.url, data={"image": avatar}, format="multipart")
+        self.assertSuccess(resp)
+
+        user = User.objects.get(username="test")
+        avatar_path = os.path.join(self.avatar_directory.name, os.path.basename(user.userprofile.avatar))
+        self.assertTrue(os.path.isfile(avatar_path))
+        self.assertEqual(stat.S_IMODE(os.stat(avatar_path).st_mode), 0o644)
 
 
 class TwoFactorAuthAPITest(APITestCase):

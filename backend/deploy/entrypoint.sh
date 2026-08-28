@@ -163,6 +163,11 @@ bootstrap_runtime() {
             "$DATA_DIR/public/website/favicon.ico"
     fi
 
+    # Older avatar uploads inherited umask 077 and cannot be read by the
+    # frontend container's unprivileged Nginx worker. Repair only public avatar
+    # files during bootstrap; private runtime data keeps its restrictive mode.
+    find "$DATA_DIR/public/avatar" -maxdepth 1 -type f -exec chmod 0644 {} +
+
     # Frontend mounts only public/ read-only; keep config and mutable private data isolated.
     chmod 755 "$DATA_DIR" "$DATA_DIR/public" "$DATA_DIR/public/avatar" \
         "$DATA_DIR/public/upload" "$DATA_DIR/public/website"

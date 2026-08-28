@@ -86,9 +86,14 @@ class AvatarUploadAPI(APIView):
             return self.error("Unsupported file format")
 
         name = rand_str(10) + suffix
-        with open(os.path.join(settings.AVATAR_UPLOAD_DIR, name), "wb") as img:
+        avatar_path = os.path.join(settings.AVATAR_UPLOAD_DIR, name)
+        with open(avatar_path, "wb") as img:
             for chunk in avatar:
                 img.write(chunk)
+        # Production starts the backend with umask 077, while the frontend
+        # serves this shared directory through a read-only Nginx mount.
+        # Make the public avatar readable without weakening directory access.
+        os.chmod(avatar_path, 0o644)
         user_profile = request.user.userprofile
 
         user_profile.avatar = f"{settings.AVATAR_URI_PREFIX}/{name}"

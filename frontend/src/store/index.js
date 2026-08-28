@@ -89,7 +89,7 @@ const useApplicationStore = defineStore('application', {
     changeModalStatus ({ mode, visible }) { if (mode !== undefined) this.modalStatus.mode = mode; if (visible !== undefined) this.modalStatus.visible = visible },
     changeDomTitle (payload) {
       const title = payload && payload.title ? payload.title : route().meta.title
-      window.document.title = this.website.website_name_shortcut + ' | ' + title
+      window.document.title = `XJU-OJ | ${title || 'Home'}`
     },
     async getProfile () {
       const res = await api.getUserInfo()
