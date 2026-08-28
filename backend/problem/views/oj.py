@@ -4,7 +4,7 @@ from utils.api import APIView
 from account.decorators import check_contest_permission
 from ..models import ProblemTag, Problem, ProblemRuleType
 from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerializer
-from contest.models import ContestRuleType
+from contest.models import ContestRuleType, ContestStatus
 from ..publication import publish_due_contest_problems
 
 
@@ -96,10 +96,17 @@ class ContestProblemAPI(APIView):
             for problem in queryset_values:
                 problem["my_status"] = problems_status.get(str(problem["id"]), {}).get("status")
 
-    @check_contest_permission(check_type="problems")
+    @check_contest_permission(check_type="problem_list")
     def get(self, request):
         problem_id = request.GET.get("problem_id")
         if problem_id:
+            if not request.user.is_contest_admin(self.contest):
+                if self.contest.status == ContestStatus.CONTEST_NOT_START:
+                    return self.error("Contest has not started yet.")
+                if self.contest.status != ContestStatus.CONTEST_ENDED and not self.contest.is_registered(request.user):
+                    return self.error("Please register for the contest first")
+                if self.contest.password and not self.contest.is_registered(request.user):
+                    return self.error("Please register for the contest first")
             try:
                 problem = Problem.objects.select_related("created_by").get(_id=problem_id,
                                                                            contest=self.contest,

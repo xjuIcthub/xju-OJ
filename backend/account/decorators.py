@@ -117,10 +117,16 @@ def check_contest_permission(check_type="details"):
             if user.is_contest_admin(self.contest):
                 return func(*args, **kwargs)
 
+            registered = self.contest.is_registered(user)
+
+            # The problem list remains available as a blurred registration
+            # preview. Problem details and submissions require participation.
+            if check_type == "problems" and self.contest.status != ContestStatus.CONTEST_ENDED and not registered:
+                return self.error("Please register for the contest first")
+
             if self.contest.contest_type == ContestType.PASSWORD_PROTECTED_CONTEST:
-                # password error
-                if not check_contest_password(request.session.get(CONTEST_PASSWORD_SESSION_KEY, {}).get(self.contest.id), self.contest.password):
-                    return self.error("Wrong password or password expired")
+                if check_type != "problem_list" and not registered:
+                    return self.error("Please register for the contest first")
 
             # regular user get contest problems, ranks etc. before contest started
             if self.contest.status == ContestStatus.CONTEST_NOT_START and check_type != "details":

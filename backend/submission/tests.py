@@ -1,6 +1,10 @@
 from copy import deepcopy
+from datetime import timedelta
 from unittest import mock
 
+from django.utils import timezone
+
+from contest.models import Contest, ContestParticipation
 from problem.models import (Problem, ProblemJudgeMode, ProblemTag, RemoteOJ)
 from utils.api.tests import APITestCase
 from .models import (JudgeStatus, RemoteSubmissionStatus, Submission,
@@ -78,6 +82,31 @@ class SubmissionAPITest(SubmissionPrepare):
         self.assertDictEqual(resp.data, {"error": "invalid-language",
                                          "data": "language: Python2 is not a valid language"})
         judge_task.assert_not_called()
+
+    def test_contest_submission_requires_registration(self, judge_task):
+        contest = Contest.objects.create(
+            title="registration required",
+            description="",
+            real_time_rank=True,
+            password=None,
+            rule_type="ACM",
+            start_time=timezone.now() - timedelta(minutes=5),
+            end_time=timezone.now() + timedelta(hours=1),
+            created_by=self.problem.created_by,
+        )
+        self.problem.contest = contest
+        self.problem._id = "A"
+        self.problem.save(update_fields=["contest", "_id"])
+        self.submission_data["contest_id"] = contest.id
+
+        denied = self.client.post(self.url, self.submission_data)
+        self.assertFailed(denied, "Please register for the contest first")
+        judge_task.assert_not_called()
+
+        ContestParticipation.objects.create(contest=contest, user=self.user)
+        allowed = self.client.post(self.url, self.submission_data)
+        self.assertSuccess(allowed)
+        judge_task.assert_called_once()
 
     def _configure_remote_problem(self):
         self.problem.judge_mode = ProblemJudgeMode.REMOTE

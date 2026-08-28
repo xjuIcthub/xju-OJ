@@ -184,6 +184,14 @@ export default {
       }
     })
   },
+  registerContest (contestID, password = '') {
+    return ajax('contest/register', 'post', {
+      data: {
+        contest_id: contestID,
+        password
+      }
+    })
+  },
   getContestAnnouncementList (contestId) {
     return ajax('contest/announcement', 'get', {
       params: {

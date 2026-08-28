@@ -377,16 +377,35 @@
       :deep(.legacy-icon) { display: inline-flex; }
       :deep(.submission-table .el-table__cell) { padding: 8px 0; }
       :deep(.submission-table .cell) { padding: 0 7px; white-space: nowrap; }
-      :deep(.judge-status-badge) { display: inline-flex; min-width: 76px; height: 24px; align-items: center; justify-content: center; padding: 0 9px; border-radius: var(--radius-pill); font-size: 12px; font-weight: 600; line-height: 1; }
-      :deep(.judge-status-badge.is-success) { color: var(--cat-tools); background: var(--tag-tools-bg); }
-      :deep(.judge-status-badge.is-error) { color: var(--cat-research); background: var(--tag-research-bg); }
-      :deep(.judge-status-badge.is-warning) { color: var(--cat-course); background: var(--tag-course-bg); }
-      :deep(.judge-status-badge.is-info) { color: var(--cat-kaggle); background: var(--tag-kaggle-bg); }
+      :deep(.judge-status-badge) { position: relative; display: inline-flex; overflow: hidden; min-width: 76px; height: 24px; align-items: center; justify-content: center; padding: 0 9px; border-radius: var(--radius-pill); font-size: 12px; font-weight: 600; line-height: 1; }
+      :deep(.judge-status-badge.is-success) { --judge-status-bg: var(--tag-tools-bg); color: var(--cat-tools); background: var(--judge-status-bg); }
+      :deep(.judge-status-badge.is-error) { --judge-status-bg: var(--tag-research-bg); color: var(--cat-research); background: var(--judge-status-bg); }
+      :deep(.judge-status-badge.is-warning) { --judge-status-bg: var(--tag-course-bg); color: var(--cat-course); background: var(--judge-status-bg); }
+      :deep(.judge-status-badge.is-info) { --judge-status-bg: var(--tag-kaggle-bg); color: var(--cat-kaggle); background: var(--judge-status-bg); }
+      :deep(.judge-status-badge:not(.is-success)) {
+        background-image:
+          linear-gradient(108deg, transparent 28%, rgba(255, 255, 255, .72) 46%, transparent 64%),
+          linear-gradient(var(--judge-status-bg), var(--judge-status-bg));
+        background-position: 170% 0, 0 0;
+        background-size: 190% 100%, 100% 100%;
+        animation:
+          judge-status-shimmer 1.65s linear infinite,
+          judge-status-heartbeat 2.2s ease-in-out infinite;
+      }
     }
     #contest-menu {
       flex: none;
       width: 210px;
     }
+  }
+  @keyframes judge-status-shimmer {
+    from { background-position: 170% 0, 0 0; }
+    to { background-position: -90% 0, 0 0; }
+  }
+  @keyframes judge-status-heartbeat {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
+    45% { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 8%, transparent); }
+    55% { box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 4%, transparent); }
   }
   @media (max-width: 1100px) {
     .flex-container #main {

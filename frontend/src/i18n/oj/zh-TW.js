@@ -139,6 +139,15 @@ export const m = {
   // ContestProblemList.vue
   Problems_List: '試題列表',
   No_Problems: '暫無試題',
+  Contest_Registration_Required: '報名後參加比賽',
+  Contest_Registration_Description: '確認報名後，你的提交與成績將計入本場比賽。',
+  Register_For_Contest: '報名參賽',
+  Confirm_Contest_Registration: '確認報名參賽',
+  Confirm_Contest_Registration_Description: '報名後將建立本場比賽的參賽記錄，並把之後的提交計入比賽排名。',
+  Contest_Password: '比賽密碼',
+  Contest_Password_Required: '請輸入比賽密碼',
+  Confirm_Registration: '確認報名',
+  Contest_Registration_Succeeded: '報名成功',
   // CodeMirror.vue
   Language: '語言',
   Theme: '主題',

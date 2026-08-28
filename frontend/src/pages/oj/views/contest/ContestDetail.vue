@@ -78,14 +78,6 @@
           <div v-if="contest.description" class="markdown-body contest-description" v-html="contest.description"></div>
           <p v-else class="contest-empty">{{$t('m.No_contest')}}</p>
 
-          <div v-if="passwordFormVisible" class="contest-password">
-            <Input v-model="contestPassword"
-                   type="password"
-                   placeholder="Contest password"
-                   class="contest-password-input"
-                   @on-enter="checkPassword" />
-            <LegacyButton type="primary" :loading="btnLoading" @click="checkPassword">Enter</LegacyButton>
-          </div>
         </section>
 
         <aside class="contest-guide" aria-labelledby="contest-guide-title">
@@ -104,7 +96,6 @@
           </dl>
           <button type="button"
                   class="contest-primary-link"
-                  :disabled="contestMenuDisabled"
                   @click="openProblems">
             <span>{{$t('m.Problems_List')}}</span>
             <Icon type="arrow-down-b" />
@@ -121,7 +112,6 @@
 
 <script>
   import moment from 'moment'
-  import api from '@oj/api'
   import { mapState, mapGetters, mapActions } from '@/store/compat'
   import { types } from '@/store'
   import { CONTEST_STATUS, CONTEST_STATUS_REVERSE } from '@/utils/constants'
@@ -131,9 +121,7 @@
     data () {
       return {
         routeName: '',
-        btnLoading: false,
         contestID: '',
-        contestPassword: '',
         timer: null
       }
     },
@@ -168,20 +156,6 @@
           ? this.routeName === 'contest-details'
           : this.routeName === tab.name
       },
-      checkPassword () {
-        if (!this.contestPassword) {
-          this.$error("Password can't be empty")
-          return
-        }
-        this.btnLoading = true
-        api.checkContestPassword(this.contestID, this.contestPassword).then(() => {
-          this.$success('Succeeded')
-          this.$store.commit(types.CONTEST_ACCESS, { access: true })
-          this.btnLoading = false
-        }).catch(() => {
-          this.btnLoading = false
-        })
-      },
       formatTime (value) {
         return value ? this.$filters.localtime(value, 'YYYY-MM-DD HH:mm') : '—'
       }
@@ -193,7 +167,7 @@
       }),
       ...mapGetters([
         'contestMenuDisabled', 'contestRuleType', 'contestStatus', 'isContestAdmin',
-        'OIContestRealTimePermission', 'passwordFormVisible'
+        'OIContestRealTimePermission'
       ]),
       isProblemRoute () {
         return this.routeName === 'contest-problem-details'
@@ -203,7 +177,7 @@
         return [
           { name: 'contest-details', label: 'Overview', icon: 'home', route: { name: 'contest-details', params: common } },
           { name: 'contest-announcement-list', label: 'Announcements', icon: 'megaphone', route: { name: 'contest-announcement-list', params: common }, disabled: this.contestMenuDisabled },
-          { name: 'contest-problem-list', label: 'Problems', icon: 'ios-photos', route: { name: 'contest-problem-list', params: common }, disabled: this.contestMenuDisabled },
+          { name: 'contest-problem-list', label: 'Problems', icon: 'ios-photos', route: { name: 'contest-problem-list', params: common } },
           { name: 'contest-submission-list', label: 'Submissions', icon: 'navicon-round', route: { name: 'contest-submission-list', params: common }, disabled: this.contestMenuDisabled, visible: this.OIContestRealTimePermission },
           { name: 'contest-rank', label: 'Rankings', icon: 'stats-bars', route: { name: 'contest-rank', params: common }, disabled: this.contestMenuDisabled, visible: this.OIContestRealTimePermission },
           { name: 'acm-helper', label: 'Admin_Helper', icon: 'shield', route: { name: 'acm-helper', params: common }, visible: this.showAdminHelper }
@@ -397,8 +371,6 @@
   .section-icon :deep(svg) { width: 20px; height: 20px; }
   .contest-description { padding-top: 18px; }
   .contest-empty { color: var(--color-text-muted); }
-  .contest-password { display: flex; align-items: center; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--color-border); }
-  .contest-password-input { max-width: 260px; }
 
   .contest-guide dl { margin: 4px 0 0; }
   .contest-guide dl > div { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--color-border); }

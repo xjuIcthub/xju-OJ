@@ -5,7 +5,8 @@ from django.utils import timezone
 
 from utils.api.tests import APITestCase
 
-from .models import ContestAnnouncement, ContestRuleType, Contest
+from .models import (ACMContestRank, Contest, ContestAnnouncement,
+                     ContestParticipation, ContestRuleType)
 
 DEFAULT_CONTEST_DATA = {"title": "test title", "description": "test description",
                         "start_time": timezone.localtime(timezone.now()),
@@ -96,6 +97,38 @@ class ContestAPITest(APITestCase):
         self.assertSuccess(resp)
         resp = self.client.get(self.url)
         self.assertSuccess(resp)
+
+    def test_regular_user_registers_for_password_contest(self):
+        user = self.create_user("participant", "test123")
+        url = self.reverse("contest_registration_api")
+
+        wrong = self.client.post(url, {
+            "contest_id": self.contest.id,
+            "password": "wrong",
+        })
+        self.assertFailed(wrong, "Wrong password or password expired")
+        self.assertFalse(ContestParticipation.objects.filter(contest=self.contest, user=user).exists())
+
+        registered = self.client.post(url, {
+            "contest_id": self.contest.id,
+            "password": DEFAULT_CONTEST_DATA["password"],
+        })
+        self.assertSuccess(registered)
+        self.assertTrue(registered.data["data"]["registered"])
+        self.assertTrue(ContestParticipation.objects.filter(contest=self.contest, user=user).exists())
+        self.assertTrue(ACMContestRank.objects.filter(contest=self.contest, user=user).exists())
+
+        repeated = self.client.post(url, {
+            "contest_id": self.contest.id,
+            "password": DEFAULT_CONTEST_DATA["password"],
+        })
+        self.assertSuccess(repeated)
+        self.assertFalse(repeated.data["data"]["created"])
+
+        detail = self.client.get(self.url)
+        self.assertSuccess(detail)
+        self.assertTrue(detail.data["data"]["registered"])
+        self.assertEqual(detail.data["data"]["participant_count"], 1)
 
 
 class ContestAnnouncementAdminAPITest(APITestCase):

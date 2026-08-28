@@ -4,7 +4,8 @@ from django.test import SimpleTestCase
 from account.models import User, UserProfile
 from announcement.models import Announcement
 from conf.models import JudgeServer
-from contest.models import ACMContestRank, Contest, ContestAnnouncement, OIContestRank
+from contest.models import (ACMContestRank, Contest, ContestAnnouncement,
+                            ContestParticipation, OIContestRank)
 from options.models import SysOptions
 from problem.models import Problem, ProblemTag
 
@@ -22,6 +23,7 @@ class DataIdentityContractTests(SimpleTestCase):
             ACMContestRank: "acm_contest_rank",
             OIContestRank: "oi_contest_rank",
             ContestAnnouncement: "contest_announcement",
+            ContestParticipation: "contest_participation",
             SysOptions: "options_sysoptions",
         }
 

@@ -139,6 +139,15 @@ export const m = {
   // ContestProblemList
   Problems_List: 'Problems List',
   No_Problems: 'No Problems',
+  Contest_Registration_Required: 'Register to participate',
+  Contest_Registration_Description: 'After registration, your submissions and results will count toward this contest.',
+  Register_For_Contest: 'Register Now',
+  Confirm_Contest_Registration: 'Confirm Contest Registration',
+  Confirm_Contest_Registration_Description: 'Registration creates your participant record and counts later submissions in the contest ranking.',
+  Contest_Password: 'Contest password',
+  Contest_Password_Required: 'Enter the contest password',
+  Confirm_Registration: 'Confirm Registration',
+  Contest_Registration_Succeeded: 'Registration succeeded',
   // CodeMirror.vue
   Language: 'Language',
   Theme: 'Theme',

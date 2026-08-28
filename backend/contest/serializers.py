@@ -71,6 +71,11 @@ class ContestPasswordVerifySerializer(serializers.Serializer):
     password = serializers.CharField(max_length=30, required=True)
 
 
+class ContestRegistrationSerializer(serializers.Serializer):
+    contest_id = serializers.IntegerField()
+    password = serializers.CharField(max_length=32, required=False, allow_blank=True)
+
+
 class ACMContestRankSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
 

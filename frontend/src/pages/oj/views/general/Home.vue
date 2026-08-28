@@ -112,7 +112,7 @@ export default {
       })
     },
     go (path) { this.$router.push(path) },
-    goContest (contest) { this.$router.push({ name: 'contest-details', params: { contestID: contest.id } }) },
+    goContest (contest) { this.$router.push({ name: 'contest-problem-list', params: { contestID: contest.id } }) },
     goProblem (problem) { this.$router.push({ name: 'problem-details', params: { problemID: problem._id } }) }
   }
 }

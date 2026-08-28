@@ -1,6 +1,7 @@
 import io
 
 import xlsxwriter
+from django.db import transaction
 from django.http import HttpResponse
 from django.utils.timezone import now
 from django.core.cache import cache
@@ -13,9 +14,11 @@ from account.models import AdminType
 from account.decorators import login_required, check_contest_permission, check_contest_password
 
 from utils.constants import ContestRuleType, ContestStatus
-from ..models import ContestAnnouncement, Contest, OIContestRank, ACMContestRank
+from ..models import (ACMContestRank, Contest, ContestAnnouncement,
+                      ContestParticipation, OIContestRank)
 from ..serializers import ContestAnnouncementSerializer
-from ..serializers import ContestSerializer, ContestPasswordVerifySerializer
+from ..serializers import (ContestPasswordVerifySerializer,
+                           ContestRegistrationSerializer, ContestSerializer)
 from ..serializers import OIContestRankSerializer, ACMContestRankSerializer
 
 
@@ -43,6 +46,8 @@ class ContestAPI(APIView):
             return self.error("Contest does not exist")
         data = ContestSerializer(contest).data
         data["now"] = datetime2str(now())
+        data["registered"] = contest.is_registered(request.user)
+        data["participant_count"] = ContestParticipation.objects.filter(contest=contest).count()
         return self.success(data)
 
 
@@ -100,6 +105,45 @@ class ContestAccessAPI(APIView):
             return self.error("Contest does not exist")
         session_pass = request.session.get(CONTEST_PASSWORD_SESSION_KEY, {}).get(contest.id)
         return self.success({"access": check_contest_password(session_pass, contest.password)})
+
+
+class ContestRegistrationAPI(APIView):
+    @validate_serializer(ContestRegistrationSerializer)
+    @login_required
+    def post(self, request):
+        data = request.data
+        try:
+            contest = Contest.objects.get(id=data["contest_id"], visible=True)
+        except Contest.DoesNotExist:
+            return self.error("Contest does not exist")
+        if contest.status == ContestStatus.CONTEST_ENDED:
+            return self.error("Contest has ended")
+
+        password = data.get("password") or request.session.get(
+            CONTEST_PASSWORD_SESSION_KEY, {}
+        ).get(contest.id)
+        if contest.password and not check_contest_password(password, contest.password):
+            return self.error("Wrong password or password expired")
+
+        with transaction.atomic():
+            participation, created = ContestParticipation.objects.get_or_create(
+                contest=contest,
+                user=request.user,
+            )
+            rank_model = ACMContestRank if contest.rule_type == ContestRuleType.ACM else OIContestRank
+            rank_model.objects.get_or_create(contest=contest, user=request.user)
+
+        if contest.password:
+            contest_passwords = request.session.setdefault(CONTEST_PASSWORD_SESSION_KEY, {})
+            contest_passwords[contest.id] = password
+            request.session.modified = True
+
+        cache.delete(f"{CacheKey.contest_rank_cache}:{contest.id}")
+        return self.success({
+            "registered": True,
+            "created": created,
+            "join_time": datetime2str(participation.join_time),
+        })
 
 
 class ContestRankAPI(APIView):

@@ -3,7 +3,7 @@
 // @name:zh-CN   XJU-OJ 远程提交助手
 // @name:en      XJU-OJ Remote Submission Bridge
 // @namespace    https://oj.icthub.top/
-// @version      0.6.1
+// @version      0.6.2
 // @description  在用户自己的洛谷、牛客和 Codeforces 登录会话中转发 XJU-OJ 练习提交。
 // @description:en Forward XJU-OJ practice submissions through the user's own Luogu, Nowcoder, and Codeforces sessions.
 // @author       XJU-OJ
@@ -25,6 +25,7 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
+// @grant        GM_listValues
 // @grant        GM_addValueChangeListener
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
@@ -1185,6 +1186,20 @@
     UNACCEPTED: 'PARTIALLY_ACCEPTED'
   }
 
+  const LUOGU_CASE_STATUS = {
+    4: 'ACCEPTED',
+    5: 'WRONG_ANSWER',
+    6: 'WRONG_ANSWER',
+    7: 'TIME_LIMIT_EXCEEDED',
+    8: 'MEMORY_LIMIT_EXCEEDED',
+    9: 'RUNTIME_ERROR',
+    10: 'COMPILE_ERROR',
+    11: 'OUTPUT_LIMIT_EXCEEDED',
+    12: 'ACCEPTED',
+    13: 'SYSTEM_ERROR',
+    14: 'WRONG_ANSWER'
+  }
+
   function acceptLuoguSubmission (task, submissionId) {
     const id = String(submissionId || '')
     if (!id) throw new Error('洛谷没有返回评测记录 ID')
@@ -1247,6 +1262,42 @@
       : ''
   }
 
+  function luoguValues (value) {
+    if (Array.isArray(value)) return value
+    if (value && typeof value === 'object') return Object.values(value)
+    return []
+  }
+
+  function luoguDerivedVerdict (record) {
+    const detail = record && record.detail && typeof record.detail === 'object'
+      ? record.detail
+      : {}
+    const compileResult = detail.compileResult || record.compileResult
+    const judgeResult = detail.judgeResult || record.judgeResult
+    if (compileResult && typeof compileResult === 'object') {
+      if (compileResult.success === false) return 'COMPILE_ERROR'
+      if (!judgeResult && String(compileResult.message || '').trim()) return 'COMPILE_ERROR'
+    }
+    if (!judgeResult || typeof judgeResult !== 'object') return ''
+
+    const testCases = []
+    for (const subtask of luoguValues(judgeResult.subtasks)) {
+      if (!subtask || typeof subtask !== 'object') continue
+      testCases.push(...luoguValues(subtask.testCases || subtask.cases))
+    }
+    if (!testCases.length) {
+      return Number(record.score) >= 100 ? 'ACCEPTED' : ''
+    }
+
+    const codes = testCases
+      .map(testCase => Number(testCase && testCase.status))
+      .filter(Number.isFinite)
+    if (!codes.length || codes.some(code => code >= 0 && code <= 3)) return ''
+    if (codes.every(code => code === 4 || code === 12)) return 'ACCEPTED'
+    const failedCode = codes.find(code => code !== 4 && code !== 12)
+    return LUOGU_CASE_STATUS[failedCode] || 'WRONG_ANSWER'
+  }
+
   function luoguStatusDetails (record) {
     const statusObjects = [record.status, record.judgeStatus, record.judgeResult, record.result]
       .filter(value => value && typeof value === 'object' && !Array.isArray(value))
@@ -1287,9 +1338,7 @@
     }
     const text = textValues.map(luoguScalar).find(value => value && !/^-?\d+$/.test(value)) || ''
     const normalized = text.toUpperCase().replace(/[\s-]+/g, '_')
-    const pending = code === 0 || code === 1 ||
-      /WAIT|JUDGING|PENDING|QUEUE|COMPILING|RUNNING|评测中|判题中|等待|编译中|运行中/i.test(text)
-    const verdict = LUOGU_STATUS[code] || LUOGU_VERDICT_ALIASES[normalized] ||
+    const verdict = luoguDerivedVerdict(record) || LUOGU_STATUS[code] || LUOGU_VERDICT_ALIASES[normalized] ||
       (/答案正确|通过/.test(text) ? 'ACCEPTED' : '') ||
       (/编译错误/.test(text) ? 'COMPILE_ERROR' : '') ||
       (/输出超限/.test(text) ? 'OUTPUT_LIMIT_EXCEEDED' : '') ||
@@ -1299,6 +1348,8 @@
       (/运行错误/.test(text) ? 'RUNTIME_ERROR' : '') ||
       (/部分正确|未通过/.test(text) ? 'PARTIALLY_ACCEPTED' : '') ||
       (/系统错误|评测失败|未知错误/.test(text) ? 'SYSTEM_ERROR' : '')
+    const pending = !verdict && (code === 0 || code === 1 ||
+      /WAIT|JUDGING|PENDING|QUEUE|COMPILING|RUNNING|评测中|判题中|等待|编译中|运行中/i.test(text))
     return { code, text, pending, verdict }
   }
 
@@ -1374,6 +1425,9 @@
       remote_url: `https://www.luogu.com.cn/record/${submissionId}`,
       message: '洛谷判题时间较长，请保留此标签页或稍后查看评测记录'
     })
+    if (window.location.origin === OJ_ORIGIN) {
+      window.setTimeout(() => resumeOjJudgingTask(task), 5000)
+    }
   }
 
   function installLuoguXhrInterceptor (task) {
@@ -1728,6 +1782,14 @@
       resumeJudging(latestEvent)
     }, 0)
     window.setTimeout(() => {
+      const taskKeyPrefix = `${STORAGE_PREFIX}:task:`
+      const storedTaskKeys = typeof GM_listValues === 'function'
+        ? GM_listValues().filter(key => key.startsWith(taskKeyPrefix))
+        : []
+      if (storedTaskKeys.length) {
+        for (const key of storedTaskKeys) resumeStoredTask(GM_getValue(key, null))
+        return
+      }
       for (const provider of ['CODEFORCES', 'NOWCODER', 'LUOGU']) {
         const submissionId = GM_getValue(activeTaskStorageKey(provider), '')
         if (submissionId) resumeStoredTask(GM_getValue(taskStorageKey(submissionId), null))

@@ -54,6 +54,24 @@ class Contest(models.Model):
         db_table = "contest"
         ordering = ("-start_time",)
 
+    def is_registered(self, user):
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_contest_admin(self):
+            return True
+        return ContestParticipation.objects.filter(contest=self, user=user).exists()
+
+
+class ContestParticipation(models.Model):
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    join_time = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "contest_participation"
+        unique_together = (("contest", "user"),)
+        ordering = ("join_time",)
+
 
 class AbstractContestRank(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

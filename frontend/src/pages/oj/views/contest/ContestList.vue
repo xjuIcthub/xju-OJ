@@ -58,10 +58,9 @@
 </template>
 <script>
   import api from '@oj/api'
-  import { mapGetters } from '@/store/compat'
   import utils from '@/utils/utils'
   import Pagination from '@/pages/oj/components/Pagination'
-  import { CONTEST_STATUS_REVERSE, CONTEST_TYPE } from '@/utils/constants'
+  import { CONTEST_STATUS_REVERSE } from '@/utils/constants'
   import { applyDevelopmentContestFixtures, cloneFixtures, filterMockContests, MOCK_CONTESTS } from '@oj/mocks/fixtures'
 
   const limit = 10
@@ -138,12 +137,7 @@
       },
       goContest (contest) {
         this.cur_contest_id = contest.id
-        if (contest.contest_type !== CONTEST_TYPE.PUBLIC && !this.isAuthenticated) {
-          this.$error(this.$t('m.Please_login_first'))
-          this.$store.dispatch('changeModalStatus', {visible: true})
-        } else {
-          this.$router.push({name: 'contest-details', params: {contestID: contest.id}})
-        }
+        this.$router.push({name: 'contest-problem-list', params: {contestID: contest.id}})
       },
 
       getDuration (startTime, endTime) {
@@ -178,7 +172,6 @@
       }
     },
     computed: {
-      ...mapGetters(['isAuthenticated', 'user']),
       statusFilterLabel () {
         if (!this.query.status) return this.$t('m.Status')
         const item = CONTEST_STATUS_REVERSE[String(this.query.status)]

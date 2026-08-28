@@ -280,7 +280,9 @@
 
   .judge-status-badge,
   :deep(.test-case-table .judge-status-badge) {
+    position: relative;
     display: inline-flex;
+    overflow: hidden;
     min-width: 76px;
     height: 24px;
     align-items: center;
@@ -295,13 +297,35 @@
   }
 
   .judge-status-badge.is-success,
-  :deep(.test-case-table .judge-status-badge.is-success) { background: var(--tag-tools-bg); color: var(--cat-tools); }
+  :deep(.test-case-table .judge-status-badge.is-success) { --judge-status-bg: var(--tag-tools-bg); background: var(--judge-status-bg); color: var(--cat-tools); }
   .judge-status-badge.is-error,
-  :deep(.test-case-table .judge-status-badge.is-error) { background: var(--tag-research-bg); color: var(--cat-research); }
+  :deep(.test-case-table .judge-status-badge.is-error) { --judge-status-bg: var(--tag-research-bg); background: var(--judge-status-bg); color: var(--cat-research); }
   .judge-status-badge.is-warning,
-  :deep(.test-case-table .judge-status-badge.is-warning) { background: var(--tag-course-bg); color: var(--cat-course); }
+  :deep(.test-case-table .judge-status-badge.is-warning) { --judge-status-bg: var(--tag-course-bg); background: var(--judge-status-bg); color: var(--cat-course); }
   .judge-status-badge.is-info,
-  :deep(.test-case-table .judge-status-badge.is-info) { background: var(--tag-kaggle-bg); color: var(--cat-kaggle); }
+  :deep(.test-case-table .judge-status-badge.is-info) { --judge-status-bg: var(--tag-kaggle-bg); background: var(--judge-status-bg); color: var(--cat-kaggle); }
+  .judge-status-badge:not(.is-success),
+  :deep(.test-case-table .judge-status-badge:not(.is-success)) {
+    background-image:
+      linear-gradient(108deg, transparent 28%, rgba(255, 255, 255, .72) 46%, transparent 64%),
+      linear-gradient(var(--judge-status-bg), var(--judge-status-bg));
+    background-position: 170% 0, 0 0;
+    background-size: 190% 100%, 100% 100%;
+    animation:
+      judge-status-shimmer 1.65s linear infinite,
+      judge-status-heartbeat 2.2s ease-in-out infinite;
+  }
+
+  @keyframes judge-status-shimmer {
+    from { background-position: 170% 0, 0 0; }
+    to { background-position: -90% 0, 0 0; }
+  }
+
+  @keyframes judge-status-heartbeat {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
+    45% { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 8%, transparent); }
+    55% { box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 4%, transparent); }
+  }
 
   .submission-metrics {
     display: grid;

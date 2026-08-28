@@ -2,7 +2,7 @@ const TASK_SCHEMA = 'xju-oj.remote-submit.v1'
 const READY_ATTRIBUTE = 'data-xju-oj-remote-bridge-version'
 const SUBMIT_EVENT = 'xju-oj:remote-bridge:submit'
 const BRIDGE_EVENT = 'xju-oj:remote-bridge:event'
-const MINIMUM_BRIDGE_VERSION = [0, 6, 1]
+const MINIMUM_BRIDGE_VERSION = [0, 6, 2]
 
 const EVENT_FIELDS = [
   'submission_id',

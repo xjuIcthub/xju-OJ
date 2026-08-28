@@ -241,6 +241,7 @@ async function runScenario (provider, mode = 'success') {
         if (mode === 'verification') {
           return { status: 200, responseText: '<html>browser verification</html>', finalUrl: url }
         }
+        const compileFailed = mode === 'compile-error'
         return jsonResponse({
           instance: 'record',
           template: 'record.show',
@@ -248,10 +249,23 @@ async function runScenario (provider, mode = 'success') {
           data: {
             record: {
               id: 789,
-              status: { code: 12, name: 'Accepted' },
+              status: 2,
               time: 1,
               memory: 1,
-              score: 100
+              score: compileFailed ? 0 : 100,
+              detail: compileFailed ? {
+                compileResult: { message: 'compile failed' }
+              } : {
+                judgeResult: {
+                  finishedCaseCount: 2,
+                  subtasks: [{
+                    testCases: [
+                      { id: 1, status: 12 },
+                      { id: 2, status: 12 }
+                    ]
+                  }]
+                }
+              }
             }
           },
           user: { uid: 1 }
@@ -307,7 +321,7 @@ async function runScenario (provider, mode = 'success') {
       observe () {}
       disconnect () {}
     },
-    GM_info: { script: { version: '0.6.1' } },
+    GM_info: { script: { version: '0.6.2' } },
     GM_getValue: (key, fallback) => storage.has(key) ? storage.get(key) : fallback,
     GM_setValue: (key, value) => {
       const previous = storage.get(key)
@@ -315,6 +329,7 @@ async function runScenario (provider, mode = 'success') {
       for (const listener of valueListeners.get(key) || []) listener(key, previous, value, false)
     },
     GM_deleteValue: key => storage.delete(key),
+    GM_listValues: () => [...storage.keys()],
     GM_addValueChangeListener: (key, listener) => {
       const handlers = valueListeners.get(key) || []
       handlers.push(listener)
@@ -340,7 +355,7 @@ async function runScenario (provider, mode = 'success') {
   assert.ok(submitHandler, 'submit listener was not installed')
   await submitHandler({ detail: { task: taskFor(provider), code: 'int main() { return 0; }' } })
 
-  const terminalStatus = mode === 'success'
+  const terminalStatus = mode === 'success' || mode === 'compile-error'
     ? 'FINISHED'
     : mode === 'auth' ? 'AUTH_REQUIRED' : 'VERIFICATION_REQUIRED'
   await waitFor(() => backendEvents.some(event => event.status === terminalStatus))
@@ -375,6 +390,13 @@ async function runScenario (provider, mode = 'success') {
   const luoguVerification = await runScenario('LUOGU', 'verification')
   assert.equal(luoguVerification.openedTabs.length, 1)
   assert.ok(luoguVerification.backendEvents.some(event => event.status === 'VERIFICATION_REQUIRED'))
+
+  const luoguCompileError = await runScenario('LUOGU', 'compile-error')
+  assert.equal(luoguCompileError.openedTabs.length, 0)
+  assert.equal(
+    luoguCompileError.backendEvents.find(event => event.status === 'FINISHED').verdict,
+    'COMPILE_ERROR'
+  )
 
   const codeforcesVerification = await runScenario('CODEFORCES', 'verification')
   assert.equal(codeforcesVerification.openedTabs.length, 1)

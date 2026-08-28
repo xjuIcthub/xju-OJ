@@ -26,8 +26,8 @@ function section (startMarker, endMarker) {
   return source.slice(start, end)
 }
 
-assert.match(source, /^\/\/ @version\s+0\.6\.1$/m)
-assert.match(frontendBridge, /MINIMUM_BRIDGE_VERSION = \[0, 6, 1\]/)
+assert.match(source, /^\/\/ @version\s+0\.6\.2$/m)
+assert.match(frontendBridge, /MINIMUM_BRIDGE_VERSION = \[0, 6, 2\]/)
 
 const opener = section(
   'function openProviderActionTab',
@@ -60,6 +60,8 @@ assert.doesNotMatch(source, /Boolean\(root\.querySelector\('\.g-recaptcha, \[dat
 assert.match(source, /submitNowcoderDirect/)
 assert.match(source, /submitLuoguDirect/)
 assert.match(source, /payload && payload\.currentData/)
+assert.match(source, /luoguDerivedVerdict/)
+assert.match(source, /GM_listValues/)
 assert.match(source, /backendEventQueues/)
 assert.match(source, /for \(const provider of \['CODEFORCES', 'NOWCODER', 'LUOGU'\]\)/)
 

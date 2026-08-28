@@ -53,9 +53,10 @@ const useApplicationStore = defineStore('application', {
       return CONTEST_STATUS.UNDERWAY
     },
     contestRuleType: state => state.contest.contest.rule_type || null,
+    isContestRegistered () { return this.isContestAdmin || this.contest.contest.registered === true },
     isContestAdmin () { return this.isAuthenticated && (this.contest.contest.created_by.id === this.currentUser.id || this.currentUser.admin_type === USER_TYPE.SUPER_ADMIN) },
     contestMenuDisabled () {
-      if (this.isContestAdmin) return false
+      if (this.isContestRegistered) return false
       return this.contest.contest.contest_type === CONTEST_TYPE.PUBLIC ? this.contestStatus === CONTEST_STATUS.NOT_START : !this.contest.access
     },
     OIContestRealTimePermission () { return this.contestRuleType === 'ACM' || this.contestStatus === CONTEST_STATUS.ENDED || this.contest.contest.real_time_rank === true || this.isContestAdmin },
@@ -161,7 +162,13 @@ const useApplicationStore = defineStore('application', {
         return { data: { data: result } }
       }
     },
-    async getContestAccess () { const res = await api.getContestAccess(route().params.contestID); this.contest.access = res.data.data.access; return res }
+    async getContestAccess () { const res = await api.getContestAccess(route().params.contestID); this.contest.access = res.data.data.access; return res },
+    async registerContest ({ password = '' } = {}) {
+      const res = await api.registerContest(route().params.contestID, password)
+      this.contest.contest.registered = true
+      this.contest.access = true
+      return res
+    }
   }
 })
 
@@ -173,7 +180,7 @@ const getterMap = {
   website: s => s.website, authProviders: s => s.authProviders, modalStatus: s => s.modalStatus, user: s => s.currentUser, profile: s => s.profile,
   isAuthenticated: s => s.isAuthenticated, isAdminRole: s => s.isAdminRole, isSuperAdmin: s => s.isSuperAdmin,
   hasProblemPermission: s => s.hasProblemPermission, contestLoaded: s => s.contestLoaded, contestStatus: s => s.contestStatus,
-  contestRuleType: s => s.contestRuleType, isContestAdmin: s => s.isContestAdmin, contestMenuDisabled: s => s.contestMenuDisabled,
+  contestRuleType: s => s.contestRuleType, isContestAdmin: s => s.isContestAdmin, isContestRegistered: s => s.isContestRegistered, contestMenuDisabled: s => s.contestMenuDisabled,
   OIContestRealTimePermission: s => s.OIContestRealTimePermission, problemSubmitDisabled: s => s.problemSubmitDisabled,
   passwordFormVisible: s => s.passwordFormVisible, contestStartTime: s => s.contestStartTime, contestEndTime: s => s.contestEndTime,
   countdown: s => s.countdown
