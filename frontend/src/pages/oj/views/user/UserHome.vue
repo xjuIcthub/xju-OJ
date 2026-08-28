@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <div class="avatar-container">
-      <img class="avatar" :src="profile.avatar"/>
+      <UserAvatar class="avatar" :src="profile.avatar" :username="profile.user?.username" :size="140" />
     </div>
     <Card :padding="100">
       <div v-if="profile.user">
@@ -64,8 +64,12 @@
   import { mapActions } from '@/store/compat'
   import time from '@/utils/time'
   import api from '@oj/api'
+  import UserAvatar from '@/shared/ui/UserAvatar.vue'
 
   export default {
+    components: {
+      UserAvatar
+    },
     data () {
       return {
         username: '',

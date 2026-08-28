@@ -12,7 +12,7 @@
         </el-tooltip>
         <el-dropdown @command="handleCommand">
           <button type="button" class="admin-user" aria-label="User menu">
-            <span class="user-avatar">{{ (user.username || '?').slice(0, 1).toUpperCase() }}</span>
+            <UserAvatar class="user-avatar" :src="profile.avatar" :username="user.username" :size="26" />
             <span>{{user.username}}</span>
             <Icon type="arrow-down-b" />
           </button>
@@ -44,6 +44,7 @@
   import SideMenu from '../components/SideMenu.vue'
   import KatexEditor from '@admin/components/KatexEditor.vue'
   import api from '../api'
+  import UserAvatar from '@/shared/ui/UserAvatar.vue'
 
   export default {
     name: 'app',
@@ -55,7 +56,8 @@
     },
     components: {
       SideMenu,
-      KatexEditor
+      KatexEditor,
+      UserAvatar
     },
     async beforeRouteEnter () {
       const res = await api.getProfile()
@@ -72,7 +74,7 @@
       }
     },
     computed: {
-      ...mapGetters(['user'])
+      ...mapGetters(['user', 'profile'])
     }
   }
 </script>
@@ -148,7 +150,7 @@
   .admin-icon-button:hover { color: var(--color-text); background: var(--color-bg-subtle); border-color: var(--color-border); }
   .admin-user { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); cursor: pointer; transition: color var(--transition), background-color var(--transition), border-color var(--transition); }
   .admin-user:hover { background: var(--color-bg-subtle); border-color: var(--color-border); }
-  .user-avatar { display: inline-grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: var(--color-bg-subtle); font-size: 12px; font-weight: 600; }
+  .user-avatar { font-size: 12px; }
   @media (max-width: 760px) { .container { min-width: 0; } #header { padding-left: 180px; padding-right: 14px; } .content-app { padding-left: 180px; } }
 
 

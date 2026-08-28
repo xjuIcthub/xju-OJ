@@ -6,13 +6,7 @@
           <Menu accordion @on-select="goRoute" :activeName="activeName" style="text-align: center;" width="auto">
             <div class="avatar-editor">
               <div class="avatar-container">
-                <img v-if="profile.avatar && !avatarFailed"
-                     :key="profile.avatar"
-                     class="avatar"
-                     :src="profile.avatar"
-                     @load="avatarFailed = false"
-                     @error="avatarFailed = true"/>
-                <div v-else class="avatar avatar-fallback">{{ avatarInitial }}</div>
+                <UserAvatar class="avatar" :src="profile.avatar" :username="profile.user?.username" :size="112" />
                 <div class="avatar-mask">
                   <a @click.stop="goRoute({name: 'profile-setting'})">
                     <div class="mask-content">
@@ -41,13 +35,12 @@
 </template>
 <script>
   import { mapGetters } from '@/store/compat'
+  import UserAvatar from '@/shared/ui/UserAvatar.vue'
 
   export default {
     name: 'profile',
-    data () {
-      return {
-        avatarFailed: false
-      }
+    components: {
+      UserAvatar
     },
     methods: {
       goRoute (routePath) {
@@ -58,14 +51,6 @@
       ...mapGetters(['profile']),
       activeName () {
         return this.$route.path
-      },
-      avatarInitial () {
-        return (this.profile.user?.username || '?').slice(0, 1).toUpperCase()
-      }
-    },
-    watch: {
-      'profile.avatar' () {
-        this.avatarFailed = false
       }
     }
   }

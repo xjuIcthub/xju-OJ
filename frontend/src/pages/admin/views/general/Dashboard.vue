@@ -4,8 +4,7 @@
       <el-card class="admin-info">
         <el-row :gutter="20">
           <el-col :span="10">
-            <img v-if="profile.avatar && !avatarFailed" class="avatar" :src="profile.avatar" @error="avatarFailed = true"/>
-            <div v-else class="avatar avatar-fallback">{{ (user.username || '?').slice(0, 1).toUpperCase() }}</div>
+            <UserAvatar class="avatar" :src="profile.avatar" :username="user.username" :size="92" />
           </el-col>
           <el-col :span="14">
             <p class="admin-info-name">{{user.username}}</p>
@@ -84,11 +83,13 @@
   import browserDetector from 'browser-detect'
   import InfoCard from '@admin/components/infoCard.vue'
   import api from '@admin/api'
+  import UserAvatar from '@/shared/ui/UserAvatar.vue'
 
   export default {
     name: 'dashboard',
     components: {
-      InfoCard
+      InfoCard,
+      UserAvatar
     },
     data () {
       return {
@@ -101,7 +102,6 @@
         },
         activeNames: [1],
         session: {},
-        avatarFailed: false,
         releases: [
           {
             title: 'Version 0.2.0 · Feiyue visual migration',

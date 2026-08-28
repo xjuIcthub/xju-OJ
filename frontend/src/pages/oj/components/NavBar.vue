@@ -18,7 +18,7 @@
           <LegacyButton v-else-if="website.allow_register && localRegisterEnabled" type="ghost" @click="handleBtnClick('register')">{{$t('m.Register')}}</LegacyButton>
         </template>
         <Dropdown v-else @on-click="handleRoute" placement="bottom-end" trigger="click">
-          <LegacyButton type="text" class="drop-menu-title"><span class="user-avatar">{{ (user.username || '?').slice(0, 1).toUpperCase() }}</span>{{ user.username }} <Icon type="arrow-down-b" /></LegacyButton>
+          <LegacyButton type="text" class="drop-menu-title"><UserAvatar class="user-avatar" :src="profile.avatar" :username="user.username" :size="26" />{{ user.username }} <Icon type="arrow-down-b" /></LegacyButton>
           <template #list><Dropdown-menu><Dropdown-item name="/user-home">{{$t('m.MyHome')}}</Dropdown-item><Dropdown-item name="/status?myself=1">{{$t('m.MySubmissions')}}</Dropdown-item><Dropdown-item name="/setting/profile">{{$t('m.Settings')}}</Dropdown-item><Dropdown-item v-if="isAdminRole" name="/admin">{{$t('m.Management')}}</Dropdown-item><Dropdown-item divided name="/logout">{{$t('m.Logout')}}</Dropdown-item></Dropdown-menu></template>
         </Dropdown>
       </div>
@@ -32,8 +32,9 @@ import login from '@oj/views/user/Login'
 import register from '@oj/views/user/Register'
 import api from '@oj/api'
 import runtime from '@/utils/runtime'
+import UserAvatar from '@/shared/ui/UserAvatar.vue'
 export default {
-  components: { login, register }, data () { return { searchKeyword: '', devLoginLoading: false } }, mounted () { this.getProfile() },
+  components: { login, register, UserAvatar }, data () { return { searchKeyword: '', devLoginLoading: false } }, mounted () { this.getProfile() },
   methods: {
     ...mapActions(['getProfile', 'changeModalStatus']),
     handleRoute (route) { if (route && route.indexOf('admin') < 0) this.$router.push(route); else window.open('/admin/') },
@@ -58,7 +59,7 @@ export default {
     goAuthentikRegister () { const url = this.authProviders.authentik && this.authProviders.authentik.register_url; if (url) window.location.assign(url) }
   },
   computed: {
-    ...mapGetters(['website', 'modalStatus', 'user', 'isAuthenticated', 'isAdminRole', 'authProviders']),
+    ...mapGetters(['website', 'modalStatus', 'user', 'profile', 'isAuthenticated', 'isAdminRole', 'authProviders']),
     authentikEnabled () { return !!(this.authProviders.authentik && this.authProviders.authentik.enabled) },
     localRegisterEnabled () { return !this.authProviders.local || this.authProviders.local.register_enabled !== false },
     activeMenu () {
@@ -81,7 +82,7 @@ export default {
 .nav-actions { display: flex; align-items: center; gap: 6px; flex: none; margin-left: 12px; }
 .nav-search { width: 210px; }
 .drop-menu-title { display: inline-flex; align-items: center; gap: 7px; color: var(--color-text); }
-.user-avatar { display: inline-grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: var(--color-bg-subtle); color: var(--color-text); font-size: 12px; font-weight: 600; }
+.user-avatar { font-size: 12px; }
 .modal-title { font-size: 18px; font-weight: 600; font-family: var(--font-serif); }
 :deep(.el-menu-item), :deep(.el-sub-menu__title) { display: inline-flex; align-items: center; justify-content: flex-start; gap: 6px; height: 36px; line-height: 1; margin: 10px 2px; padding: 0 11px; border-radius: var(--radius-sm); color: var(--color-text-muted); }
 :deep(.el-menu-item) { height: 36px !important; margin: 10px 2px !important; line-height: 36px !important; box-sizing: border-box; }
