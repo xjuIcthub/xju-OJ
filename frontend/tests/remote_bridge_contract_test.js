@@ -13,6 +13,10 @@ const frontendBridge = fs.readFileSync(
   path.resolve(__dirname, '../src/pages/oj/remoteBridge.js'),
   'utf8'
 )
+const problemPage = fs.readFileSync(
+  path.resolve(__dirname, '../src/pages/oj/views/problem/Problem.vue'),
+  'utf8'
+)
 
 function section (startMarker, endMarker) {
   const start = source.indexOf(startMarker)
@@ -22,8 +26,8 @@ function section (startMarker, endMarker) {
   return source.slice(start, end)
 }
 
-assert.match(source, /^\/\/ @version\s+0\.5\.0$/m)
-assert.match(frontendBridge, /\(parts\[1\] \|\| 0\) >= 5/)
+assert.match(source, /^\/\/ @version\s+0\.6\.0$/m)
+assert.match(frontendBridge, /MINIMUM_BRIDGE_VERSION = \[0, 6, 0\]/)
 
 const opener = section(
   'function openProviderActionTab',
@@ -51,5 +55,16 @@ assert.doesNotMatch(submitEntry, /GM_openInTab/)
 assert.match(source, /submitCodeforcesFromOj/)
 assert.match(source, /submitNowcoderDirect/)
 assert.match(source, /submitLuoguDirect/)
+assert.match(source, /payload && payload\.currentData/)
+assert.match(source, /backendEventQueues/)
+assert.match(source, /for \(const provider of \['CODEFORCES', 'NOWCODER', 'LUOGU'\]\)/)
+
+const remoteEventHandler = problemPage.slice(
+  problemPage.indexOf('handleRemoteBridgeEvent'),
+  problemPage.indexOf('onResetToTemplate')
+)
+assert.doesNotMatch(remoteEventHandler, /updateRemoteSubmission/)
+assert.match(problemPage, /showAcceptedCelebration\(\)\.then\(\(\) => this\.finishSubmissionStatus\(result, id\)\)/)
+assert.match(problemPage, /finishSubmissionStatus \(result, submissionId\)[\s\S]*this\.result = result/)
 
 console.log('remote bridge contract passed')

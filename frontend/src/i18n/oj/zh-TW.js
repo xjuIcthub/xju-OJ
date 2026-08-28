@@ -164,6 +164,7 @@ export const m = {
   Remote_Bridge_Title: '一鍵安裝 XJU-OJ 遠端提交腳本',
   Remote_Bridge_Intro: '透過 ScriptCat 在你自己的洛谷、牛客與 Codeforces 登入工作階段中完成練習提交，驗證由平台原生頁面處理。',
   Remote_Bridge_Installed: '腳本已安裝並啟用',
+  Remote_Bridge_Outdated: '腳本版本過舊，請更新',
   Remote_Bridge_Missing: '尚未偵測到腳本',
   Remote_Bridge_Step_ScriptCat: '安裝 ScriptCat',
   Remote_Bridge_Step_ScriptCat_Hint: '機房優先使用 Microsoft Edge 版本。已安裝 ScriptCat 可直接進入下一步。',

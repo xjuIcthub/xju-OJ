@@ -9,11 +9,11 @@
           <h1>{{ $t('m.Remote_Bridge_Title') }}</h1>
           <p>{{ $t('m.Remote_Bridge_Intro') }}</p>
         </div>
-        <div class="bridge-status" :class="bridgeInstalled ? 'is-installed' : 'is-missing'">
+        <div class="bridge-status" :class="bridgeStatusClass">
           <span class="status-dot" aria-hidden="true"></span>
           <div>
-            <strong>{{ bridgeInstalled ? $t('m.Remote_Bridge_Installed') : $t('m.Remote_Bridge_Missing') }}</strong>
-            <small v-if="bridgeInstalled">v{{ bridgeVersion }}</small>
+            <strong>{{ bridgeStatusLabel }}</strong>
+            <small v-if="bridgeDetected">v{{ bridgeVersion }}</small>
           </div>
         </div>
       </section>
@@ -35,7 +35,7 @@
             <h2>{{ $t('m.Remote_Bridge_Step_Userscript') }}</h2>
             <p>{{ $t('m.Remote_Bridge_Step_Userscript_Hint') }}</p>
             <a class="bridge-button primary" :href="userscriptUrl" target="_blank" rel="noopener noreferrer">
-              {{ bridgeInstalled ? $t('m.Remote_Bridge_Update_Userscript') : $t('m.Remote_Bridge_Install_Userscript') }}
+              {{ bridgeDetected ? $t('m.Remote_Bridge_Update_Userscript') : $t('m.Remote_Bridge_Install_Userscript') }}
             </a>
           </div>
         </li>
@@ -60,6 +60,8 @@
 </template>
 
 <script>
+import { isRemoteBridgeDetected, isRemoteBridgeInstalled, remoteBridgeVersion } from '@oj/remoteBridge'
+
 const READY_ATTRIBUTE = 'data-xju-oj-remote-bridge-version'
 const READY_EVENT = 'xju-oj:remote-bridge:ready'
 const PING_EVENT = 'xju-oj:remote-bridge:ping'
@@ -68,11 +70,22 @@ export default {
   name: 'RemoteBridge',
   data () {
     return {
+      bridgeDetected: false,
       bridgeInstalled: false,
       bridgeVersion: '',
       checkTimer: null,
       scriptCatUrl: 'https://microsoftedge.microsoft.com/addons/detail/scriptcat/liilgpjgabokdklappibcjfablkpcekh',
       userscriptUrl: '/static/userscripts/xju-oj-remote-bridge.user.js'
+    }
+  },
+  computed: {
+    bridgeStatusClass () {
+      if (this.bridgeInstalled) return 'is-installed'
+      return this.bridgeDetected ? 'is-outdated' : 'is-missing'
+    },
+    bridgeStatusLabel () {
+      if (this.bridgeInstalled) return this.$t('m.Remote_Bridge_Installed')
+      return this.bridgeDetected ? this.$t('m.Remote_Bridge_Outdated') : this.$t('m.Remote_Bridge_Missing')
     }
   },
   mounted () {
@@ -93,12 +106,16 @@ export default {
     },
     checkBridge () {
       const version = document.documentElement.getAttribute(READY_ATTRIBUTE)
-      if (version) this.setInstalled(version)
+      if (version) this.setBridgeVersion(version)
     },
     setInstalled (version) {
-      this.bridgeInstalled = true
-      this.bridgeVersion = version
-      if (this.checkTimer) {
+      this.setBridgeVersion(version)
+    },
+    setBridgeVersion (version) {
+      this.bridgeVersion = version || remoteBridgeVersion()
+      this.bridgeDetected = isRemoteBridgeDetected()
+      this.bridgeInstalled = isRemoteBridgeInstalled()
+      if (this.bridgeInstalled && this.checkTimer) {
         window.clearInterval(this.checkTimer)
         this.checkTimer = null
       }
@@ -121,6 +138,7 @@ export default {
 .bridge-status small { margin-top: 3px; color: var(--color-text-muted); }
 .status-dot { width: 10px; height: 10px; flex: none; border-radius: 50%; background: #d69e2e; box-shadow: 0 0 0 4px rgba(214, 158, 46, .13); }
 .bridge-status.is-installed .status-dot { background: #2f9e67; box-shadow: 0 0 0 4px rgba(47, 158, 103, .13); }
+.bridge-status.is-outdated .status-dot { background: #d97706; box-shadow: 0 0 0 4px rgba(217, 119, 6, .13); }
 .install-steps { display: grid; gap: 0; margin: 0; padding: 8px 0 4px; list-style: none; }
 .install-steps li { display: grid; grid-template-columns: 42px 1fr; gap: 14px; padding: 24px 4px; border-bottom: 1px solid var(--color-border); }
 .install-steps li:last-child { border-bottom: 0; }

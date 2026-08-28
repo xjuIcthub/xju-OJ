@@ -3,7 +3,7 @@
 // @name:zh-CN   XJU-OJ 远程提交助手
 // @name:en      XJU-OJ Remote Submission Bridge
 // @namespace    https://oj.icthub.top/
-// @version      0.5.0
+// @version      0.6.0
 // @description  在用户自己的洛谷、牛客和 Codeforces 登录会话中转发 XJU-OJ 练习提交。
 // @description:en Forward XJU-OJ practice submissions through the user's own Luogu, Nowcoder, and Codeforces sessions.
 // @author       XJU-OJ
@@ -62,6 +62,7 @@
   ]
   const dispatchedBridgeEvents = new Set()
   const ojPollingSubmissions = new Set()
+  const backendEventQueues = new Map()
   const PROVIDER_HOSTS = {
     LUOGU: new Set(['www.luogu.com.cn', 'luogu.com.cn']),
     NOWCODER: new Set(['ac.nowcoder.com', 'www.nowcoder.com', 'nowcoder.com']),
@@ -108,12 +109,19 @@
     const csrf = cookieValue('csrftoken')
     const headers = { 'Content-Type': 'application/json;charset=UTF-8' }
     if (csrf) headers['X-CSRFToken'] = csrf
-    window.fetch('/api/remote_submission/event', {
+    const submissionId = String(event.submission_id || '')
+    const previous = backendEventQueues.get(submissionId) || Promise.resolve()
+    const request = previous.catch(() => {}).then(() => window.fetch('/api/remote_submission/event', {
       method: 'POST',
       credentials: 'same-origin',
       headers,
       body: JSON.stringify(payload)
+    }))
+    backendEventQueues.set(submissionId, request)
+    request.finally(() => {
+      if (backendEventQueues.get(submissionId) === request) backendEventQueues.delete(submissionId)
     }).catch(() => {})
+    return request
   }
 
   function dispatchBridgeEvent (event) {
@@ -1142,8 +1150,23 @@
   }
 
   function luoguRecordData (payload) {
-    const data = (payload && payload.data) || {}
-    return data.record || data.submission || data
+    const candidates = [
+      payload && payload.currentData,
+      payload && payload.data,
+      payload
+    ]
+    for (const data of candidates) {
+      if (!data || typeof data !== 'object') continue
+      if (data.record && typeof data.record === 'object') return data.record
+      if (data.submission && typeof data.submission === 'object') return data.submission
+      if (data.status !== undefined) return data
+    }
+    return {}
+  }
+
+  function luoguLoginTemplate (payload) {
+    const template = String((payload && (payload.currentTemplate || payload.template)) || '').toLowerCase()
+    return template.includes('login') || template.includes('auth')
   }
 
   async function pollLuoguRecord (task) {
@@ -1158,7 +1181,7 @@
           null,
           {'x-lentille-request': 'content-only'}
         )
-        if (payload.template === 'login' || luoguAuthRequired(payload)) {
+        if (luoguLoginTemplate(payload) || luoguAuthRequired(payload)) {
           const message = '洛谷登录状态已失效'
           if (window.location.origin === OJ_ORIGIN) openProviderActionTab(task, 'AUTH_REQUIRED', message)
           else publishBridgeEvent(task, 'AUTH_REQUIRED', { message })
@@ -1184,10 +1207,26 @@
         returnToOj(task)
         return
       } catch (error) {
-        if (luoguAuthRequired(error.payload) || error.status === 401) {
+        const response = error && error.response
+        const finalUrl = String((response && response.finalUrl) || '')
+        if (luoguAuthRequired(error.payload) || error.status === 401 || finalUrl.includes('/auth/login')) {
           const message = error.message || '洛谷登录状态已失效'
           if (window.location.origin === OJ_ORIGIN) openProviderActionTab(task, 'AUTH_REQUIRED', message)
           else publishBridgeEvent(task, 'AUTH_REQUIRED', { message })
+          return
+        }
+        if (response && response.status >= 200 && response.status < 300) {
+          const message = '洛谷要求在浏览器页面完成安全验证'
+          if (window.location.origin === OJ_ORIGIN) {
+            openProviderActionTab(task, 'VERIFICATION_REQUIRED', message, {
+              verification_source: 'luogu-session-page'
+            })
+          } else {
+            publishBridgeEvent(task, 'VERIFICATION_REQUIRED', {
+              message,
+              verification_source: 'luogu-session-page'
+            })
+          }
           return
         }
       }
@@ -1523,6 +1562,13 @@
   }
 
   function bootOjBridge () {
+    const resumeStoredTask = task => {
+      if (!task || task.schema !== TASK_SCHEMA) return
+      const phase = (task.adapter_state || {}).phase
+      const shouldResume = phase === 'JUDGING' ||
+        (task.provider === 'CODEFORCES' && phase === 'AWAITING_ID')
+      if (shouldResume) resumeOjJudgingTask(task)
+    }
     const resumeJudging = event => {
       if (!event) return
       const task = GM_getValue(taskStorageKey(event.submission_id), null)
@@ -1543,6 +1589,12 @@
     if (latestEvent) window.setTimeout(() => {
       dispatchBridgeEvent(latestEvent)
       resumeJudging(latestEvent)
+    }, 0)
+    window.setTimeout(() => {
+      for (const provider of ['CODEFORCES', 'NOWCODER', 'LUOGU']) {
+        const submissionId = GM_getValue(activeTaskStorageKey(provider), '')
+        if (submissionId) resumeStoredTask(GM_getValue(taskStorageKey(submissionId), null))
+      }
     }, 0)
     GM_addValueChangeListener(IMPORT_EVENT_STORAGE_KEY, (_name, _oldValue, newValue) => {
       dispatchImportEvent(newValue)

@@ -2,6 +2,7 @@ const TASK_SCHEMA = 'xju-oj.remote-submit.v1'
 const READY_ATTRIBUTE = 'data-xju-oj-remote-bridge-version'
 const SUBMIT_EVENT = 'xju-oj:remote-bridge:submit'
 const BRIDGE_EVENT = 'xju-oj:remote-bridge:event'
+const MINIMUM_BRIDGE_VERSION = [0, 6, 0]
 
 const EVENT_FIELDS = [
   'submission_id',
@@ -23,10 +24,19 @@ export function remoteBridgeVersion () {
   return document.documentElement.getAttribute(READY_ATTRIBUTE) || ''
 }
 
+export function isRemoteBridgeDetected () {
+  return Boolean(remoteBridgeVersion())
+}
+
 export function isRemoteBridgeInstalled () {
   const parts = remoteBridgeVersion().split('.').map(value => Number.parseInt(value, 10))
   if (parts.some(Number.isNaN)) return false
-  return (parts[0] || 0) > 0 || (parts[1] || 0) >= 5
+  for (let index = 0; index < MINIMUM_BRIDGE_VERSION.length; ++index) {
+    const actual = parts[index] || 0
+    const required = MINIMUM_BRIDGE_VERSION[index]
+    if (actual !== required) return actual > required
+  }
+  return true
 }
 
 export function dispatchRemoteSubmission (task, code) {

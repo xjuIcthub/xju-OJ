@@ -164,6 +164,7 @@ export const m = {
   Remote_Bridge_Title: 'Install the XJU-OJ remote submission userscript',
   Remote_Bridge_Intro: 'Use ScriptCat to submit practice solutions through your own Luogu, Nowcoder, and Codeforces browser sessions, with verification handled by each platform.',
   Remote_Bridge_Installed: 'Userscript installed and enabled',
+  Remote_Bridge_Outdated: 'Userscript update required',
   Remote_Bridge_Missing: 'Userscript not detected',
   Remote_Bridge_Step_ScriptCat: 'Install ScriptCat',
   Remote_Bridge_Step_ScriptCat_Hint: 'Microsoft Edge is recommended for lab computers. Skip this step if ScriptCat is already installed.',

@@ -145,6 +145,8 @@ async function runScenario (provider, mode = 'success') {
   const backendEvents = []
   const openedTabs = []
   let codeforcesApiCalls = 0
+  let activeBackendRequests = 0
+  let maxActiveBackendRequests = 0
 
   const documentElement = {
     attributes: new Map(),
@@ -180,7 +182,12 @@ async function runScenario (provider, mode = 'success') {
     clearTimeout () {},
     fetch (_url, options) {
       if (options && options.body) backendEvents.push(JSON.parse(options.body))
-      return Promise.resolve({ ok: true })
+      activeBackendRequests += 1
+      maxActiveBackendRequests = Math.max(maxActiveBackendRequests, activeBackendRequests)
+      return new Promise(resolve => queueMicrotask(() => {
+        activeBackendRequests -= 1
+        resolve({ ok: true })
+      }))
     },
     focus () {}
   }
@@ -224,7 +231,16 @@ async function runScenario (provider, mode = 'success') {
         return jsonResponse({ rid: 789 })
       }
       if (url.includes('/record/789')) {
-        return jsonResponse({ data: { record: { status: 12, time: 1, memory: 1, score: 100 } } })
+        if (mode === 'auth') {
+          return jsonResponse({ currentTemplate: 'AuthLogin', currentData: {} })
+        }
+        if (mode === 'verification') {
+          return { status: 200, responseText: '<html>browser verification</html>', finalUrl: url }
+        }
+        return jsonResponse({
+          currentTemplate: 'RecordShow',
+          currentData: { record: { status: 12, time: 1, memory: 1, score: 100 } }
+        })
       }
     }
     if (provider === 'CODEFORCES') {
@@ -274,7 +290,7 @@ async function runScenario (provider, mode = 'success') {
       observe () {}
       disconnect () {}
     },
-    GM_info: { script: { version: '0.5.0' } },
+    GM_info: { script: { version: '0.6.0' } },
     GM_getValue: (key, fallback) => storage.has(key) ? storage.get(key) : fallback,
     GM_setValue: (key, value) => {
       const previous = storage.get(key)
@@ -311,7 +327,7 @@ async function runScenario (provider, mode = 'success') {
     ? 'FINISHED'
     : mode === 'auth' ? 'AUTH_REQUIRED' : 'VERIFICATION_REQUIRED'
   await waitFor(() => backendEvents.some(event => event.status === terminalStatus))
-  return { backendEvents, openedTabs }
+  return { backendEvents, openedTabs, maxActiveBackendRequests }
 }
 
 ;(async () => {
@@ -319,6 +335,12 @@ async function runScenario (provider, mode = 'success') {
     const result = await runScenario(provider)
     assert.equal(result.openedTabs.length, 0, `${provider} opened a tab for a normal submission`)
     assert.ok(result.backendEvents.some(event => event.status === 'FINISHED'))
+    assert.equal(result.maxActiveBackendRequests, 1, `${provider} posted backend events concurrently`)
+    assert.ok(
+      result.backendEvents.findIndex(event => event.status === 'QUEUED') <
+        result.backendEvents.findIndex(event => event.status === 'OPENING'),
+      `${provider} posted OPENING before QUEUED`
+    )
   }
 
   const auth = await runScenario('NOWCODER', 'auth')
@@ -328,6 +350,14 @@ async function runScenario (provider, mode = 'success') {
   const verification = await runScenario('NOWCODER', 'verification')
   assert.equal(verification.openedTabs.length, 1)
   assert.ok(verification.backendEvents.some(event => event.status === 'VERIFICATION_REQUIRED'))
+
+  const luoguAuth = await runScenario('LUOGU', 'auth')
+  assert.equal(luoguAuth.openedTabs.length, 1)
+  assert.ok(luoguAuth.backendEvents.some(event => event.status === 'AUTH_REQUIRED'))
+
+  const luoguVerification = await runScenario('LUOGU', 'verification')
+  assert.equal(luoguVerification.openedTabs.length, 1)
+  assert.ok(luoguVerification.backendEvents.some(event => event.status === 'VERIFICATION_REQUIRED'))
 
   console.log('remote bridge runtime passed')
 })().catch(error => {

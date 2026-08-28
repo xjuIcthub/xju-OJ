@@ -164,7 +164,7 @@
   <div v-else class="problem-loading"><Spin size="large" /></div>
 
   <Teleport to="body">
-    <Transition name="accepted-celebration">
+    <Transition name="accepted-celebration" @after-leave="completeAcceptedCelebration">
       <div v-if="acceptedCelebrationVisible"
            class="accepted-celebration-overlay"
            role="status"
@@ -225,6 +225,7 @@
         acceptedCelebrationVisible: false,
         acceptedCelebrationKey: 0,
         acceptedCelebrationTimer: null,
+        acceptedCelebrationResolve: null,
         remoteBridgeUnsubscribe: null,
         remoteNoticeStatus: '',
         problemLoaded: false,
@@ -366,25 +367,21 @@
       },
       handleRemoteBridgeEvent (payload) {
         if (!payload || String(payload.submission_id) !== String(this.submissionId)) return
-        api.updateRemoteSubmission(payload).then(res => {
-          const submission = res.data.data || {}
-          this.result = submission
-          if (payload.status === 'AUTH_REQUIRED' && this.remoteNoticeStatus !== payload.status) {
-            this.remoteNoticeStatus = payload.status
-            this.$Modal.info({
-              title: this.$t('m.Remote_Bridge_Account_Required_Title'),
-              content: this.$t('m.Remote_Bridge_Account_Required')
-            })
-          } else if (payload.status === 'VERIFICATION_REQUIRED' && this.remoteNoticeStatus !== payload.status) {
-            this.remoteNoticeStatus = payload.status
-            this.$Modal.info({
-              title: this.$t('m.Remote_Bridge_Verification_Title'),
-              content: this.$t('m.Remote_Bridge_Verification')
-            })
-          } else if (payload.status === 'FAILED') {
-            this.$error(payload.message || this.$t('m.Remote_Bridge_Submit_Failed'))
-          }
-        }).catch(() => {})
+        if (payload.status === 'AUTH_REQUIRED' && this.remoteNoticeStatus !== payload.status) {
+          this.remoteNoticeStatus = payload.status
+          this.$Modal.info({
+            title: this.$t('m.Remote_Bridge_Account_Required_Title'),
+            content: this.$t('m.Remote_Bridge_Account_Required')
+          })
+        } else if (payload.status === 'VERIFICATION_REQUIRED' && this.remoteNoticeStatus !== payload.status) {
+          this.remoteNoticeStatus = payload.status
+          this.$Modal.info({
+            title: this.$t('m.Remote_Bridge_Verification_Title'),
+            content: this.$t('m.Remote_Bridge_Verification')
+          })
+        } else if (payload.status === 'FAILED') {
+          this.$error(payload.message || this.$t('m.Remote_Bridge_Submit_Failed'))
+        }
       },
       onResetToTemplate () {
         this.$Modal.confirm({
@@ -411,14 +408,15 @@
             const result = res.data.data || {}
             const statisticInfo = result.statistic_info || {}
             const isPending = ['6', '7', '9'].includes(String(result.result))
-            this.result = result
             if (!isPending || Object.keys(statisticInfo).length !== 0) {
-              this.submitting = false
-              this.submitted = false
               clearTimeout(this.refreshStatus)
-              if (Number(result.result) === 0) this.showAcceptedCelebration()
-              this.init()
+              if (Number(result.result) === 0) {
+                this.showAcceptedCelebration().then(() => this.finishSubmissionStatus(result, id))
+              } else {
+                this.finishSubmissionStatus(result, id)
+              }
             } else {
+              this.result = result
               this.refreshStatus = setTimeout(checkStatus, 2000)
             }
           }, res => {
@@ -519,15 +517,30 @@
       },
       showAcceptedCelebration () {
         clearTimeout(this.acceptedCelebrationTimer)
+        this.completeAcceptedCelebration()
         this.acceptedCelebrationKey += 1
         this.acceptedCelebrationVisible = true
-        this.acceptedCelebrationTimer = setTimeout(() => {
-          this.acceptedCelebrationVisible = false
-        }, 2400)
+        const completion = new Promise(resolve => {
+          this.acceptedCelebrationResolve = resolve
+        })
+        this.acceptedCelebrationTimer = setTimeout(this.hideAcceptedCelebration, 2400)
+        return completion
       },
       hideAcceptedCelebration () {
         clearTimeout(this.acceptedCelebrationTimer)
         this.acceptedCelebrationVisible = false
+      },
+      completeAcceptedCelebration () {
+        const resolve = this.acceptedCelebrationResolve
+        this.acceptedCelebrationResolve = null
+        if (resolve) resolve()
+      },
+      finishSubmissionStatus (result, submissionId) {
+        if (String(submissionId) !== String(this.submissionId)) return
+        this.result = result
+        this.submitting = false
+        this.submitted = false
+        this.init()
       }
     },
     computed: {
