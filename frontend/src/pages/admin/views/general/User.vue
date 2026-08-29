@@ -6,17 +6,17 @@
           <el-col :span="8">
             <el-button v-show="selectedUsers.length"
                        type="warning"
-                       @click="deleteUsers(selectedUserIDs)"><Icon type="trash" />Delete
+                       @click="deleteUsers(selectedUserIDs)"><Icon type="trash" />删除
             </el-button>
           </el-col>
           <el-col :span="selectedUsers.length ? 16: 24">
-            <el-input v-model="keyword" placeholder="Keywords"><template #prefix><Icon type="search" /></template></el-input>
+            <el-input v-model="keyword" placeholder="搜索用户"><template #prefix><Icon type="search" /></template></el-input>
           </el-col>
         </el-row>
       </div></template>
       <el-table
         v-loading="loadingTable"
-        element-loading-text="loading"
+        element-loading-text="正在加载"
         @selection-change="handleSelectionChange"
         ref="table"
         :data="userList"
@@ -25,34 +25,34 @@
 
         <el-table-column prop="id" label="ID"></el-table-column>
 
-        <el-table-column prop="username" label="Username"></el-table-column>
+        <el-table-column prop="username" label="用户名"></el-table-column>
 
-        <el-table-column prop="create_time" label="Create Time">
+        <el-table-column prop="create_time" label="创建时间">
           <template #default="scope">
             {{ $filters.localtime(scope.row.create_time) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="last_login" label="Last Login">
+        <el-table-column prop="last_login" label="最后登录">
           <template #default="scope">
             {{ $filters.localtime(scope.row.last_login) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="real_name" label="Real Name"></el-table-column>
+        <el-table-column prop="real_name" label="真实姓名"></el-table-column>
 
-        <el-table-column prop="email" label="Email"></el-table-column>
+        <el-table-column prop="email" label="邮箱"></el-table-column>
 
-        <el-table-column prop="admin_type" label="User Type">
+        <el-table-column prop="admin_type" label="用户类型">
           <template #default="scope">
-            {{ scope.row.admin_type }}
+            {{ {'Regular User': '普通用户', 'Admin': '管理员', 'Super Admin': '超级管理员'}[scope.row.admin_type] || scope.row.admin_type }}
           </template>
         </el-table-column>
 
-        <el-table-column fixed="right" label="Option" width="96">
+        <el-table-column fixed="right" label="操作" width="96">
           <template #default="{row}">
-            <icon-btn name="Edit" icon="edit" @click="openUserDialog(row.id)"></icon-btn>
-            <icon-btn name="Delete" icon="trash" @click="deleteUsers([row.id])"></icon-btn>
+            <icon-btn name="编辑" icon="edit" @click="openUserDialog(row.id)"></icon-btn>
+            <icon-btn danger name="删除" icon="trash" @click="deleteUsers([row.id])"></icon-btn>
           </template>
         </el-table-column>
       </el-table>
@@ -70,8 +70,7 @@
     <Panel>
       <template #title><span >{{$t('m.Import_User')}}
         <el-popover placement="right" trigger="hover">
-          <p>Only support csv file without headers, check the <a
-            href="http://docs.onlinejudge.me/#/onlinejudge/guide/import_users">link</a> for details</p>
+          <p>仅支持不含表头的 CSV 文件，格式依次为用户名、密码、邮箱和真实姓名。</p>
           <template #reference><Icon type="question-circle" class="import-user-icon" /></template>
         </el-popover>
       </span></template>
@@ -80,26 +79,26 @@
                  :show-file-list="false"
                  accept=".csv"
                  :before-upload="handleUsersCSV">
-        <el-button size="small" type="primary"><Icon type="upload" />Choose File</el-button>
+        <el-button size="small" type="primary"><Icon type="upload" />选择文件</el-button>
       </el-upload>
       <template v-else>
         <el-table :data="uploadUsersPage">
-          <el-table-column label="Username">
+          <el-table-column label="用户名">
             <template #default="{row}">
               {{row[0]}}
             </template>
           </el-table-column>
-          <el-table-column label="Password">
+          <el-table-column label="密码">
             <template #default="{row}">
               {{row[1]}}
             </template>
           </el-table-column>
-          <el-table-column label="Email">
+          <el-table-column label="邮箱">
             <template #default="{row}">
               {{row[2]}}
             </template>
           </el-table-column>
-          <el-table-column label="RealName">
+          <el-table-column label="真实姓名">
             <template #default="{row}">
               {{row[3]}}
             </template>
@@ -107,10 +106,10 @@
         </el-table>
         <div class="panel-options">
           <el-button type="primary" size="small"
-                     @click="handleUsersUpload"><Icon type="upload" />Import All
+                     @click="handleUsersUpload"><Icon type="upload" />全部导入
           </el-button>
           <el-button type="warning" size="small"
-                     @click="handleResetData"><Icon type="undo" />Reset Data
+                     @click="handleResetData"><Icon type="undo" />重置数据
           </el-button>
           <el-pagination
             class="page"
@@ -127,39 +126,39 @@
       <el-form :model="formGenerateUser" ref="formGenerateUser">
         <el-row type="flex" justify="space-between">
           <el-col :span="4">
-            <el-form-item label="Prefix" prop="prefix">
-              <el-input v-model="formGenerateUser.prefix" placeholder="Prefix"></el-input>
+            <el-form-item label="前缀" prop="prefix">
+              <el-input v-model="formGenerateUser.prefix" placeholder="用户名前缀"></el-input>
             </el-form-item>
           </el-col>
           <el-col :span="4">
-            <el-form-item label="Suffix" prop="suffix">
-              <el-input v-model="formGenerateUser.suffix" placeholder="Suffix"></el-input>
+            <el-form-item label="后缀" prop="suffix">
+              <el-input v-model="formGenerateUser.suffix" placeholder="用户名后缀"></el-input>
             </el-form-item>
           </el-col>
           <el-col :span="4">
-            <el-form-item label="Start Number" prop="number_from" required>
+            <el-form-item label="起始编号" prop="number_from" required>
               <el-input-number v-model="formGenerateUser.number_from" style="width: 100%"></el-input-number>
             </el-form-item>
           </el-col>
           <el-col :span="4">
-            <el-form-item label="End Number" prop="number_to" required>
+            <el-form-item label="结束编号" prop="number_to" required>
               <el-input-number v-model="formGenerateUser.number_to" style="width: 100%"></el-input-number>
             </el-form-item>
           </el-col>
           <el-col :span="4">
-            <el-form-item label="Password Length" prop="password_length" required>
+            <el-form-item label="密码长度" prop="password_length" required>
               <el-input v-model="formGenerateUser.password_length"
-                        placeholder="Password Length"></el-input>
+                        placeholder="密码长度"></el-input>
             </el-form-item>
           </el-col>
         </el-row>
 
         <el-form-item>
-          <el-button type="primary" @click="generateUser" :loading="loadingGenerate"><Icon type="users" />Generate & Export
+          <el-button type="primary" @click="generateUser" :loading="loadingGenerate"><Icon type="users" />生成并导出
           </el-button>
           <span class="userPreview" v-if="formGenerateUser.number_from && formGenerateUser.number_to &&
                                           formGenerateUser.number_from <= formGenerateUser.number_to">
-            The usernames will be {{formGenerateUser.prefix + formGenerateUser.number_from + formGenerateUser.suffix}},
+            将生成用户名：{{formGenerateUser.prefix + formGenerateUser.number_from + formGenerateUser.suffix}}、
             <span v-if="formGenerateUser.number_from + 1 < formGenerateUser.number_to">
               {{formGenerateUser.prefix + (formGenerateUser.number_from + 1) + formGenerateUser.suffix + '...'}}
             </span>
@@ -197,18 +196,18 @@
           <el-col :span="12">
             <el-form-item :label="$t('m.User_Type')">
               <el-select v-model="user.admin_type">
-                <el-option label="Regular User" value="Regular User"></el-option>
-                <el-option label="Admin" value="Admin"></el-option>
-                <el-option label="Super Admin" value="Super Admin"></el-option>
+                <el-option label="普通用户" value="Regular User"></el-option>
+                <el-option label="管理员" value="Admin"></el-option>
+                <el-option label="超级管理员" value="Super Admin"></el-option>
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item :label="$t('m.Problem_Permission')">
               <el-select v-model="user.problem_permission" :disabled="user.admin_type!=='Admin'">
-                <el-option label="None" value="None"></el-option>
-                <el-option label="Own" value="Own"></el-option>
-                <el-option label="All" value="All"></el-option>
+                <el-option label="无权限" value="None"></el-option>
+                <el-option label="仅自己创建的题目" value="Own"></el-option>
+                <el-option label="全部题目" value="All"></el-option>
               </el-select>
             </el-form-item>
           </el-col>
@@ -223,7 +222,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="Open Api">
+            <el-form-item label="开放 API">
               <el-switch
                 v-model="user.open_api"
                 active-color="#13ce66"
@@ -241,7 +240,7 @@
         </el-row>
       </el-form>
       <template #footer><span  class="dialog-footer">
-        <cancel @click="showUserDialog = false">Cancel</cancel>
+        <cancel @click="showUserDialog = false"></cancel>
         <save @click="saveUser()"></save>
       </span></template>
     </LegacyDialog>
@@ -326,7 +325,9 @@
         })
       },
       deleteUsers (ids) {
-        this.$confirm('Sure to delete the user? The associated resources created by this user will be deleted as well, like problem, contest, announcement, etc.', 'confirm', {
+        this.$confirm('确定删除所选用户吗？该用户创建的题目、比赛和公告等资源也会一并删除。', '删除用户', {
+          confirmButtonText: '删除',
+          cancelButtonText: '取消',
           type: 'warning'
         }).then(() => {
           api.deleteUsers(ids.join(',')).then(res => {
@@ -343,7 +344,7 @@
       generateUser () {
         this.$refs['formGenerateUser'].validate((valid) => {
           if (!valid) {
-            this.$error('Please validate the error fields')
+            this.$error('请检查生成参数')
             return
           }
           this.loadingGenerate = true
@@ -352,7 +353,7 @@
             this.loadingGenerate = false
             let url = '/admin/generate_user?file_id=' + res.data.data.file_id
             utils.downloadFile(url).then(() => {
-              this.$alert('All users created successfully, the users sheets have downloaded to your disk.', 'Notice')
+              this.$alert('用户已全部创建，账号表格已下载。', '生成完成')
             })
             this.getUserList(1)
           }).catch(() => {
@@ -368,7 +369,7 @@
             })
             let delta = results.data.length - data.length
             if (delta > 0) {
-              this.$warning(delta + ' users have been filtered due to empty value')
+              this.$warning(`${delta} 行数据因存在空值而被过滤`)
             }
             this.uploadUsersCurrentPage = 1
             this.uploadUsers = data

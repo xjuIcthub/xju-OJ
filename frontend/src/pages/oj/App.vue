@@ -6,7 +6,7 @@
         <transition name="fadeInUp" mode="out-in"><component :is="Component" /></transition>
       </router-view>
       <footer class="footer">
-        <p>Powered by XJU-ICTHub · Version 0.2.0</p>
+        <p>Powered by XJU-ICTHub · Version 1.0.0</p>
       </footer>
     </main>
     <BackTop />

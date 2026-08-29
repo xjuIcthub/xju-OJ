@@ -8,14 +8,14 @@
           </el-col>
           <el-col :span="14">
             <p class="admin-info-name">{{user.username}}</p>
-            <p>{{user.admin_type}}</p>
+            <p>{{adminTypeLabel}}</p>
           </el-col>
         </el-row>
         <hr/>
         <div class="last-info">
           <p class="last-info-title">{{$t('m.Last_Login')}}</p>
           <el-form label-width="80px" class="last-info-body">
-            <el-form-item label="Time:">
+            <el-form-item label="时间：">
               <span>{{ $filters.localtime(session.last_activity) }}</span>
             </el-form-item>
             <el-form-item label="IP:">
@@ -24,7 +24,7 @@
             <el-form-item label="OS">
               <span>{{os}}</span>
             </el-form-item>
-            <el-form-item label="Browser:">
+            <el-form-item label="浏览器：">
               <span>{{browser}}</span>
             </el-form-item>
           </el-form>
@@ -34,17 +34,17 @@
         <p>{{$t('m.DashBoardJudge_Server')}}:  {{infoData.judge_server_count}}</p>
         <p>{{$t('m.HTTPS_Status')}}:
           <el-tag :type="https ? 'success' : 'danger'" size="small">
-            {{ https ? 'Enabled' : 'Disabled'}}
+            {{ https ? '已启用' : '未启用'}}
           </el-tag>
         </p>
         <p>{{$t('m.Force_HTTPS')}}:
           <el-tag :type="forceHttps ? 'success' : 'danger'" size="small">
-            {{forceHttps ? 'Enabled' : 'Disabled'}}
+            {{forceHttps ? '已启用' : '未启用'}}
           </el-tag>
         </p>
         <p>{{$t('m.CDN_HOST')}}:
           <el-tag :type="cdn ? 'success' : 'warning'" size="small">
-            {{cdn ? cdn : 'Not Use'}}
+            {{cdn ? cdn : '未使用'}}
           </el-tag>
         </p>
       </panel>
@@ -52,21 +52,21 @@
 
     <el-col :md="14" :lg="16" v-if="isSuperAdmin">
       <div class="info-container">
-        <info-card color="#78736a" icon="users" message="Total Users" iconSize="30px" class="info-item"
+        <info-card color="#78736a" icon="users" message="用户总数" iconSize="30px" class="info-item"
                    :value="infoData.user_count"></info-card>
-        <info-card color="#0f7b6c" icon="bars" message="Today Submissions" class="info-item"
+        <info-card color="#0f7b6c" icon="bars" message="今日提交" class="info-item"
                    :value="infoData.today_submission_count"></info-card>
-        <info-card color="#b7791f" icon="trophy" message="Recent Contests" class="info-item"
+        <info-card color="#b7791f" icon="trophy" message="近期比赛" class="info-item"
                    :value="infoData.recent_contest_count"></info-card>
       </div>
       <panel style="margin-top: 5px">
-        <template #title><span>XJU-OJ Release Notes</span></template>
+        <template #title><span>XJU-OJ 更新日志</span></template>
 
         <el-collapse v-model="activeNames" v-for="(release, index) of releases" :key="'release' + index">
           <el-collapse-item :name="index+1">
             <template #title>
               <div v-if="release.current">{{release.title}}
-                <el-tag size="small" type="success">Current</el-tag>
+                <el-tag size="small" type="success">当前版本</el-tag>
               </div>
               <span v-else>{{release.title}}</span>
             </template>
@@ -104,25 +104,25 @@
         session: {},
         releases: [
           {
-            title: 'Version 0.2.0 · Feiyue visual migration',
+            title: '版本 1.0.0 · 三平台远程判题与管理后台完善',
             date: '2026-08',
-            level: 'Current stable iteration',
+            level: '当前稳定版本',
             current: true,
             details: [
-              'Unified the public OJ and admin console with the XJU-Feiyue design system.',
-              'Added Lucide icon compatibility, responsive navigation, refined tables, dialogs and submission states.',
-              'Modernized the Vue 3, Element Plus, Vite and local frontend development workflow.'
+              '打通牛客、洛谷与 Codeforces 的浏览器远程提交及题目导入链路。',
+              '完善比赛报名、远程判题状态、比赛排名和管理员端题目编排。',
+              '统一管理后台中文界面、Lucide 图标和危险操作样式。'
             ]
           },
           {
-            title: 'Version 0.1.0 · XJU-OJ platform modernization',
+            title: '版本 0.1.0 · XJU-OJ 平台现代化',
             date: '2026-07',
-            level: 'Foundation iteration',
+            level: '基础版本',
             current: false,
             details: [
-              'Upgraded the application runtime, deployment pipeline and dual-entry frontend build.',
-              'Introduced Authentik integration, stricter CSRF boundaries and reproducible container builds.',
-              'Preserved the existing judge, contest, submission and editor behavior during migration.'
+              '升级应用运行环境、部署流水线和双入口前端构建。',
+              '接入 Authentik，收紧 CSRF 边界并实现可复现的容器构建。',
+              '在迁移期间保持原有判题、比赛、提交和编辑器能力。'
             ]
           }
         ]
@@ -151,6 +151,13 @@
     },
     computed: {
       ...mapGetters(['profile', 'user', 'isSuperAdmin']),
+      adminTypeLabel () {
+        return {
+          'Regular User': '普通用户',
+          'Admin': '管理员',
+          'Super Admin': '超级管理员'
+        }[this.user.admin_type] || this.user.admin_type
+      },
       cdn () {
         return this.infoData.env.STATIC_CDN_HOST
       },
@@ -165,12 +172,12 @@
         if (b.name && b.version) {
           return b.name + ' ' + b.version
         } else {
-          return 'Unknown'
+          return '未知'
         }
       },
       os () {
         let b = browserDetector(this.session.user_agent)
-        return b.os ? b.os : 'Unknown'
+        return b.os ? b.os : '未知'
       }
     }
   }

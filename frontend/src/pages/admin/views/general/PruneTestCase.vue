@@ -3,34 +3,34 @@
     <panel>
       <template #title><span >{{$t('m.Test_Case_Prune_Test_Case')}}
         <el-popover placement="right" trigger="hover">
-          These test cases are not owned by any problem, you can clean them safely.
+          这些测试数据未被任何题目使用，可以安全清理。
           <template #reference><Icon type="question-circle" class="import-user-icon" /></template>
         </el-popover>
       </span></template>
       <el-table :data="data">
         <el-table-column
-          label="Last Modified">
+          label="最后修改时间">
           <template #default="{row}">
             {{ $filters.timestampFormat(row.create_time) }}
           </template>
         </el-table-column>
         <el-table-column
           prop="id"
-          label="Test Case ID">
+          label="测试数据 ID">
         </el-table-column>
         <el-table-column
-          label="Option"
+          label="操作"
           fixed="right"
           width="72">
           <template #default="{row}">
-            <icon-btn name="Delete" icon="trash" @click="deleteTestCase(row.id)"></icon-btn>
+            <icon-btn danger name="删除" icon="trash" @click="deleteTestCase(row.id)"></icon-btn>
           </template>
         </el-table-column>
       </el-table>
       <div class="panel-options" v-show="data.length > 0">
         <el-button type="warning" size="small"
                    :loading="loading"
-                   @click="deleteTestCase()"><Icon type="trash" />Delete All
+                   @click="deleteTestCase()"><Icon type="trash" />全部删除
         </el-button>
       </div>
     </panel>

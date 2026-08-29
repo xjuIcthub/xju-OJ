@@ -2,7 +2,7 @@
   <div>
     <el-input
       v-model="keyword"
-      placeholder="Keywords">
+      placeholder="搜索公共题目">
       <template #prefix><Icon type="search" /></template>
     </el-input>
     <el-table :data="problems" v-loading="loading">
@@ -12,21 +12,21 @@
         prop="id">
       </el-table-column>
       <el-table-column
-        label="DisplayID"
+        label="显示 ID"
         width="200"
         prop="_id">
       </el-table-column>
       <el-table-column
-        label="Title"
+        label="标题"
         prop="title">
       </el-table-column>
       <el-table-column
-        label="option"
+        label="操作"
         align="center"
         width="100"
         fixed="right">
         <template #default="{row}">
-          <icon-btn icon="plus" name="Add the problem"
+          <icon-btn icon="plus" name="添加题目"
                     @click="handleAddProblem(row.id)"></icon-btn>
         </template>
       </el-table-column>
@@ -87,7 +87,7 @@
           contest_id: this.contestID
         }).then(() => {
           this.$emit('on-change')
-          this.$success('Problem added with the next contest display ID')
+          this.$success('题目已添加，比赛序号已自动分配')
         }, () => {
         })
       }

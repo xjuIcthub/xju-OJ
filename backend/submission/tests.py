@@ -4,7 +4,8 @@ from unittest import mock
 
 from django.utils import timezone
 
-from contest.models import Contest, ContestParticipation
+from account.models import AdminType, ProblemPermission
+from contest.models import ACMContestRank, Contest, ContestParticipation
 from problem.models import (Problem, ProblemJudgeMode, ProblemTag, RemoteOJ)
 from utils.api.tests import APITestCase
 from .models import (JudgeStatus, RemoteSubmissionStatus, Submission,
@@ -178,6 +179,56 @@ class SubmissionAPITest(SubmissionPrepare):
         self.assertEqual(self.problem.submission_number, 1)
         self.assertEqual(self.problem.accepted_number, 1)
         self.assertEqual(self.user.userprofile.submission_number, 1)
+
+    def test_remote_contest_admin_submission_updates_rank(self, judge_task):
+        self._configure_remote_problem()
+        self.user.admin_type = AdminType.SUPER_ADMIN
+        self.user.problem_permission = ProblemPermission.ALL
+        self.user.save(update_fields=["admin_type", "problem_permission"])
+        contest = Contest.objects.create(
+            title="admin submissions count",
+            description="",
+            real_time_rank=True,
+            password=None,
+            rule_type="ACM",
+            start_time=timezone.now() - timedelta(minutes=5),
+            end_time=timezone.now() + timedelta(hours=1),
+            created_by=self.user,
+        )
+        self.problem.contest = contest
+        self.problem._id = "A"
+        self.problem.save(update_fields=["contest", "_id"])
+        self.submission_data["contest_id"] = contest.id
+
+        create = self.client.post(self.url, self.submission_data)
+        self.assertSuccess(create)
+        submission_id = create.data["data"]["submission_id"]
+        event_url = self.reverse("remote_submission_event_api")
+        finished = self.client.post(event_url, {
+            "submission_id": submission_id,
+            "provider": RemoteOJ.CODEFORCES,
+            "status": RemoteSubmissionStatus.FINISHED,
+            "remote_submission_id": "contest-admin-10001",
+            "remote_url": "https://codeforces.com/contest/4/submission/10001",
+            "verdict": "OK",
+            "time_ms": 31,
+            "memory_bytes": 4096,
+        })
+        self.assertSuccess(finished)
+
+        rank = ACMContestRank.objects.get(contest=contest, user=self.user)
+        self.problem.refresh_from_db()
+        self.assertEqual(rank.submission_number, 1)
+        self.assertEqual(rank.accepted_number, 1)
+        self.assertTrue(rank.submission_info[str(self.problem.id)]["is_ac"])
+        self.assertEqual(self.problem.submission_number, 1)
+        self.assertEqual(self.problem.accepted_number, 1)
+
+        rank_response = self.client.get(
+            f'{self.reverse("contest_rank_api")}?contest_id={contest.id}&limit=10&force_refresh=1'
+        )
+        self.assertSuccess(rank_response)
+        self.assertEqual(rank_response.data["data"]["results"][0]["user"]["username"], self.user.username)
 
         for stale_status in (
                 RemoteSubmissionStatus.SUBMITTED,

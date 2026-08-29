@@ -1,7 +1,7 @@
 <template>
   <div class="icon-btn-wrap">
     <el-tooltip class="item" effect="dark" :content="name" placement="top">
-      <el-button text class="icon-btn-control" size="small" :aria-label="name">
+      <el-button text :class="['icon-btn-control', { 'is-danger': danger }]" size="small" :aria-label="name">
         <Icon :type="icon" />
       </el-button>
     </el-tooltip>
@@ -19,6 +19,10 @@
       icon: {
         type: String,
         required: true
+      },
+      danger: {
+        type: Boolean,
+        default: false
       }
     }
   }
@@ -41,5 +45,12 @@
   color: var(--color-text);
   border-color: var(--color-border);
   background: var(--color-bg-subtle);
+}
+.icon-btn-control.is-danger { color: var(--oj-danger); }
+.icon-btn-control.is-danger:hover,
+.icon-btn-control.is-danger:focus-visible {
+  color: var(--oj-danger);
+  border-color: rgba(224, 62, 62, .28);
+  background: var(--tag-research-bg);
 }
 </style>

@@ -199,8 +199,7 @@ class JudgeDispatcher(DispatcherBase):
         """
 
         if self.contest_id:
-            if self.contest.status != ContestStatus.CONTEST_UNDERWAY or \
-                    User.objects.get(id=self.submission.user_id).is_contest_admin(self.contest):
+            if self.contest.status != ContestStatus.CONTEST_UNDERWAY:
                 logger.info(
                     "Contest debug mode, id: " + str(self.contest_id) + ", submission id: " + self.submission.id)
                 return

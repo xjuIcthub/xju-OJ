@@ -12,6 +12,8 @@ import Save from './components/btn/Save.vue'
 import Cancel from './components/btn/Cancel.vue'
 import './style.less'
 
+i18n.global.locale.value = 'zh-CN'
+
 const app = createApp(App)
 app.use(router).use(store).use(i18n).use(LegacyUI, { i18n }).use(katex)
 app.component(IconBtn.name, IconBtn)
@@ -21,5 +23,5 @@ app.component(Cancel.name, Cancel)
 app.config.globalProperties.$filters = filters
 app.config.globalProperties.$error = message => app.config.globalProperties.$message.error(message)
 app.config.globalProperties.$warning = message => app.config.globalProperties.$message.warning(message)
-app.config.globalProperties.$success = message => app.config.globalProperties.$message.success(message || 'Succeeded')
+app.config.globalProperties.$success = message => app.config.globalProperties.$message.success(message || '操作成功')
 app.mount('#app')

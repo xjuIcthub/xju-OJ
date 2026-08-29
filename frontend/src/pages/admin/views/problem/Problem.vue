@@ -5,7 +5,7 @@
                 class="remote-alert"
                 type="warning"
                 :closable="false"
-                :title="`远程题目 · ${problem.remote_oj} / ${problem.remote_problem_id}`"
+                :title="`远程题目 · ${remoteProviderLabel(problem.remote_oj)} / ${problem.remote_problem_id}`"
                 description="远程题目无需上传本地测试数据，提交将由对应来源平台评测。">
       </el-alert>
 
@@ -108,7 +108,7 @@
           <div class="section-heading">
             <div>
               <h3>题面内容</h3>
-              <p>Raw 用于直接编辑 Markdown，Preview 可在渲染后的富文本中继续编辑。</p>
+              <p>原文模式用于直接编辑 Markdown，预览模式可在渲染后的富文本中继续编辑。</p>
             </div>
           </div>
 
@@ -142,8 +142,8 @@
           <div class="sample-list">
             <article v-for="(sample, index) in problem.samples" :key="'sample' + index" class="sample-card">
               <div class="sample-card-heading">
-                <strong>Sample {{ index + 1 }}</strong>
-                <icon-btn name="Delete sample" icon="trash" @click="deleteSample(index)"></icon-btn>
+                <strong>样例 {{ index + 1 }}</strong>
+                <icon-btn danger name="删除样例" icon="trash" @click="deleteSample(index)"></icon-btn>
               </div>
               <div class="field-grid sample-grid">
                 <el-form-item :label="$t('m.Input_Samples')" required>
@@ -178,8 +178,8 @@
             <div class="field-grid judge-grid">
               <el-form-item :label="$t('m.IOMode')">
                 <el-select class="full-control" v-model="problem.io_mode.io_mode">
-                  <el-option label="Standard IO" value="Standard IO"></el-option>
-                  <el-option label="File IO" value="File IO"></el-option>
+                  <el-option label="标准输入输出" value="Standard IO"></el-option>
+                  <el-option label="文件输入输出" value="File IO"></el-option>
                 </el-select>
               </el-form-item>
               <el-form-item v-if="problem.io_mode.io_mode === 'File IO'" :label="$t('m.InputFileName')" required>
@@ -248,9 +248,9 @@
     data () {
       return {
         rules: {
-          title: {required: true, message: 'Title is required', trigger: 'blur'},
-          input_description: {required: true, message: 'Input Description is required', trigger: 'blur'},
-          output_description: {required: true, message: 'Output Description is required', trigger: 'blur'}
+          title: {required: true, message: '请输入题目标题', trigger: 'blur'},
+          input_description: {required: true, message: '请输入输入描述', trigger: 'blur'},
+          output_description: {required: true, message: '请输入输出描述', trigger: 'blur'}
         },
         loadingCompile: false,
         mode: '',
@@ -375,6 +375,13 @@
       }
     },
     methods: {
+      remoteProviderLabel (provider) {
+        return {
+          NOWCODER: '牛客',
+          LUOGU: '洛谷',
+          CODEFORCES: 'Codeforces'
+        }[provider] || provider
+      },
       normalizedSource (problem) {
         const remoteSources = {
           NOWCODER: '牛客',
@@ -390,9 +397,9 @@
       },
       switchSpj () {
         if (this.testCaseUploaded) {
-          this.$confirm('If you change problem judge method, you need to re-upload test cases', 'Warning', {
-            confirmButtonText: 'Yes',
-            cancelButtonText: 'Cancel',
+          this.$confirm('切换判题方式后需要重新上传测试数据，是否继续？', '提示', {
+            confirmButtonText: '继续',
+            cancelButtonText: '取消',
             type: 'warning'
           }).then(() => {
             this.problem.spj = !this.problem.spj
@@ -452,7 +459,7 @@
         this.problem.test_case_id = response.data.id
       },
       uploadFailed () {
-        this.$error('Upload failed')
+        this.$error('上传失败')
       },
       compileSPJ () {
         let data = {
@@ -470,7 +477,7 @@
           this.problem.spj_compile_ok = false
           const h = this.$createElement
           this.$msgbox({
-            title: 'Compile Error',
+            title: '编译错误',
             type: 'error',
             message: h('pre', err.data.data),
             showCancelButton: false,
@@ -481,26 +488,26 @@
       },
       submit () {
         if (this.problem.judge_mode !== 'REMOTE' && !this.problem.samples.length) {
-          this.$error('Sample is required')
+          this.$error('请至少添加一组样例')
           return
         }
         for (let sample of this.problem.samples) {
           if (!sample.input || !sample.output) {
-            this.$error('Sample input and output is required')
+            this.$error('样例输入和输出不能为空')
             return
           }
         }
         if (!this.problem.tags.length) {
-          this.error.tags = 'Please add at least one tag'
+          this.error.tags = '请至少添加一个标签'
           this.$error(this.error.tags)
           return
         }
         if (this.problem.spj) {
           if (!this.problem.spj_code) {
-            this.error.spj = 'Spj code is required'
+            this.error.spj = '请输入 Special Judge 代码'
             this.$error(this.error.spj)
           } else if (!this.problem.spj_compile_ok) {
-            this.error.spj = 'SPJ code has not been successfully compiled'
+            this.error.spj = 'Special Judge 代码尚未编译成功'
           }
           if (this.error.spj) {
             this.$error(this.error.spj)
@@ -508,12 +515,12 @@
           }
         }
         if (!this.problem.languages.length) {
-          this.error.languages = 'Please choose at least one language for problem'
+          this.error.languages = '请至少选择一种编程语言'
           this.$error(this.error.languages)
           return
         }
         if (this.problem.judge_mode !== 'REMOTE' && !this.testCaseUploaded) {
-          this.error.testCase = 'Test case is not uploaded yet'
+          this.error.testCase = '尚未上传测试数据'
           this.$error(this.error.testCase)
           return
         }
@@ -521,11 +528,11 @@
           for (let item of this.problem.test_case_score) {
             try {
               if (parseInt(item.score) <= 0) {
-                this.$error('Invalid test case score')
+                this.$error('测试点分数无效')
                 return
               }
             } catch (e) {
-              this.$error('Test case score must be an integer')
+              this.$error('测试点分数必须是整数')
               return
             }
           }

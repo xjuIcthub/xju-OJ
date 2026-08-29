@@ -2,7 +2,7 @@
   <div class="breadcrumb">
     <el-breadcrumb separator=">">
       <el-breadcrumb-item :to="{ path: '/' }">XJU-OJ</el-breadcrumb-item>
-      <el-breadcrumb-item><slot name="topNavName">PLEASE OVERIDE ME</slot></el-breadcrumb-item>
+      <el-breadcrumb-item><slot name="topNavName">管理后台</slot></el-breadcrumb-item>
     </el-breadcrumb>
   </div>
 </template>

@@ -1,17 +1,17 @@
 <template>
   <div class="markdown-editor-adapter">
     <div class="markdown-editor-toolbar">
-      <div class="markdown-format-actions" aria-label="Markdown formatting">
-        <button type="button" title="Bold" aria-label="Bold" @mousedown.prevent @click="applyFormat('bold')"><strong>B</strong></button>
-        <button type="button" title="Italic" aria-label="Italic" @mousedown.prevent @click="applyFormat('italic')"><em>I</em></button>
-        <button type="button" title="Underline" aria-label="Underline" @mousedown.prevent @click="applyFormat('underline')"><u>U</u></button>
-        <button type="button" title="Strikethrough" aria-label="Strikethrough" @mousedown.prevent @click="applyFormat('strikethrough')"><s>S</s></button>
-        <button type="button" title="Inline code" aria-label="Inline code" @mousedown.prevent @click="applyFormat('code')"><span>&lt;/&gt;</span></button>
-        <button type="button" title="Inline formula" aria-label="Inline formula" @mousedown.prevent @click="applyFormat('formula')"><span>∑</span></button>
+      <div class="markdown-format-actions" aria-label="Markdown 格式工具">
+        <button type="button" title="加粗" aria-label="加粗" @mousedown.prevent @click="applyFormat('bold')"><strong>B</strong></button>
+        <button type="button" title="倾斜" aria-label="倾斜" @mousedown.prevent @click="applyFormat('italic')"><em>I</em></button>
+        <button type="button" title="下划线" aria-label="下划线" @mousedown.prevent @click="applyFormat('underline')"><u>U</u></button>
+        <button type="button" title="删除线" aria-label="删除线" @mousedown.prevent @click="applyFormat('strikethrough')"><s>S</s></button>
+        <button type="button" title="行内代码" aria-label="行内代码" @mousedown.prevent @click="applyFormat('code')"><span>&lt;/&gt;</span></button>
+        <button type="button" title="行内公式" aria-label="行内公式" @mousedown.prevent @click="applyFormat('formula')"><span>∑</span></button>
       </div>
-      <div class="markdown-mode-switch" role="group" aria-label="Editor mode">
-        <button type="button" :class="{ active: mode === 'raw' }" @click="setMode('raw')">Raw</button>
-        <button type="button" :class="{ active: mode === 'preview' }" @click="setMode('preview')">Preview</button>
+      <div class="markdown-mode-switch" role="group" aria-label="编辑模式">
+        <button type="button" :class="{ active: mode === 'raw' }" @click="setMode('raw')">原文</button>
+        <button type="button" :class="{ active: mode === 'preview' }" @click="setMode('preview')">预览</button>
       </div>
     </div>
     <textarea v-show="mode === 'raw'"

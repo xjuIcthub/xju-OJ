@@ -59,6 +59,12 @@ class ContestAdminAPITest(APITestCase):
         response = self.client.get("{}?id={}".format(self.url, id))
         self.assertSuccess(response)
 
+    def test_delete_contest(self):
+        contest_id = self.test_create_contest().data["data"]["id"]
+        response = self.client.delete(f"{self.url}?id={contest_id}")
+        self.assertSuccess(response)
+        self.assertFalse(Contest.objects.filter(id=contest_id).exists())
+
 
 class ContestAPITest(APITestCase):
     def setUp(self):

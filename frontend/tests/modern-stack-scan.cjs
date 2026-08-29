@@ -62,7 +62,7 @@ assert.ok(!adminHome.includes('ScreenFull') && !adminHome.includes('screen-full'
 assert.ok(!adminMenu.includes('index="/conf"') && !adminRouter.includes("path: '/conf'"), 'system configuration must not be exposed by the admin frontend')
 assert.ok(adminRouter.includes("const Problem = () => import('./views/problem/Problem.vue')") && adminRouter.includes("const Dashboard = () => import('./views/general/Dashboard.vue')"), 'admin routes must remain lazy so editor bundles do not delay the dashboard')
 assert.ok(adminIconButton.includes('<Icon :type="icon" />') && adminIconButton.includes('background: transparent'), 'admin table operations must use transparent Lucide icon buttons')
-assert.ok(adminDashboard.includes('XJU-OJ Release Notes') && adminDashboard.includes('Version 0.2.0'), 'admin release notes must describe XJU-OJ iterations')
+assert.ok(adminDashboard.includes('XJU-OJ 更新日志') && adminDashboard.includes('版本 1.0.0'), 'admin release notes must describe XJU-OJ iterations')
 assert.ok(richEditor.includes('markdown-editor-toolbar') && richEditor.includes('background: transparent'), 'Markdown toolbar controls must use transparent button chrome')
 assert.ok(richEditor.includes("markdownIt({") && richEditor.includes("setMode('preview')") && richEditor.includes("wrapSelection('$', '$', 'a+b')"), 'admin text fields must provide Markdown raw/preview editing with inline formulas')
 assert.ok(contestEditor.includes('<ContestProblemComposer') && !contestEditor.includes('Contest_Allowed_IP_Ranges'), 'contest creation must use the problem composer and omit allowed IP controls')

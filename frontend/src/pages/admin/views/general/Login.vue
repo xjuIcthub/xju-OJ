@@ -6,7 +6,7 @@
     <el-button v-if="authentikEnabled" type="primary" class="auth-button" :loading="logining" @click="startAuthentikLogin">
       {{$t('m.Login_with_Authentik')}}
     </el-button>
-    <div v-if="authentikEnabled && localLoginEnabled" class="auth-divider"><span>or</span></div>
+    <div v-if="authentikEnabled && localLoginEnabled" class="auth-divider"><span>或</span></div>
     <el-form v-if="localLoginEnabled" :model="ruleForm2" :rules="rules2" ref="ruleForm2" label-position="left" label-width="0px"
              class="local-login-form">
       <el-form-item prop="account">
@@ -80,7 +80,7 @@
               this.logining = false
             })
           } else {
-            this.$error('Please check the error fields')
+            this.$error('请检查账号和密码')
           }
         })
       }

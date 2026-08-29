@@ -172,6 +172,13 @@ export default {
       data
     })
   },
+  deleteContest (id) {
+    return ajax('admin/contest', 'delete', {
+      params: {
+        id
+      }
+    })
+  },
   getContestList (offset, limit, keyword) {
     let params = {paging: true, offset, limit}
     if (keyword) {
@@ -337,7 +344,7 @@ function ajax (url, method, options) {
       } else {
         resolve(res)
         if (method !== 'get') {
-          ElMessage.success('Succeeded')
+          ElMessage.success('操作成功')
         }
       }
     }, res => {

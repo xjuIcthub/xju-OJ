@@ -1,25 +1,25 @@
 <template>
   <div class="view">
-    <Panel title="Contest List">
+    <Panel title="比赛列表">
       <template #header><div >
         <el-input
           v-model="keyword"
-          placeholder="Keywords">
+          placeholder="搜索比赛">
           <template #prefix><Icon type="search" /></template>
         </el-input>
       </div></template>
       <el-table
         v-loading="loading"
-        element-loading-text="loading"
+        element-loading-text="正在加载"
         ref="table"
         :data="contestList"
         style="width: 100%">
         <el-table-column type="expand">
           <template #default="props">
-            <p>Start Time: {{ $filters.localtime(props.row.start_time) }}</p>
-            <p>End Time: {{ $filters.localtime(props.row.end_time) }}</p>
-            <p>Create Time: {{ $filters.localtime(props.row.create_time) }}</p>
-            <p>Creator: {{props.row.created_by.username}}</p>
+            <p>开始时间：{{ $filters.localtime(props.row.start_time) }}</p>
+            <p>结束时间：{{ $filters.localtime(props.row.end_time) }}</p>
+            <p>创建时间：{{ $filters.localtime(props.row.create_time) }}</p>
+            <p>创建者：{{props.row.created_by.username}}</p>
           </template>
         </el-table-column>
         <el-table-column
@@ -29,24 +29,24 @@
         </el-table-column>
         <el-table-column
           prop="title"
-          label="Title">
+          label="标题">
         </el-table-column>
         <el-table-column
-          label="Rule Type"
+          label="规则"
           width="130">
           <template #default="scope"><span class="contest-rule" :class="'is-' + String(scope.row.rule_type || '').toLowerCase()">{{scope.row.rule_type}}</span></template>
         </el-table-column>
         <el-table-column
-          label="Contest Type"
+          label="比赛类型"
           width="180">
           <template #default="scope">
             <el-tag :type="scope.row.contest_type === 'Public' ? 'success' : 'primary'">
-              {{ scope.row.contest_type}}
+              {{ scope.row.contest_type === 'Public' ? '公开比赛' : '密码比赛' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column
-          label="Status"
+          label="状态"
           width="130">
           <template #default="scope">
             <el-tag
@@ -57,7 +57,7 @@
         </el-table-column>
         <el-table-column
           width="100"
-          label="Visible">
+          label="可见">
           <template #default="scope">
             <el-switch v-model="scope.row.visible"
                        active-text=""
@@ -69,14 +69,16 @@
         <el-table-column
           fixed="right"
           width="168"
-          label="Operation">
+          label="操作">
           <template #default="scope"><div >
-            <icon-btn name="Edit" icon="edit" @click="goEdit(scope.row.id)"></icon-btn>
-            <icon-btn name="Problem" icon="list-ol" @click="goContestProblemList(scope.row.id)"></icon-btn>
-            <icon-btn name="Announcement" icon="info-circle"
+            <icon-btn name="编辑" icon="edit" @click="goEdit(scope.row.id)"></icon-btn>
+            <icon-btn name="题目" icon="list-ol" @click="goContestProblemList(scope.row.id)"></icon-btn>
+            <icon-btn name="公告" icon="info-circle"
                       @click="goContestAnnouncement(scope.row.id)"></icon-btn>
-            <icon-btn icon="download" name="Download Accepted Submissions"
+            <icon-btn icon="download" name="下载通过的提交"
                       @click="openDownloadOptions(scope.row.id)"></icon-btn>
+            <icon-btn danger icon="trash" name="删除比赛"
+                      @click="deleteContest(scope.row.id)"></icon-btn>
           </div></template>
         </el-table-column>
       </el-table>
@@ -90,10 +92,10 @@
         </el-pagination>
       </div>
     </Panel>
-    <LegacyDialog title="Download Contest Submissions"
+    <LegacyDialog title="下载比赛提交"
                width="30%"
                :visible="downloadDialogVisible" @update:visible="downloadDialogVisible = $event">
-      <el-switch v-model="excludeAdmin" active-text="Exclude admin submissions"></el-switch>
+      <el-switch v-model="excludeAdmin" active-text="排除管理员提交"></el-switch>
       <template #footer><span  class="dialog-footer">
         <el-button type="primary" @click="downloadSubmissions">确 定</el-button>
       </span></template>
@@ -164,6 +166,21 @@
       },
       handleVisibleSwitch (row) {
         api.editContest(row)
+      },
+      deleteContest (contestId) {
+        this.$confirm('确定删除这场比赛吗？比赛题目、提交、排名和报名记录都会一并删除。', '删除比赛', {
+          confirmButtonText: '删除',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          api.deleteContest(contestId).then(() => {
+            const page = this.contestList.length === 1 && this.currentPage > 1
+              ? this.currentPage - 1
+              : this.currentPage
+            this.currentPage = page
+            this.getContestList(page)
+          }).catch(() => {})
+        }).catch(() => {})
       }
     },
     watch: {

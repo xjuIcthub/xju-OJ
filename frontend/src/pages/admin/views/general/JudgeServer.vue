@@ -22,47 +22,47 @@
         </el-table-column>
         <el-table-column
           prop="status"
-          label="Status">
+          label="状态">
           <template #default="scope">
             <el-tag
               :type="scope.row.status === 'normal' ? 'success' : 'danger'">
-              {{ scope.row.status === 'normal' ? 'Normal' : 'Abnormal' }}
+              {{ scope.row.status === 'normal' ? '正常' : '异常' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column
           prop="hostname"
-          label="Hostname">
+          label="主机名">
         </el-table-column>
         <el-table-column
           prop="task_number"
-          label="Task Number">
+          label="任务数">
         </el-table-column>
         <el-table-column
           prop="cpu_core"
-          label="CPU Core">
+          label="CPU 核心">
         </el-table-column>
         <el-table-column
           prop="cpu_usage"
-          label="CPU Usage">
+          label="CPU 使用率">
           <template #default="scope">{{ scope.row.cpu_usage }}%</template>
         </el-table-column>
         <el-table-column
           prop="memory_usage"
-          label="Memory Usage">
+          label="内存使用率">
           <template #default="scope">{{ scope.row.memory_usage }}%</template>
         </el-table-column>
-        <el-table-column label="Disabled">
+        <el-table-column label="已禁用">
           <template #default="{row}">
             <el-switch v-model="row.is_disabled" @change="handleDisabledSwitch(row.id, row.is_disabled)"></el-switch>
           </template>
         </el-table-column>
         <el-table-column
           fixed="right"
-          label="Options"
+          label="操作"
           width="96">
           <template #default="scope">
-            <icon-btn name="Delete" icon="trash" @click="deleteJudgeServer(scope.row.hostname)"></icon-btn>
+            <icon-btn danger name="删除" icon="trash" @click="deleteJudgeServer(scope.row.hostname)"></icon-btn>
           </template>
         </el-table-column>
       </el-table>
@@ -95,9 +95,9 @@
         })
       },
       deleteJudgeServer (hostname) {
-        this.$confirm('If you delete this judge server, it can\'t be used until next heartbeat', 'Warning', {
-          confirmButtonText: 'Delete',
-          cancelButtonText: 'Cancel',
+        this.$confirm('删除后，该判题服务器需等待下一次心跳才能重新使用。', '删除判题服务器', {
+          confirmButtonText: '删除',
+          cancelButtonText: '取消',
           type: 'warning'
         }).then(() => {
           api.deleteJudgeServer(hostname).then(res =>

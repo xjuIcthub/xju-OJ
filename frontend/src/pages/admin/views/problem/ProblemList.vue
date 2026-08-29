@@ -4,13 +4,13 @@
       <template #header><div >
         <el-input
           v-model="keyword"
-          placeholder="Keywords">
+          placeholder="搜索题目">
           <template #prefix><Icon type="search" /></template>
         </el-input>
       </div></template>
       <el-table
         v-loading="loading"
-        element-loading-text="loading"
+        element-loading-text="正在加载"
         ref="table"
         :data="problemList"
         @row-dblclick="handleDblclick"
@@ -22,14 +22,14 @@
         </el-table-column>
         <el-table-column
           width="150"
-          label="Display ID">
+          label="显示 ID">
           <template #default="{row}">
             <span>{{row._id}}</span>
           </template>
         </el-table-column>
         <el-table-column
           prop="title"
-          label="Title">
+          label="标题">
           <template #default="{row}">
             <span v-show="!row.isEditing">{{row.title}}</span>
             <el-input v-show="row.isEditing" v-model="row.title"
@@ -39,12 +39,12 @@
         </el-table-column>
         <el-table-column
           prop="created_by.username"
-          label="Author">
+          label="创建者">
         </el-table-column>
         <el-table-column
           width="200"
           prop="create_time"
-          label="Create Time">
+          label="创建时间">
           <template #default="scope">
             {{ $filters.localtime(scope.row.create_time) }}
           </template>
@@ -52,7 +52,7 @@
         <el-table-column
           width="100"
           prop="visible"
-          label="Visible">
+          label="可见">
           <template #default="scope">
             <el-switch v-model="scope.row.visible"
                        active-text=""
@@ -63,40 +63,40 @@
         </el-table-column>
         <el-table-column
           width="120"
-          label="Judge">
+          label="判题方式">
           <template #default="scope">
-            {{ scope.row.judge_mode === 'REMOTE' ? scope.row.remote_oj : 'LOCAL' }}
+            {{ scope.row.judge_mode === 'REMOTE' ? providerLabel(scope.row.remote_oj) : '本地判题' }}
           </template>
         </el-table-column>
         <el-table-column
           fixed="right"
-          label="Operation"
+          label="操作"
           width="168">
           <template #default="scope"><div >
-            <icon-btn name="Edit" icon="edit" @click="goEdit(scope.row.id)"></icon-btn>
-            <icon-btn v-if="contestId" name="Make Public" icon="clone"
+            <icon-btn name="编辑" icon="edit" @click="goEdit(scope.row.id)"></icon-btn>
+            <icon-btn v-if="contestId" name="加入公共题库" icon="clone"
                       @click="makeContestProblemPublic(scope.row.id)"></icon-btn>
             <icon-btn v-if="scope.row.judge_mode !== 'REMOTE'"
-                      icon="download" name="Download TestCase"
+                      icon="download" name="下载测试数据"
                       @click="downloadTestCase(scope.row.id)"></icon-btn>
-            <icon-btn icon="trash" name="Delete Problem"
+            <icon-btn danger icon="trash" name="删除题目"
                       @click="deleteProblem(scope.row.id)"></icon-btn>
           </div></template>
         </el-table-column>
       </el-table>
       <div class="panel-options">
         <el-button type="primary" size="small"
-                   @click="goCreateProblem"><Icon type="plus" />Create
+                   @click="goCreateProblem"><Icon type="plus" />新建题目
         </el-button>
         <el-button v-if="!contestId" type="success" size="small"
-                   @click="remoteImportDialogVisible = true"><Icon type="download" />Import Remote
+                   @click="remoteImportDialogVisible = true"><Icon type="download" />导入外部题目
         </el-button>
         <el-button v-if="contestId" type="success" size="small"
-                   @click="remoteImportDialogVisible = true"><Icon type="download" />Import Remote
+                   @click="remoteImportDialogVisible = true"><Icon type="download" />导入外部题目
         </el-button>
         <el-button v-if="contestId" type="primary"
                    size="small"
-                   @click="addProblemDialogVisible = true"><Icon type="plus" />Add From Public Problem
+                   @click="addProblemDialogVisible = true"><Icon type="plus" />从公共题库添加
         </el-button>
         <el-pagination
           class="page"
@@ -107,32 +107,32 @@
         </el-pagination>
       </div>
     </Panel>
-    <LegacyDialog title="Sure to update the problem? "
+    <LegacyDialog title="确认更新题目？"
                width="20%"
                :visible="InlineEditDialogVisible" @update:visible="InlineEditDialogVisible = $event"
                @close-on-click-modal="false">
       <div>
-        <p>DisplayID: {{currentRow._id}}</p>
-        <p>Title: {{currentRow.title}}</p>
+        <p>显示 ID：{{currentRow._id}}</p>
+        <p>标题：{{currentRow.title}}</p>
       </div>
       <template #footer><span >
         <cancel @click="InlineEditDialogVisible = false; getProblemList(currentPage)"></cancel>
         <save @click="updateProblem(currentRow)"></save>
       </span></template>
     </LegacyDialog>
-    <LegacyDialog title="Add Contest Problem"
+    <LegacyDialog title="添加比赛题目"
                v-if="contestId"
                width="80%"
                :visible="addProblemDialogVisible" @update:visible="addProblemDialogVisible = $event"
                @close-on-click-modal="false">
       <add-problem-component :contestID="contestId" @on-change="getProblemList"></add-problem-component>
     </LegacyDialog>
-    <LegacyDialog :title="contestId ? 'Import Remote Problem Into Contest' : 'Import Remote Problem'"
+    <LegacyDialog :title="contestId ? '导入外部题目到比赛' : '导入外部题目'"
                width="520px"
                :visible="remoteImportDialogVisible" @update:visible="remoteImportDialogVisible = $event"
                @close-on-click-modal="false">
       <el-form label-position="top">
-        <el-form-item label="Remote OJ" required>
+        <el-form-item label="来源平台" required>
           <el-select v-model="remoteImportForm.provider" style="width: 100%">
             <el-option label="Nowcoder / 牛客" value="NOWCODER"></el-option>
             <el-option label="Luogu / 洛谷" value="LUOGU"></el-option>
@@ -145,13 +145,13 @@
         </el-form-item>
         <el-alert type="info" :closable="false"
                   :title="contestId
-                    ? 'If this is a new remote problem, it will automatically enter the public library after the contest ends.'
-                    : 'The imported problem is immediately available for remote practice submissions.'"></el-alert>
+                    ? '首次导入的外部题目将在比赛结束后自动进入公共题库。'
+                    : '导入完成后即可用于远程练习提交。'"></el-alert>
       </el-form>
       <template #footer><span>
         <cancel @click="remoteImportDialogVisible = false"></cancel>
         <el-button type="primary" :loading="remoteImportLoading"
-                   @click="importRemoteProblem">Import</el-button>
+                   @click="importRemoteProblem">导入</el-button>
       </span></template>
     </LegacyDialog>
   </div>
@@ -197,6 +197,13 @@
       this.getProblemList(this.currentPage)
     },
     methods: {
+      providerLabel (provider) {
+        return {
+          NOWCODER: '牛客',
+          LUOGU: '洛谷',
+          CODEFORCES: 'Codeforces'
+        }[provider] || provider
+      },
       handleDblclick (row) {
         row.isEditing = true
       },
@@ -248,7 +255,7 @@
             provider: 'NOWCODER',
             remote_id: ''
           }
-          this.$success('Remote problem imported')
+          this.$success('外部题目导入成功')
           this.getProblemList(1)
         }).catch(() => {
           this.remoteImportLoading = false
@@ -280,14 +287,19 @@
         })
       },
       deleteProblem (id) {
-        this.$confirm('Sure to delete this problem? The associated submissions will be deleted as well.', 'Delete Problem', {
+        this.$confirm('确定删除这道题目吗？相关提交记录也会一并删除。', '删除题目', {
+          confirmButtonText: '删除',
+          cancelButtonText: '取消',
           type: 'warning'
         }).then(() => {
           let funcName = this.routeName === 'problem-list' ? 'deleteProblem' : 'deleteContestProblem'
-          api[funcName](id).then(() => [
-            this.getProblemList(this.currentPage - 1)
-          ]).catch(() => {
-          })
+          api[funcName](id).then(() => {
+            const page = this.problemList.length === 1 && this.currentPage > 1
+              ? this.currentPage - 1
+              : this.currentPage
+            this.currentPage = page
+            this.getProblemList(page)
+          }).catch(() => {})
         }, () => {
         })
       },

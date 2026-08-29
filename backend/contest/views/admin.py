@@ -96,6 +96,18 @@ class ContestAPI(APIView):
             contests = contests.filter(title__contains=keyword)
         return self.success(self.paginate_data(request, contests, ContestAdminSerializer))
 
+    def delete(self, request):
+        contest_id = request.GET.get("id")
+        if not contest_id:
+            return self.error("Invalid parameter, id is required")
+        try:
+            contest = Contest.objects.get(id=contest_id)
+            ensure_created_by(contest, request.user)
+        except Contest.DoesNotExist:
+            return self.error("Contest does not exist")
+        contest.delete()
+        return self.success()
+
 
 class ContestAnnouncementAPI(APIView):
     @validate_serializer(CreateContestAnnouncementSerializer)

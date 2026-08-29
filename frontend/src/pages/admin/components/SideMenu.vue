@@ -1,7 +1,7 @@
 <template>
   <el-menu class="vertical_menu"
            :router="true" :default-active="currentPath">
-    <div class="logo"><span class="brand-mark">XJ</span><strong>XJU-OJ</strong><small>Admin</small></div>
+    <div class="logo"><span class="brand-mark">XJ</span><strong>XJU-OJ</strong><small>管理后台</small></div>
     <el-menu-item index="/"><Icon type="dashboard" />{{$t('m.Dashboard')}}</el-menu-item>
     <el-submenu v-if="isSuperAdmin" index="general">
       <template #title><Icon type="menu" />{{$t('m.General')}}</template>

@@ -24,7 +24,7 @@
               @drop.prevent="onDrop(index)"
               @dragend="dragIndex = null">
             <td class="sequence-cell"><span class="drag-handle" title="拖动排序">⋮⋮</span><strong>{{ displayId(index) }}</strong></td>
-            <td><span :class="['source-badge', `is-${item.kind.toLowerCase()}`]">{{ item.kind === 'PUBLIC' ? '本 OJ' : item.provider }}</span></td>
+            <td><span :class="['source-badge', `is-${item.kind.toLowerCase()}`]">{{ item.kind === 'PUBLIC' ? '本 OJ' : providerLabel(item.provider) }}</span></td>
             <td><strong class="problem-name">{{ item.title }}</strong><small>{{ item.reference }}</small></td>
             <td>
               <div class="row-actions">
@@ -50,7 +50,7 @@
         <el-table-column prop="_id" label="题号" width="130"></el-table-column>
         <el-table-column prop="title" label="标题"></el-table-column>
         <el-table-column label="判题" width="120">
-          <template #default="{row}">{{ row.judge_mode === 'REMOTE' ? row.remote_oj : 'LOCAL' }}</template>
+          <template #default="{row}">{{ row.judge_mode === 'REMOTE' ? providerLabel(row.remote_oj) : '本地判题' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="90" align="center">
           <template #default="{row}"><el-button text type="primary" @click="addPublicProblem(row)">添加</el-button></template>
@@ -136,6 +136,9 @@ export default {
   },
   methods: {
     displayId: indexToLabel,
+    providerLabel (provider) {
+      return providers.find(item => item.value === provider)?.name || provider
+    },
     updateItems (items) { this.$emit('update:modelValue', items) },
     move (from, to) {
       if (to < 0 || to >= this.items.length || from === to) return

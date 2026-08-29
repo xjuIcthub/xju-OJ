@@ -5,19 +5,19 @@
     </div>
     <div id="header">
       <div class="header-actions">
-        <el-tooltip content="LaTeX editor" placement="bottom">
-          <button type="button" class="admin-icon-button katex-editor" aria-label="LaTeX editor" @click="katexVisible=true">
+        <el-tooltip content="LaTeX 公式编辑器" placement="bottom">
+          <button type="button" class="admin-icon-button katex-editor" aria-label="LaTeX 公式编辑器" @click="katexVisible=true">
             <Icon type="file-text" />
           </button>
         </el-tooltip>
         <el-dropdown @command="handleCommand">
-          <button type="button" class="admin-user" aria-label="User menu">
+          <button type="button" class="admin-user" aria-label="用户菜单">
             <UserAvatar class="user-avatar" :src="profile.avatar" :username="user.username" :size="26" />
             <span>{{user.username}}</span>
             <Icon type="arrow-down-b" />
           </button>
           <template #dropdown><el-dropdown-menu >
-            <el-dropdown-item command="logout">Logout</el-dropdown-item>
+            <el-dropdown-item command="logout">退出登录</el-dropdown-item>
           </el-dropdown-menu></template>
         </el-dropdown>
       </div>
@@ -29,7 +29,7 @@
         </transition>
       </router-view>
       <div class="footer">
-        Powered by XJU-ICTHub · Version 0.2.0
+        由 XJU-ICTHub 提供支持 · 版本 1.0.0
       </div>
     </div>
 
@@ -44,6 +44,7 @@
   import SideMenu from '../components/SideMenu.vue'
   import KatexEditor from '@admin/components/KatexEditor.vue'
   import api from '../api'
+  import i18n from '@/i18n'
   import UserAvatar from '@/shared/ui/UserAvatar.vue'
 
   export default {
@@ -63,6 +64,7 @@
       const res = await api.getProfile()
       if (!res.data.data) return {name: 'login'}
       store.commit(types.CHANGE_PROFILE, {profile: res.data.data})
+      i18n.global.locale.value = 'zh-CN'
     },
     methods: {
       handleCommand (command) {

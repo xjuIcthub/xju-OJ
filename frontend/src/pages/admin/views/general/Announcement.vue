@@ -4,7 +4,7 @@
       <div class="list">
         <el-table
           v-loading="loading"
-          element-loading-text="loading"
+          element-loading-text="正在加载"
           ref="table"
           :data="announcementList"
           style="width: 100%">
@@ -15,30 +15,30 @@
           </el-table-column>
           <el-table-column
             prop="title"
-            label="Title">
+            label="标题">
           </el-table-column>
           <el-table-column
             prop="create_time"
-            label="CreateTime">
+            label="创建时间">
             <template #default="scope">
               {{ $filters.localtime(scope.row.create_time) }}
             </template>
           </el-table-column>
           <el-table-column
             prop="last_update_time"
-            label="LastUpdateTime">
+            label="最后更新时间">
             <template #default="scope">
               {{ $filters.localtime(scope.row.last_update_time) }}
             </template>
           </el-table-column>
           <el-table-column
             prop="created_by.username"
-            label="Author">
+            label="创建者">
           </el-table-column>
           <el-table-column
             width="100"
             prop="visible"
-            label="Visible">
+            label="可见">
             <template #default="scope">
               <el-switch v-model="scope.row.visible"
                          active-text=""
@@ -49,16 +49,16 @@
           </el-table-column>
           <el-table-column
             fixed="right"
-            label="Option"
+            label="操作"
             width="96">
             <template #default="scope"><div >
-              <icon-btn name="Edit" icon="edit" @click="openAnnouncementDialog(scope.row.id)"></icon-btn>
-              <icon-btn name="Delete" icon="trash" @click="deleteAnnouncement(scope.row.id)"></icon-btn>
+              <icon-btn name="编辑" icon="edit" @click="openAnnouncementDialog(scope.row.id)"></icon-btn>
+              <icon-btn danger name="删除" icon="trash" @click="deleteAnnouncement(scope.row.id)"></icon-btn>
             </div></template>
           </el-table-column>
         </el-table>
         <div class="panel-options">
-          <el-button type="primary" size="small" @click="openAnnouncementDialog(null)"><Icon type="plus" />Create</el-button>
+          <el-button type="primary" size="small" @click="openAnnouncementDialog(null)"><Icon type="plus" />新建公告</el-button>
           <el-pagination
             v-if="!contestID"
             class="page"
@@ -129,7 +129,7 @@
           content: ''
         },
         // 对话框标题
-        announcementDialogTitle: 'Edit Announcement',
+        announcementDialogTitle: '编辑公告',
         // 是否显示loading
         loading: true,
         // 当前页码
@@ -211,9 +211,9 @@
       },
       // 删除公告
       deleteAnnouncement (announcementId) {
-        this.$confirm('Are you sure you want to delete this announcement?', 'Warning', {
-          confirmButtonText: 'Delete',
-          cancelButtonText: 'Cancel',
+        this.$confirm('确定删除这条公告吗？', '删除公告', {
+          confirmButtonText: '删除',
+          cancelButtonText: '取消',
           type: 'warning'
         }).then(() => {
           // then 为确定
@@ -232,7 +232,7 @@
         this.showEditAnnouncementDialog = true
         if (id !== null) {
           this.currentAnnouncementId = id
-          this.announcementDialogTitle = 'Edit Announcement'
+          this.announcementDialogTitle = '编辑公告'
           this.announcementList.find(item => {
             if (item.id === this.currentAnnouncementId) {
               this.announcement.title = item.title
@@ -242,7 +242,7 @@
             }
           })
         } else {
-          this.announcementDialogTitle = 'Create Announcement'
+          this.announcementDialogTitle = '新建公告'
           this.announcement.title = ''
           this.announcement.visible = true
           this.announcement.content = ''
