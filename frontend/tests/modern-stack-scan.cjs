@@ -81,6 +81,7 @@ assert.ok(submissionDetails.includes('judge-status-badge') && submissionDetails.
 assert.ok(highlight.includes('languageClass') && highlightPlugin.includes('solarized-light.css'), 'submitted code must use normalized languages and Solarized highlighting')
 assert.ok(problemDetail.includes('judge-status-badge') && problemDetail.includes('submissionStatusLabel'), 'problem submission feedback must use Feiyue status pills')
 assert.ok(problemDetail.includes('publicProblemTags') && problemDetail.includes('problem-title-tags'), 'public problem titles must render tags while contest routes keep their return action')
+assert.ok(problemDetail.includes("const DEFAULT_PROBLEM_LANGUAGE = 'C++'") && problemDetail.includes('supportedLanguages.includes(DEFAULT_PROBLEM_LANGUAGE)') && problemDetail.includes('this.language = selectDefaultProblemLanguage(this.problem.languages)'), 'problem editor must prefer C++ when no saved language exists')
 assert.ok(userAvatar.includes('imageFailed') && userAvatar.includes('user-avatar-fallback'), 'shared user avatar must fall back to initials only after an image load failure')
 assert.ok(navBar.includes('<UserAvatar') && navBar.includes(':src="profile.avatar"'), 'public navigation must render the persisted profile avatar instead of a hard-coded initial')
 assert.ok(navBar.includes("prefetchRoute('/problem')") && navBar.includes("prefetchRoutes(['/acm-rank', '/oi-rank'])"), 'primary navigation should prefetch likely route chunks on hover')

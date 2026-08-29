@@ -206,6 +206,14 @@
   import { dispatchRemoteSubmission, isRemoteBridgeInstalled, subscribeRemoteBridgeEvents } from '@oj/remoteBridge'
   import { applyDevelopmentProblemFixture, cloneFixtures, MOCK_PROBLEMS, MOCK_SUBMISSIONS } from '@oj/mocks/fixtures'
 
+  const DEFAULT_PROBLEM_LANGUAGE = 'C++'
+  const selectDefaultProblemLanguage = (languages) => {
+    const supportedLanguages = Array.isArray(languages) ? languages : []
+    return supportedLanguages.includes(DEFAULT_PROBLEM_LANGUAGE)
+      ? DEFAULT_PROBLEM_LANGUAGE
+      : (supportedLanguages[0] || DEFAULT_PROBLEM_LANGUAGE)
+  }
+
   export default {
     name: 'Problem',
     components: {
@@ -223,7 +231,7 @@
         problemID: '',
         submitting: false,
         code: '',
-        language: 'C++',
+        language: DEFAULT_PROBLEM_LANGUAGE,
         theme: 'solarized',
         submissionId: '',
         submitted: false,
@@ -313,7 +321,7 @@
           return
         }
         // try to load problem template
-        this.language = this.problem.languages[0] || 'C++'
+        this.language = selectDefaultProblemLanguage(this.problem.languages)
         let template = this.problem.template
         if (template && template[this.language]) {
           this.code = template[this.language]
