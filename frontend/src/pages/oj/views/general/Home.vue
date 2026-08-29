@@ -208,7 +208,7 @@ export default {
 .contest-list { display: grid; gap: 8px; }.contest-card { padding: 14px 16px; gap: 14px; }.contest-date { display: inline-flex; flex: 0 0 62px; width: 62px; align-items: center; white-space: nowrap; color: var(--cat-competition); font: 600 16px var(--font-serif); }.empty-card { padding: 26px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); color: var(--color-text-faint); text-align: center; }
 .problem-table-shell { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
 .home-problem-table { width: 100%; min-width: 610px; border-collapse: collapse; table-layout: fixed; }
-.home-problem-table td { height: 46px; padding: 9px 13px; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: middle; }
+.home-problem-table td { height: 50px; padding: 10px 14px; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: middle; }
 .home-problem-table td:first-child { width: 104px; }
 .home-problem-table td:nth-child(3) { width: 92px; }
 .home-problem-table td:last-child { width: 178px; }
@@ -218,15 +218,15 @@ export default {
 .problem-title-cell { overflow: hidden; }
 .problem-table-link { appearance: none; max-width: 100%; overflow: hidden; padding: 0; border: 0; background: transparent; color: var(--color-text); font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .problem-table-link:hover, .problem-table-link:focus-visible { color: var(--color-link); }
-.problem-display-id { color: var(--color-text-muted); font-family: var(--font-mono); font-size: 12px; font-weight: 650; }
-.problem-table-title { display: block; width: 100%; font-size: 13px; font-weight: 600; }
-.home-difficulty-badge { display: inline-flex; min-width: 54px; min-height: 23px; align-items: center; justify-content: center; padding: 0 8px; border: 1px solid transparent; border-radius: var(--radius-sm); font-size: 11px; font-weight: 650; line-height: 1; }
+.problem-display-id { color: var(--color-text-muted); font-family: var(--font-mono); font-size: 13px; font-weight: 650; }
+.problem-table-title { display: block; width: 100%; font-size: 15px; font-weight: 600; }
+.home-difficulty-badge { display: inline-flex; min-width: 54px; min-height: 24px; align-items: center; justify-content: center; padding: 0 8px; border: 1px solid transparent; border-radius: var(--radius-sm); font-size: 12px; font-weight: 650; line-height: 1; }
 .home-difficulty-badge.difficulty-low { border-color: color-mix(in srgb, var(--cat-tools) 20%, transparent); background: var(--tag-tools-bg); color: var(--cat-tools); }
 .home-difficulty-badge.difficulty-mid { border-color: color-mix(in srgb, var(--cat-kaggle) 20%, transparent); background: var(--tag-kaggle-bg); color: var(--cat-kaggle); }
 .home-difficulty-badge.difficulty-high { border-color: color-mix(in srgb, var(--cat-research) 20%, transparent); background: var(--tag-research-bg); color: var(--cat-research); }
 .home-problem-tags { display: flex; min-width: 0; align-items: center; gap: 5px; }
-.home-problem-tags span { display: inline-flex; min-width: 0; max-width: 80px; min-height: 23px; align-items: center; overflow: hidden; padding: 0 7px; border-radius: var(--radius-sm); background: var(--color-bg-subtle); color: var(--color-text-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.table-empty-value { color: var(--color-text-faint); font-size: 12px; }
+.home-problem-tags span { display: inline-flex; min-width: 0; max-width: 80px; min-height: 24px; align-items: center; overflow: hidden; padding: 0 7px; border-radius: var(--radius-sm); background: var(--color-bg-subtle); color: var(--color-text-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.table-empty-value { color: var(--color-text-faint); font-size: 13px; }
 .announcement-board { display: flex; min-height: 180px; overflow: hidden; flex-direction: column; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
 .notice-board-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px 9px; background: var(--color-bg); }
 .notice-icon { display: grid; width: 32px; height: 32px; place-items: center; border-radius: var(--radius-sm); color: var(--cat-research); background: var(--tag-research-bg); }

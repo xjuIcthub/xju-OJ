@@ -160,7 +160,7 @@
           difficulty: '',
           tag: '',
           page: 1,
-          limit: 10
+          limit: 20
         },
         tagsVisible: false
       }
@@ -182,7 +182,7 @@
         if (this.query.page < 1) {
           this.query.page = 1
         }
-        this.query.limit = parseInt(query.limit) || 10
+        this.query.limit = parseInt(query.limit) || 20
         if (!simulate) {
           this.getTagList()
         }
