@@ -1,8 +1,30 @@
-简体中文 | [English](README.en.md)
+<div align="center">
+  <h1>XJU-OJ</h1>
+  <p><strong>面向机试、ACM 与 OI 的现代在线评测平台</strong></p>
+  <p>400+ 题库、本地沙箱判题与牛客 / 洛谷 / Codeforces 远程判题，统一管理比赛、提交和个人做题记录。</p>
+  <p>
+    <a href="https://oj.icthub.top"><img alt="OJ status" src="https://img.shields.io/website?url=https%3A%2F%2Foj.icthub.top&up_message=online&down_message=offline&label=OJ"></a>
+    <a href="https://github.com/xjuIcthub/xju-OJ/actions/workflows/publish-release-images.yml"><img alt="Release images" src="https://github.com/xjuIcthub/xju-OJ/actions/workflows/publish-release-images.yml/badge.svg"></a>
+    <a href="https://github.com/xjuIcthub/xju-OJ/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/xjuIcthub/xju-OJ?logo=github"></a>
+    <img alt="Vue 3.5.41" src="https://img.shields.io/badge/Vue-3.5.41-42b883?logo=vuedotjs&logoColor=white">
+    <img alt="Django 5.2.17" src="https://img.shields.io/badge/Django-5.2.17-092E20?logo=django&logoColor=white">
+    <img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
+  </p>
+  <p>
+    <a href="https://oj.icthub.top">在线体验</a> ·
+    <a href="https://oj.icthub.top/remote-bridge">远程判题助手</a> ·
+    <a href="#一键安装">快速部署</a> ·
+    <a href="README.en.md">English</a>
+  </p>
+</div>
 
-# xju-OJ
+## 项目亮点
 
-单仓库包含 Vue 3 前端、Django 5.2 后端、JudgeServer/Judger、PostgreSQL 18、Redis 8 和统一 Docker Compose 部署入口。
+- **丰富题库**：现有 400+ 道题目，覆盖机试、ACM 与 OI 日常练习。
+- **双重判题能力**：内置 JudgeServer/Judger 沙箱，并通过 ScriptCat 支持牛客、洛谷和 Codeforces 浏览器远程判题。
+- **完整竞赛体验**：支持 ACM/OI 赛制、比赛报名、题目编排、实时提交状态和排名。
+- **现代全栈架构**：Vue 3、Vite 8、Django 5.2、PostgreSQL 18、Redis 8，提供统一 Docker Compose 部署入口。
+- **安全账户体系**：支持 Authentik OIDC、会话管理、个人资料和独立管理后台。
 
 ## 一键安装
 
