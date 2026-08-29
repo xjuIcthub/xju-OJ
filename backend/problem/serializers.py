@@ -227,7 +227,8 @@ class ExportProblemSerializer(serializers.ModelSerializer):
         fields = ("display_id", "title", "description", "tags",
                   "input_description", "output_description",
                   "test_case_score", "hint", "time_limit", "memory_limit", "samples",
-                  "template", "spj", "rule_type", "source", "template")
+                  "template", "spj", "rule_type", "source", "difficulty", "visible",
+                  "languages")
 
 
 class AddContestProblemSerializer(serializers.Serializer):
@@ -251,7 +252,7 @@ class FormatValueSerializer(serializers.Serializer):
 class TestCaseScoreSerializer(serializers.Serializer):
     score = serializers.IntegerField(min_value=1)
     input_name = serializers.CharField(max_length=32)
-    output_name = serializers.CharField(max_length=32)
+    output_name = serializers.CharField(max_length=32, allow_blank=True, required=False, default="")
 
 
 class TemplateSerializer(serializers.Serializer):
@@ -271,13 +272,17 @@ class AnswerSerializer(serializers.Serializer):
 
 
 class ImportProblemSerializer(serializers.Serializer):
-    display_id = serializers.CharField(max_length=128)
+    display_id = serializers.CharField(
+        max_length=128, allow_blank=True, required=False, default=""
+    )
     title = serializers.CharField(max_length=128)
     description = FormatValueSerializer()
     input_description = FormatValueSerializer()
     output_description = FormatValueSerializer()
     hint = FormatValueSerializer()
-    test_case_score = serializers.ListField(child=TestCaseScoreSerializer(), allow_null=True)
+    test_case_score = serializers.ListField(
+        child=TestCaseScoreSerializer(), allow_null=True, required=False, default=list
+    )
     time_limit = serializers.IntegerField(min_value=1, max_value=60000)
     memory_limit = serializers.IntegerField(min_value=1, max_value=10240)
     samples = serializers.ListField(child=CreateSampleSerializer())
@@ -285,8 +290,13 @@ class ImportProblemSerializer(serializers.Serializer):
     spj = SPJSerializer(allow_null=True)
     rule_type = serializers.ChoiceField(choices=ProblemRuleType.choices())
     source = serializers.CharField(max_length=200, allow_blank=True, allow_null=True)
-    answers = serializers.ListField(child=AnswerSerializer())
-    tags = serializers.ListField(child=serializers.CharField())
+    answers = serializers.ListField(child=AnswerSerializer(), required=False, default=list)
+    tags = serializers.ListField(child=serializers.CharField(max_length=32), required=False, default=list)
+    difficulty = serializers.ChoiceField(
+        choices=Difficulty.choices(), required=False, default=Difficulty.MID
+    )
+    visible = serializers.BooleanField(required=False, default=False)
+    languages = LanguageNameMultiChoiceField(required=False, allow_empty=False)
 
 
 class FPSProblemSerializer(serializers.Serializer):

@@ -1,13 +1,17 @@
 import copy
 import hashlib
+import io
 import json
 import os
 import shutil
+import tempfile
 from datetime import timedelta
 from unittest.mock import Mock, patch
 from zipfile import ZipFile
 
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.utils import timezone
 
 from utils.api.tests import APITestCase
@@ -230,6 +234,201 @@ class TestCaseUploadAPITest(APITestCase):
                 name = item["input_name"]
                 with open(os.path.join(test_case_dir, name), "r", encoding="utf-8") as f:
                     self.assertEqual(f.read(), name + "\n" + name + "\n" + "end")
+
+
+class ProblemZipImportAPITest(APITestCase):
+    def setUp(self):
+        self.url = self.reverse("import_problem_api")
+        self.admin = self.create_super_admin()
+        self.test_case_root = tempfile.TemporaryDirectory()
+        self.settings_override = override_settings(TEST_CASE_DIR=self.test_case_root.name)
+        self.settings_override.enable()
+
+    def tearDown(self):
+        self.settings_override.disable()
+        self.test_case_root.cleanup()
+
+    def problem_info(self, title="ZIP import", display_id="ignored-by-importer"):
+        result = {
+            "title": title,
+            "description": {"format": "markdown", "value": "**Problem** description."},
+            "input_description": {"format": "markdown", "value": "Read `n`."},
+            "output_description": {"format": "markdown", "value": "Print the answer."},
+            "hint": {"format": "markdown", "value": ""},
+            "test_case_score": [
+                {"score": 100, "input_name": "1.in", "output_name": "1.out"}
+            ],
+            "time_limit": 1500,
+            "memory_limit": 512,
+            "samples": [{"input": "1\n", "output": "2\n"}],
+            "template": {},
+            "spj": None,
+            "rule_type": ProblemRuleType.ACM,
+            "source": "js-problemset /",
+            "tags": ["保研真题", "测试学校"],
+            "difficulty": "High",
+            "visible": True,
+            "languages": ["C++", "Python3"],
+        }
+        if display_id is not None:
+            result["display_id"] = display_id
+        return result
+
+    def make_problem_zip_bytes(self, problem_info, prefix=""):
+        buffer = io.BytesIO()
+        with ZipFile(buffer, "w") as archive:
+            prefix = prefix.strip("/")
+            prefix = f"{prefix}/" if prefix else ""
+            archive.writestr(
+                f"{prefix}problem.json",
+                json.dumps(problem_info, ensure_ascii=False),
+            )
+            archive.writestr(f"{prefix}testcase/1.in", "1\n")
+            archive.writestr(f"{prefix}testcase/1.out", "2\n")
+        return buffer.getvalue()
+
+    def make_single_package(self, problem_info, prefix=""):
+        return SimpleUploadedFile(
+            "problem.zip",
+            self.make_problem_zip_bytes(problem_info, prefix),
+            content_type="application/zip",
+        )
+
+    def make_batch_package(self, problems):
+        buffer = io.BytesIO()
+        with ZipFile(buffer, "w") as archive:
+            for filename, problem_info in problems:
+                archive.writestr(
+                    filename,
+                    self.make_problem_zip_bytes(problem_info),
+                )
+        return SimpleUploadedFile(
+            "problems.zip", buffer.getvalue(), content_type="application/zip"
+        )
+
+    def test_import_root_single_problem_with_metadata_and_markdown(self):
+        response = self.client.post(
+            self.url,
+            data={"file": self.make_single_package(
+                self.problem_info(display_id=None)
+            )},
+            format="multipart",
+        )
+        self.assertSuccess(response)
+        self.assertEqual(response.data["data"]["import_count"], 1)
+        self.assertEqual(response.data["data"]["package_format"], "single")
+        problem = Problem.objects.get(_id="1001")
+        self.assertEqual(problem.difficulty, "High")
+        self.assertTrue(problem.visible)
+        self.assertEqual(problem.languages, ["C++", "Python3"])
+        self.assertIn("<strong>Problem</strong>", problem.description)
+        self.assertTrue(problem.tags.filter(name="保研真题").exists())
+        self.assertTrue(os.path.isfile(os.path.join(
+            self.test_case_root.name, problem.test_case_id, "info"
+        )))
+
+    def test_import_batch_of_independent_single_problem_zips(self):
+        response = self.client.post(
+            self.url,
+            data={"file": self.make_batch_package([
+                ("002-second.zip", self.problem_info("Second")),
+                ("001-first.zip", self.problem_info("First")),
+            ])},
+            format="multipart",
+        )
+        self.assertSuccess(response)
+        self.assertEqual(response.data["data"]["import_count"], 2)
+        self.assertEqual(response.data["data"]["package_format"], "batch")
+        self.assertEqual(
+            list(Problem.objects.order_by("_id").values_list("_id", "title")),
+            [("1001", "First"), ("1002", "Second")],
+        )
+
+    def test_import_legacy_qduoj_numbered_directory(self):
+        response = self.client.post(
+            self.url,
+            data={"file": self.make_single_package(
+                self.problem_info(), prefix="2"
+            )},
+            format="multipart",
+        )
+        self.assertSuccess(response)
+        self.assertEqual(response.data["data"]["package_format"], "qduoj")
+        self.assertTrue(Problem.objects.filter(_id="1001").exists())
+
+    def test_package_display_id_is_ignored_on_repeated_imports(self):
+        package = self.make_single_package(self.problem_info(display_id="9999"))
+        first = self.client.post(self.url, data={"file": package}, format="multipart")
+        self.assertSuccess(first)
+        second_package = self.make_single_package(self.problem_info(display_id="9999"))
+        second = self.client.post(
+            self.url,
+            data={"file": second_package},
+            format="multipart",
+        )
+        self.assertSuccess(second)
+        self.assertEqual(
+            list(Problem.objects.order_by("_id").values_list("_id", flat=True)),
+            ["1001", "1002"],
+        )
+
+    def test_batch_failure_rolls_back_database_and_test_case_files(self):
+        invalid = self.problem_info("Second")
+        del invalid["title"]
+        response = self.client.post(
+            self.url,
+            data={"file": self.make_batch_package([
+                ("001-first.zip", self.problem_info("First")),
+                ("002-second.zip", invalid),
+            ])},
+            format="multipart",
+        )
+        self.assertFailed(response)
+        self.assertFalse(Problem.objects.exists())
+        self.assertEqual(os.listdir(self.test_case_root.name), [])
+
+    def test_export_uses_single_problem_zips_for_single_and_batch_downloads(self):
+        for title in ("First", "Second"):
+            response = self.client.post(
+                self.url,
+                data={"file": self.make_single_package(self.problem_info(title))},
+                format="multipart",
+            )
+            self.assertSuccess(response)
+
+        export_url = self.reverse("export_problem_api")
+        problems = list(Problem.objects.order_by("_id"))
+        response = self.client.get(export_url, {"problem_id": [problems[0].id]})
+        self.assertEqual(response.status_code, 200)
+        with ZipFile(io.BytesIO(b"".join(response.streaming_content))) as archive:
+            self.assertEqual(
+                set(archive.namelist()),
+                {"problem.json", "testcase/1.in", "testcase/1.out"},
+            )
+
+        response = self.client.get(
+            export_url,
+            {"problem_id": [problem.id for problem in problems]},
+        )
+        self.assertEqual(response.status_code, 200)
+        with ZipFile(io.BytesIO(b"".join(response.streaming_content))) as archive:
+            self.assertEqual(archive.namelist(), ["001.zip", "002.zip"])
+            for name in archive.namelist():
+                with ZipFile(io.BytesIO(archive.read(name))) as problem_archive:
+                    self.assertEqual(
+                        set(problem_archive.namelist()),
+                        {"problem.json", "testcase/1.in", "testcase/1.out"},
+                    )
+
+    def test_import_requires_problem_permission(self):
+        self.client.logout()
+        response = self.client.post(
+            self.url,
+            data={"file": self.make_single_package(self.problem_info())},
+            format="multipart",
+        )
+        self.assertIn(response.data["error"], ("login-required", "permission-denied"))
+        self.assertFalse(Problem.objects.exists())
 
 
 class ProblemAdminAPITest(ProblemCreateTestBase):

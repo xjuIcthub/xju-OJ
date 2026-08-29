@@ -39,3 +39,6 @@ target/
 *.class
 .idea/
 .vscode/
+
+# ===== 本地参考截图 =====
+refer-images/

@@ -1,10 +1,10 @@
 <template>
   <div>
-    <panel title="Export Problems (beta)">
+    <panel title="导出题目（测试版）">
       <template #header><div >
         <el-input
           v-model="keyword"
-          placeholder="Keywords">
+          placeholder="搜索题目">
           <template #prefix><Icon type="search" /></template>
         </el-input>
       </div></template>
@@ -20,21 +20,21 @@
           prop="id">
         </el-table-column>
         <el-table-column
-          label="DisplayID"
+          label="显示 ID"
           width="200"
           prop="_id">
         </el-table-column>
         <el-table-column
-          label="Title"
+          label="标题"
           prop="title">
         </el-table-column>
         <el-table-column
           prop="created_by.username"
-          label="Author">
+          label="创建者">
         </el-table-column>
         <el-table-column
           prop="create_time"
-          label="Create Time">
+          label="创建时间">
           <template #default="scope">
             {{ $filters.localtime(scope.row.create_time) }}
           </template>
@@ -43,7 +43,7 @@
 
       <div class="panel-options">
         <el-button type="primary" size="small" v-show="selected_problems.length"
-                   @click="exportProblems"><Icon type="arrow-down" />Export
+                   @click="exportProblems"><Icon type="arrow-down" />导出
         </el-button>
         <el-pagination
           class="page"
@@ -54,7 +54,7 @@
         </el-pagination>
       </div>
     </panel>
-    <panel title="Import External OJ Problems">
+    <panel title="导入外部 OJ 题目">
       <div class="remote-import-grid">
         <article v-for="provider in remoteProviders"
                  :key="provider.value"
@@ -66,29 +66,34 @@
           <el-input v-model="remoteImports[provider.value]" :placeholder="provider.placeholder"></el-input>
           <el-button type="primary"
                      :loading="remoteImportLoading[provider.value]"
-                     @click="importRemoteProblem(provider.value)">Import {{ provider.name }}</el-button>
+                     @click="importRemoteProblem(provider.value)">导入 {{ provider.name }}</el-button>
         </article>
       </div>
     </panel>
-    <panel title="Import QDUOJ Problems (beta)">
+    <panel title="导入 ZIP 题库">
+      <p class="import-description">
+        支持根目录单题 ZIP、由多个单题 ZIP 组成的批量 ZIP，以及旧版 QDUOJ 批量包。
+        导入过程原子执行，任一道题校验失败都会整体回滚。
+      </p>
       <el-upload class="import-upload"
         ref="QDU"
         action="/api/admin/import_problem"
         name="file"
+        accept=".zip,application/zip"
         :file-list="fileList1"
         :show-file-list="true"
         :with-credentials="true"
-        :limit="3"
+        :limit="1"
         :on-change="onFile1Change"
         :auto-upload="false"
         :on-success="uploadSucceeded"
         :on-error="uploadFailed">
-        <template #trigger><el-button size="small" type="primary"><Icon type="upload" />Choose File</el-button></template>
-        <el-button size="small" type="success" @click="submitUpload('QDU')"><Icon type="upload" />Upload</el-button>
+        <template #trigger><el-button size="small" type="primary"><Icon type="upload" />选择文件</el-button></template>
+        <el-button size="small" type="success" @click="submitUpload('QDU')"><Icon type="upload" />上传</el-button>
       </el-upload>
     </panel>
 
-    <panel title="Import FPS Problems (beta)">
+    <panel title="导入 FPS 题目（测试版）">
       <el-upload class="import-upload"
         ref="FPS"
         action="/api/admin/import_fps"
@@ -101,8 +106,8 @@
         :auto-upload="false"
         :on-success="uploadSucceeded"
         :on-error="uploadFailed">
-        <template #trigger><el-button size="small" type="primary"><Icon type="upload" />Choose File</el-button></template>
-        <el-button size="small" type="success" @click="submitUpload('FPS')"><Icon type="upload" />Upload</el-button>
+        <template #trigger><el-button size="small" type="primary"><Icon type="upload" />选择文件</el-button></template>
+        <el-button size="small" type="success" @click="submitUpload('FPS')"><Icon type="upload" />上传</el-button>
       </el-upload>
     </panel>
   </div>
@@ -206,12 +211,13 @@
         if (response.error) {
           this.$error(response.data)
         } else {
-          this.$success('Successfully imported ' + response.data.import_count + ' problems')
+          this.$success(`成功导入 ${response.data.import_count} 道题目`)
+          this.fileList1 = []
           this.getProblems()
         }
       },
       uploadFailed () {
-        this.$error('Upload failed')
+        this.$error('上传失败')
       }
     },
     watch: {
@@ -233,6 +239,7 @@
     flex: 0 0 100%;
     margin: 4px 0 0;
   }
+  .import-description { margin: 0 0 12px; color: var(--color-text-muted); line-height: 1.7; }
   .remote-import-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
   .remote-import-card { display: flex; min-width: 0; min-height: 214px; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
   .remote-card-heading { display: flex; align-items: center; gap: 11px; }
