@@ -7,7 +7,12 @@
         <template #title><div class="problem-title-header">
           <div class="problem-title-copy">
             <small>Problem {{problem._id}}</small>
-            <strong>{{problem.title}}</strong>
+            <div class="problem-title-line">
+              <strong>{{problem.title}}</strong>
+              <div v-if="publicProblemTags.length" class="problem-title-tags" :aria-label="$t('m.Tags')">
+                <span v-for="(tag, index) in publicProblemTags" :key="`${tag}-${index}`" :title="tag">{{tag}}</span>
+              </div>
+            </div>
           </div>
           <button v-if="contestID"
                   type="button"
@@ -551,6 +556,10 @@
       contestEnded () {
         return this.contestStatus === CONTEST_STATUS.ENDED
       },
+      publicProblemTags () {
+        if (this.contestID) return []
+        return (this.problem.tags || []).map(tag => typeof tag === 'string' ? tag : tag.name).filter(Boolean)
+      },
       submissionStatus () {
         const status = JUDGE_STATUS[this.result.result] || JUDGE_STATUS['6']
         return {
@@ -720,9 +729,12 @@
   }
 
   .problem-title-header { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 18px; }
-  .problem-title-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+  .problem-title-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
   .problem-title-copy small { color: var(--color-text-faint); font-family: var(--font-mono); font-size: 10px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
-  .problem-title-copy strong { overflow: hidden; color: var(--color-text); font-family: var(--font-serif); font-size: 23px; font-weight: 650; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+  .problem-title-line { display: flex; min-width: 0; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .problem-title-copy strong { min-width: 0; flex: 1; overflow: hidden; color: var(--color-text); font-family: var(--font-serif); font-size: 23px; font-weight: 650; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+  .problem-title-tags { display: flex; width: fit-content; max-width: 48%; max-height: 51px; flex: none; align-items: flex-end; justify-content: flex-end; flex-wrap: wrap; gap: 5px; overflow: hidden; }
+  .problem-title-tags span { display: inline-flex; max-width: 132px; min-height: 23px; align-items: center; overflow: hidden; padding: 0 8px; border: 1px solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-bg-subtle); color: var(--color-text-muted); font-family: var(--font-sans); font-size: 11px; font-weight: 600; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
   .problem-header-action {
     display: inline-flex;
     min-height: 32px;
@@ -954,6 +966,9 @@
     #problem-main :deep(.el-card__header) { padding: 14px 16px; }
     #problem-main :deep(.el-card__body) { padding: 15px 16px 26px !important; }
     .problem-title-copy strong { font-size: 20px; }
+    .problem-title-line { gap: 9px; }
+    .problem-title-tags { max-width: 46%; gap: 4px; }
+    .problem-title-tags span { max-width: 96px; min-height: 21px; padding: 0 6px; font-size: 10px; }
     .problem-header-action span { display: none; }
     .problem-brief { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .problem-brief > div { border-bottom: 1px solid var(--color-border); }
