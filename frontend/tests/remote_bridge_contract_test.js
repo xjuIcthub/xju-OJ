@@ -17,6 +17,10 @@ const problemPage = fs.readFileSync(
   path.resolve(__dirname, '../src/pages/oj/views/problem/Problem.vue'),
   'utf8'
 )
+const bridgeInstallPage = fs.readFileSync(
+  path.resolve(__dirname, '../src/pages/oj/views/help/RemoteBridge.vue'),
+  'utf8'
+)
 
 function section (startMarker, endMarker) {
   const start = source.indexOf(startMarker)
@@ -28,6 +32,11 @@ function section (startMarker, endMarker) {
 
 assert.match(source, /^\/\/ @version\s+1\.0\.0$/m)
 assert.match(frontendBridge, /MINIMUM_BRIDGE_VERSION = \[1, 0, 0\]/)
+assert.match(frontendBridge, /export function requestRemoteBridgeStatus/)
+assert.match(frontendBridge, /export function subscribeRemoteBridgeReady/)
+assert.match(bridgeInstallPage, /@click="beginUserscriptActivation"/)
+assert.match(bridgeInstallPage, /document\.addEventListener\('visibilitychange', this\.handleActivationReturn\)/)
+assert.match(bridgeInstallPage, /window\.location\.reload\(\)/)
 
 const opener = section(
   'function openProviderActionTab',

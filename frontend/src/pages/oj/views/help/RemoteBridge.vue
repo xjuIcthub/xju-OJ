@@ -34,7 +34,8 @@
           <div>
             <h2>{{ $t('m.Remote_Bridge_Step_Userscript') }}</h2>
             <p>{{ $t('m.Remote_Bridge_Step_Userscript_Hint') }}</p>
-            <a class="bridge-button primary" :href="userscriptUrl" target="_blank" rel="noopener noreferrer">
+            <a class="bridge-button primary" :href="userscriptUrl" target="_blank" rel="noopener noreferrer"
+               @click="beginUserscriptActivation">
               {{ bridgeDetected ? $t('m.Remote_Bridge_Update_Userscript') : $t('m.Remote_Bridge_Install_Userscript') }}
             </a>
           </div>
@@ -60,11 +61,13 @@
 </template>
 
 <script>
-import { isRemoteBridgeDetected, isRemoteBridgeInstalled, remoteBridgeVersion } from '@oj/remoteBridge'
-
-const READY_ATTRIBUTE = 'data-xju-oj-remote-bridge-version'
-const READY_EVENT = 'xju-oj:remote-bridge:ready'
-const PING_EVENT = 'xju-oj:remote-bridge:ping'
+import {
+  isRemoteBridgeDetected,
+  isRemoteBridgeInstalled,
+  remoteBridgeVersion,
+  requestRemoteBridgeStatus,
+  subscribeRemoteBridgeReady
+} from '@oj/remoteBridge'
 
 export default {
   name: 'RemoteBridge',
@@ -74,6 +77,10 @@ export default {
       bridgeInstalled: false,
       bridgeVersion: '',
       checkTimer: null,
+      activationPending: false,
+      activationVersion: '',
+      activationCheckTimer: null,
+      unsubscribeBridgeReady: null,
       scriptCatUrl: 'https://microsoftedge.microsoft.com/addons/detail/scriptcat/liilgpjgabokdklappibcjfablkpcekh',
       userscriptUrl: '/static/userscripts/xju-oj-remote-bridge.user.js'
     }
@@ -89,24 +96,48 @@ export default {
     }
   },
   mounted () {
-    window.addEventListener(READY_EVENT, this.handleBridgeReady)
+    this.unsubscribeBridgeReady = subscribeRemoteBridgeReady(this.handleBridgeReady)
+    window.addEventListener('focus', this.handleActivationReturn)
+    document.addEventListener('visibilitychange', this.handleActivationReturn)
     this.checkBridge()
-    window.dispatchEvent(new Event(PING_EVENT))
+    requestRemoteBridgeStatus()
     this.checkTimer = window.setInterval(this.checkBridge, 1000)
   },
   beforeUnmount () {
-    window.removeEventListener(READY_EVENT, this.handleBridgeReady)
+    if (this.unsubscribeBridgeReady) this.unsubscribeBridgeReady()
+    window.removeEventListener('focus', this.handleActivationReturn)
+    document.removeEventListener('visibilitychange', this.handleActivationReturn)
     if (this.checkTimer) window.clearInterval(this.checkTimer)
+    if (this.activationCheckTimer) window.clearTimeout(this.activationCheckTimer)
   },
   methods: {
-    handleBridgeReady (event) {
-      const version = event && event.detail && event.detail.version
+    handleBridgeReady (detail) {
+      const version = detail && detail.version
       if (version) this.setInstalled(version)
       else this.checkBridge()
     },
     checkBridge () {
-      const version = document.documentElement.getAttribute(READY_ATTRIBUTE)
+      const version = remoteBridgeVersion()
       if (version) this.setBridgeVersion(version)
+    },
+    beginUserscriptActivation () {
+      this.activationPending = true
+      this.activationVersion = remoteBridgeVersion()
+    },
+    handleActivationReturn () {
+      if (!this.activationPending || document.hidden) return
+      if (this.activationCheckTimer) window.clearTimeout(this.activationCheckTimer)
+      requestRemoteBridgeStatus()
+      this.activationCheckTimer = window.setTimeout(() => {
+        this.activationCheckTimer = null
+        this.checkBridge()
+        const versionChanged = remoteBridgeVersion() && remoteBridgeVersion() !== this.activationVersion
+        if (versionChanged && isRemoteBridgeInstalled()) {
+          this.activationPending = false
+          return
+        }
+        window.location.reload()
+      }, 300)
     },
     setInstalled (version) {
       this.setBridgeVersion(version)

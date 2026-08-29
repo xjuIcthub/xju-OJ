@@ -1,5 +1,7 @@
 const TASK_SCHEMA = 'xju-oj.remote-submit.v1'
 const READY_ATTRIBUTE = 'data-xju-oj-remote-bridge-version'
+const READY_EVENT = 'xju-oj:remote-bridge:ready'
+const PING_EVENT = 'xju-oj:remote-bridge:ping'
 const SUBMIT_EVENT = 'xju-oj:remote-bridge:submit'
 const BRIDGE_EVENT = 'xju-oj:remote-bridge:event'
 const MINIMUM_BRIDGE_VERSION = [1, 0, 0]
@@ -37,6 +39,16 @@ export function isRemoteBridgeInstalled () {
     if (actual !== required) return actual > required
   }
   return true
+}
+
+export function requestRemoteBridgeStatus () {
+  window.dispatchEvent(new Event(PING_EVENT))
+}
+
+export function subscribeRemoteBridgeReady (handler) {
+  const listener = event => handler((event && event.detail) || {})
+  window.addEventListener(READY_EVENT, listener)
+  return () => window.removeEventListener(READY_EVENT, listener)
 }
 
 export function dispatchRemoteSubmission (task, code) {
