@@ -72,8 +72,7 @@
     </panel>
     <panel title="导入 ZIP 题库">
       <p class="import-description">
-        支持根目录单题 ZIP、由多个单题 ZIP 组成的批量 ZIP，以及旧版 QDUOJ 批量包。
-        导入过程原子执行，任一道题校验失败都会整体回滚。
+        支持根目录单题 ZIP、由多个单题 ZIP 组成的批量 ZIP。
       </p>
       <el-upload class="import-upload"
         ref="QDU"

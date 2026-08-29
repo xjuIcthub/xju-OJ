@@ -115,6 +115,17 @@
             ]
           },
           {
+            title: '版本 0.2.0 · 飞跃视觉体系迁移',
+            date: '2026-08',
+            level: '界面版本',
+            current: false,
+            details: [
+              '使用 XJU-Feiyue 设计体系统一公共 OJ 与管理后台的视觉语言。',
+              '完善 Lucide 图标、响应式导航、表格、弹窗和判题状态展示。',
+              '升级 Vue 3、Element Plus、Vite 与本地前端开发流程。'
+            ]
+          },
+          {
             title: '版本 0.1.0 · XJU-OJ 平台现代化',
             date: '2026-07',
             level: '基础版本',

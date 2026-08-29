@@ -43,14 +43,16 @@
 .icon-btn-control:hover,
 .icon-btn-control:focus-visible {
   color: var(--color-text);
-  border-color: var(--color-border);
-  background: var(--color-bg-subtle);
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 .icon-btn-control.is-danger { color: var(--oj-danger); }
 .icon-btn-control.is-danger:hover,
 .icon-btn-control.is-danger:focus-visible {
   color: var(--oj-danger);
-  border-color: rgba(224, 62, 62, .28);
-  background: var(--tag-research-bg);
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 </style>
