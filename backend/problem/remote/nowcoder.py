@@ -30,7 +30,7 @@ class NowcoderProblemError(RemoteProblemError):
 _NOWCODER_MATH_PATTERNS = (
     re.compile(r"\$\$.*?\$\$|\$[^$]+\$|\\\(.*?\\\)|\\\[.*?\\\]", re.S),
     re.compile(r"\\displaystyle.+$", re.S),
-    re.compile(r"\b[A-Za-z](?:\s*,\s*[A-Za-z])?\\left.*?\\right", re.S),
+    re.compile(r"\b[A-Za-z](?:\s*,\s*[A-Za-z])?\\left.*?\\right\\?[()\[\]{}|.]", re.S),
     re.compile(r"\b[A-Za-z](?:_[A-Za-z0-9]+)?\s*(?:=|\\in)\s*\\\{.*?\\\}", re.S),
     re.compile(r"\b[A-Za-z](?:_[A-Za-z0-9]+)?\s*\\equiv\s*.*?\\pmod\{.*?\}", re.S),
     re.compile(r"\\equiv\^\{\\texttt\{\[[^\]]+\]\}\}"),
@@ -45,6 +45,7 @@ def _normalize_nowcoder_math_text(value):
     def protect(match):
         token = f"NOWCODERMATHPLACEHOLDER{len(math_parts)}X"
         expression = match.group(0).strip()
+        expression = re.sub(r"(\\(?:left|right))\\([()\[\]|.])", r"\1\2", expression)
         if expression.startswith(("$", r"\(", r"\[")):
             math_parts.append(expression)
         else:
