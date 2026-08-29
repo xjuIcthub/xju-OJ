@@ -3,7 +3,7 @@
 // @name:zh-CN   XJU-OJ 远程提交助手
 // @name:en      XJU-OJ Remote Submission Bridge
 // @namespace    https://oj.icthub.top/
-// @version      0.6.2
+// @version      0.6.3
 // @description  在用户自己的洛谷、牛客和 Codeforces 登录会话中转发 XJU-OJ 练习提交。
 // @description:en Forward XJU-OJ practice submissions through the user's own Luogu, Nowcoder, and Codeforces sessions.
 // @author       XJU-OJ
@@ -634,20 +634,22 @@
     } catch (error) {
       const requestError = new Error('远程平台返回了无法解析的数据')
       requestError.response = response
+      requestError.status = response.status
       throw requestError
     }
   }
 
   async function gmJsonRequest (method, url, body = null, headers = {}) {
+    const requestHeaders = {
+      Accept: 'application/json, text/plain, */*'
+    }
+    if (body !== null) requestHeaders['Content-Type'] = 'application/json;charset=UTF-8'
+    Object.assign(requestHeaders, headers)
     const response = await gmRawRequest(
       method,
       url,
       body === null ? null : JSON.stringify(body),
-      {
-        Accept: 'application/json, text/plain, */*',
-        'Content-Type': 'application/json;charset=UTF-8',
-        ...headers
-      }
+      requestHeaders
     )
     const payload = responseJson(response)
     if (response.status < 200 || response.status >= 300) {
@@ -1124,6 +1126,14 @@
     )
   }
 
+  function luoguChallengeResponse (response) {
+    if (!response) return false
+    const html = String(response.responseText || '')
+    if (!html) return false
+    const root = new DOMParser().parseFromString(html, 'text/html')
+    return luoguChallengeVisible(root, html)
+  }
+
   function luoguCaptchaRequired (payload) {
     const errorType = String((payload && payload.errorType) || '')
     const errorData = (payload && payload.errorData) || {}
@@ -1403,7 +1413,8 @@
           else publishBridgeEvent(task, 'AUTH_REQUIRED', { message })
           return
         }
-        if (response && response.status >= 200 && response.status < 300) {
+        if (luoguChallengeResponse(response) ||
+            (response && (response.status === 403 || (response.status >= 200 && response.status < 300)))) {
           const message = '洛谷要求在浏览器页面完成安全验证'
           if (window.location.origin === OJ_ORIGIN) {
             openProviderActionTab(task, 'VERIFICATION_REQUIRED', message, {

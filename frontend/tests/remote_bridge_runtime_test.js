@@ -149,6 +149,7 @@ async function runScenario (provider, mode = 'success') {
   const backendEvents = []
   const openedTabs = []
   let codeforcesApiCalls = 0
+  let luoguRecordRequestHeaders = null
   let activeBackendRequests = 0
   let maxActiveBackendRequests = 0
 
@@ -235,6 +236,7 @@ async function runScenario (provider, mode = 'success') {
         return jsonResponse({ rid: 789 })
       }
       if (url.includes('/record/789')) {
+        luoguRecordRequestHeaders = request.headers || {}
         if (mode === 'auth') {
           return jsonResponse({ instance: 'auth', template: 'login', status: 200, data: {}, user: null })
         }
@@ -243,13 +245,12 @@ async function runScenario (provider, mode = 'success') {
         }
         const compileFailed = mode === 'compile-error'
         return jsonResponse({
-          instance: 'record',
-          template: 'record.show',
-          status: 200,
-          data: {
+          code: 200,
+          currentTemplate: 'RecordShow',
+          currentData: {
             record: {
               id: 789,
-              status: 2,
+              status: compileFailed ? 2 : 12,
               time: 1,
               memory: 1,
               score: compileFailed ? 0 : 100,
@@ -268,7 +269,7 @@ async function runScenario (provider, mode = 'success') {
               }
             }
           },
-          user: { uid: 1 }
+          currentUser: { uid: 1 }
         })
       }
     }
@@ -321,7 +322,7 @@ async function runScenario (provider, mode = 'success') {
       observe () {}
       disconnect () {}
     },
-    GM_info: { script: { version: '0.6.2' } },
+    GM_info: { script: { version: '0.6.3' } },
     GM_getValue: (key, fallback) => storage.has(key) ? storage.get(key) : fallback,
     GM_setValue: (key, value) => {
       const previous = storage.get(key)
@@ -359,7 +360,7 @@ async function runScenario (provider, mode = 'success') {
     ? 'FINISHED'
     : mode === 'auth' ? 'AUTH_REQUIRED' : 'VERIFICATION_REQUIRED'
   await waitFor(() => backendEvents.some(event => event.status === terminalStatus))
-  return { backendEvents, openedTabs, maxActiveBackendRequests }
+  return { backendEvents, openedTabs, maxActiveBackendRequests, luoguRecordRequestHeaders }
 }
 
 ;(async () => {
@@ -367,6 +368,15 @@ async function runScenario (provider, mode = 'success') {
     const result = await runScenario(provider)
     assert.equal(result.openedTabs.length, 0, `${provider} opened a tab for a normal submission`)
     assert.ok(result.backendEvents.some(event => event.status === 'FINISHED'))
+    if (provider === 'LUOGU') {
+      assert.ok(result.luoguRecordRequestHeaders)
+      assert.equal(
+        Object.keys(result.luoguRecordRequestHeaders)
+          .some(header => header.toLowerCase() === 'content-type'),
+        false,
+        'Luogu record GET must not send Content-Type; Luogu rejects it with HTTP 403'
+      )
+    }
     assert.equal(result.maxActiveBackendRequests, 1, `${provider} posted backend events concurrently`)
     assert.ok(
       result.backendEvents.findIndex(event => event.status === 'QUEUED') <

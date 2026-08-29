@@ -26,8 +26,8 @@ function section (startMarker, endMarker) {
   return source.slice(start, end)
 }
 
-assert.match(source, /^\/\/ @version\s+0\.6\.2$/m)
-assert.match(frontendBridge, /MINIMUM_BRIDGE_VERSION = \[0, 6, 2\]/)
+assert.match(source, /^\/\/ @version\s+0\.6\.3$/m)
+assert.match(frontendBridge, /MINIMUM_BRIDGE_VERSION = \[0, 6, 3\]/)
 
 const opener = section(
   'function openProviderActionTab',
