@@ -233,6 +233,14 @@ async function runScenario (provider, mode = 'success') {
         return { status: 200, responseText: 'LUOGU_PROBLEM', finalUrl: url }
       }
       if (request.method === 'POST' && url.includes('/fe/api/problem/submit/P1001')) {
+        if (mode === 'captcha-id') {
+          return jsonResponse({
+            errorType: 'Luogu\\Exception\\CaptchaNotMatchException',
+            errorData: { interactive: { type: 'TNSTL', state: 'captcha-state' } },
+            data: { id: 'captcha-challenge-id' },
+            message: '请完成人机验证'
+          }, { status: 403 })
+        }
         return jsonResponse({ rid: 789 })
       }
       if (url.includes('/record/789')) {
@@ -244,6 +252,21 @@ async function runScenario (provider, mode = 'success') {
           return { status: 200, responseText: '<html>browser verification</html>', finalUrl: url }
         }
         const compileFailed = mode === 'compile-error'
+        if (mode === 'direct-record') {
+          return jsonResponse({
+            code: 200,
+            currentTemplate: 'RecordShow',
+            currentData: {
+              id: 789,
+              status: 12,
+              time: 1,
+              memory: 1,
+              score: 100,
+              detail: { judgeResult: { finishedCaseCount: 2 } }
+            },
+            currentUser: { uid: 1 }
+          })
+        }
         return jsonResponse({
           code: 200,
           currentTemplate: 'RecordShow',
@@ -275,6 +298,7 @@ async function runScenario (provider, mode = 'success') {
     }
     if (provider === 'CODEFORCES') {
       if (request.method === 'GET' && url.includes('/problemset/problem/4/A')) {
+        if (mode === 'connection') throw new Error('network unavailable')
         return mode === 'verification'
           ? { status: 403, responseText: 'CF_CHALLENGE', finalUrl: url }
           : { status: 200, responseText: 'CF_PROBLEM', finalUrl: url }
@@ -296,6 +320,7 @@ async function runScenario (provider, mode = 'success') {
         })
       }
       if (request.method === 'POST' && url.includes('/problemset/submit')) {
+        if (mode === 'post-connection') throw new Error('connection lost after submit')
         return { status: 200, responseText: 'CF_SUBMIT', finalUrl: 'https://codeforces.com/submissions/tester' }
       }
     }
@@ -322,7 +347,7 @@ async function runScenario (provider, mode = 'success') {
       observe () {}
       disconnect () {}
     },
-    GM_info: { script: { version: '1.0.0' } },
+    GM_info: { script: { version: '1.0.1' } },
     GM_getValue: (key, fallback) => storage.has(key) ? storage.get(key) : fallback,
     GM_setValue: (key, value) => {
       const previous = storage.get(key)
@@ -356,9 +381,11 @@ async function runScenario (provider, mode = 'success') {
   assert.ok(submitHandler, 'submit listener was not installed')
   await submitHandler({ detail: { task: taskFor(provider), code: 'int main() { return 0; }' } })
 
-  const terminalStatus = mode === 'success' || mode === 'compile-error'
+  const terminalStatus = mode === 'success' || mode === 'compile-error' || mode === 'direct-record'
     ? 'FINISHED'
-    : mode === 'auth' ? 'AUTH_REQUIRED' : 'VERIFICATION_REQUIRED'
+    : mode === 'auth'
+      ? 'AUTH_REQUIRED'
+      : mode === 'connection' || mode === 'post-connection' ? 'OPENING' : 'VERIFICATION_REQUIRED'
   await waitFor(() => backendEvents.some(event => event.status === terminalStatus))
   return { backendEvents, openedTabs, maxActiveBackendRequests, luoguRecordRequestHeaders }
 }
@@ -408,10 +435,31 @@ async function runScenario (provider, mode = 'success') {
     'COMPILE_ERROR'
   )
 
+  const luoguDirectRecord = await runScenario('LUOGU', 'direct-record')
+  assert.equal(luoguDirectRecord.openedTabs.length, 0)
+  assert.equal(
+    luoguDirectRecord.backendEvents.find(event => event.status === 'FINISHED').verdict,
+    'ACCEPTED'
+  )
+
+  const luoguCaptchaId = await runScenario('LUOGU', 'captcha-id')
+  assert.equal(luoguCaptchaId.openedTabs.length, 1)
+  assert.ok(luoguCaptchaId.backendEvents.some(event => event.status === 'VERIFICATION_REQUIRED'))
+  assert.equal(luoguCaptchaId.backendEvents.some(event => event.status === 'SUBMITTED'), false)
+
   const codeforcesVerification = await runScenario('CODEFORCES', 'verification')
   assert.equal(codeforcesVerification.openedTabs.length, 1)
   assert.equal(codeforcesVerification.openedTabs[0].options.active, false)
   assert.ok(codeforcesVerification.backendEvents.some(event => event.status === 'VERIFICATION_REQUIRED'))
+
+  const codeforcesConnection = await runScenario('CODEFORCES', 'connection')
+  assert.equal(codeforcesConnection.openedTabs.length, 1)
+  assert.equal(codeforcesConnection.openedTabs[0].options.active, true)
+  assert.equal(codeforcesConnection.backendEvents.some(event => event.status === 'FAILED'), false)
+
+  const codeforcesPostConnection = await runScenario('CODEFORCES', 'post-connection')
+  assert.equal(codeforcesPostConnection.openedTabs.length, 1)
+  assert.equal(codeforcesPostConnection.backendEvents.some(event => event.status === 'FAILED'), false)
 
   console.log('remote bridge runtime passed')
 })().catch(error => {

@@ -4,7 +4,7 @@ const READY_EVENT = 'xju-oj:remote-bridge:ready'
 const PING_EVENT = 'xju-oj:remote-bridge:ping'
 const SUBMIT_EVENT = 'xju-oj:remote-bridge:submit'
 const BRIDGE_EVENT = 'xju-oj:remote-bridge:event'
-const MINIMUM_BRIDGE_VERSION = [1, 0, 0]
+const MINIMUM_BRIDGE_VERSION = [1, 0, 1]
 
 const EVENT_FIELDS = [
   'submission_id',

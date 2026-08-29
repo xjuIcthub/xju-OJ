@@ -3,7 +3,7 @@
 // @name:zh-CN   XJU-OJ 远程提交助手
 // @name:en      XJU-OJ Remote Submission Bridge
 // @namespace    https://oj.icthub.top/
-// @version      1.0.0
+// @version      1.0.1
 // @description  在用户自己的洛谷、牛客和 Codeforces 登录会话中转发 XJU-OJ 练习提交。
 // @description:en Forward XJU-OJ practice submissions through the user's own Luogu, Nowcoder, and Codeforces sessions.
 // @author       XJU-OJ
@@ -238,6 +238,20 @@
     })
   }
 
+  function openProviderRetryTab (task, message) {
+    const now = Date.now()
+    const previous = task.action_tab || {}
+    if (previous.status === 'OPENING' && now - Number(previous.opened_at || 0) < 10000) return
+    task.action_tab = { status: 'OPENING', opened_at: now }
+    saveTask(task)
+    publishBridgeEvent(task, 'OPENING', { message })
+    GM_openInTab(task.target_url, {
+      active: true,
+      insert: true,
+      setParent: true
+    })
+  }
+
   function codeforcesImportTarget (reference) {
     const value = String(reference || '').trim()
     let match
@@ -373,11 +387,15 @@
     const state = task.adapter_state || {}
     const deadline = Date.now() + 120000
     let submittedEventSent = Boolean(task.remote_submission_id)
+    let successfulPolls = 0
+    let connectionFailures = 0
     while (Date.now() < deadline) {
       let runs
       try {
         runs = await codeforcesSubmissions(state.handle)
+        successfulPolls += 1
       } catch (error) {
+        if (isRemoteConnectionError(error)) connectionFailures += 1
         const challengeResponse = error && error.response
         const challengeDocument = challengeResponse
           ? new DOMParser().parseFromString(challengeResponse.responseText || '', 'text/html')
@@ -455,6 +473,25 @@
         remote_submission_id: task.remote_submission_id,
         message: 'Codeforces 判题时间较长，请保留此标签页或稍后查看提交记录'
       })
+    } else if (!successfulPolls && connectionFailures) {
+      publishBridgeEvent(task, 'OPENING', {
+        message: '暂时无法连接 Codeforces 官方 API，提交任务已保留并将在稍后重试'
+      })
+      if (window.location.origin === OJ_ORIGIN) {
+        window.setTimeout(() => resumeOjJudgingTask(task), 4000)
+      } else {
+        window.setTimeout(() => pollCodeforcesRun(task), 4000)
+      }
+    } else if (state.connection_uncertain) {
+      task.adapter_state = {}
+      saveTask(task)
+      const message = 'Codeforces 未发现连接中断前的提交记录，已切换到原生页面重新提交'
+      if (window.location.origin === OJ_ORIGIN) {
+        openProviderRetryTab(task, message)
+      } else {
+        publishBridgeEvent(task, 'OPENING', { message })
+        window.setTimeout(() => bootCodeforcesTask(task), 4000)
+      }
     } else {
       publishBridgeEvent(task, 'FAILED', {
         message: 'Codeforces 官方 API 中没有找到本次提交，请先检查账号提交记录再重试'
@@ -578,8 +615,15 @@
       else form.submit()
       window.setTimeout(() => pollCodeforcesRun(task), 1200)
     } catch (error) {
-      publishBridgeEvent(task, 'FAILED', { message: error.message || 'Codeforces 提交失败' })
-      discardTask(task)
+      if (isRemoteConnectionError(error)) {
+        publishBridgeEvent(task, 'OPENING', {
+          message: '暂时无法连接 Codeforces，任务已保留并将在当前页面重试'
+        })
+        window.setTimeout(() => bootCodeforcesTask(task), 4000)
+      } else {
+        publishBridgeEvent(task, 'FAILED', { message: error.message || 'Codeforces 提交失败' })
+        discardTask(task)
+      }
     }
   }
 
@@ -614,6 +658,12 @@
 
   function gmRawRequest (method, url, data = null, headers = {}) {
     return new Promise((resolve, reject) => {
+      const rejectConnection = (message, response) => {
+        const requestError = new Error(message)
+        requestError.remoteConnection = true
+        if (response) requestError.response = response
+        reject(requestError)
+      }
       GM_xmlhttpRequest({
         method,
         url,
@@ -622,10 +672,14 @@
         timeout: 30000,
         withCredentials: true,
         onload: resolve,
-        onerror: () => reject(new Error('无法连接远程平台')),
-        ontimeout: () => reject(new Error('连接远程平台超时'))
+        onerror: response => rejectConnection('无法连接远程平台', response),
+        ontimeout: response => rejectConnection('连接远程平台超时', response)
       })
     })
+  }
+
+  function isRemoteConnectionError (error) {
+    return Boolean(error && error.remoteConnection)
   }
 
   function responseJson (response) {
@@ -716,6 +770,8 @@
       before_id: runs.reduce((maximum, run) => Math.max(maximum, Number(run.id || 0)), 0),
       started_at: Math.floor(Date.now() / 1000)
     }
+    task.adapter_state = { ...state, connection_uncertain: true }
+    saveTask(task)
     const submitResponse = await gmRawRequest('POST', action.toString(), body, {
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       Origin: 'https://codeforces.com',
@@ -1135,21 +1191,39 @@
   }
 
   function luoguCaptchaRequired (payload) {
-    const errorType = String((payload && payload.errorType) || '')
-    const errorData = (payload && payload.errorData) || {}
+    const nested = payload && payload.data && typeof payload.data === 'object'
+      ? payload.data
+      : {}
+    const errorType = String((payload && payload.errorType) || nested.errorType || '')
+    const errorData = (payload && payload.errorData) || nested.errorData || {}
+    const message = String(
+      (payload && (payload.message || payload.errorMessage)) ||
+      nested.message || nested.errorMessage || ''
+    )
     return errorType.endsWith('CaptchaNotMatchException') ||
       errorType.endsWith('InvalidCaptchaException') ||
-      Boolean(errorData.interactive || errorData.turnstile)
+      /captcha|turnstile|verification/i.test(errorType) ||
+      Boolean(errorData.interactive || errorData.turnstile || errorData.captcha) ||
+      /验证码|人机验证|captcha|turnstile/i.test(message)
   }
 
   function luoguAuthRequired (payload) {
-    const text = `${(payload && payload.errorType) || ''} ${(payload && payload.message) || ''}`.toLowerCase()
+    const nested = payload && payload.data && typeof payload.data === 'object'
+      ? payload.data
+      : {}
+    const text = (
+      `${(payload && payload.errorType) || nested.errorType || ''} ` +
+      `${(payload && (payload.message || payload.errorMessage)) || nested.message || nested.errorMessage || ''}`
+    ).toLowerCase()
     return text.includes('unauthorized') || text.includes('authentication') || text.includes('login') ||
       text.includes('未登录') || text.includes('登录')
   }
 
   function luoguSubmissionId (payload) {
+    if (!payload || luoguCaptchaRequired(payload) || luoguAuthRequired(payload)) return ''
     const body = (payload && payload.data) || payload || {}
+    if (payload.errorType || body.errorType || payload.error || body.error ||
+        payload.success === false || body.success === false) return ''
     return body.rid || body.recordId || body.id || ''
   }
 
@@ -1249,10 +1323,10 @@
     const containerKeys = ['record', 'submission', 'recordData', 'judgeRecord', 'detail']
     for (const root of roots) {
       if (!root || typeof root !== 'object' || Array.isArray(root)) continue
+      if (luoguLooksLikeRecord(root)) return root
       for (const key of containerKeys) {
         if (root[key] && typeof root[key] === 'object' && !Array.isArray(root[key])) return root[key]
       }
-      if (luoguLooksLikeRecord(root)) return root
       for (const key of ['result', 'data']) {
         const nested = root[key]
         if (!nested || typeof nested !== 'object' || Array.isArray(nested)) continue
@@ -1602,11 +1676,6 @@
     } catch (error) {
       throw new Error(`洛谷提交接口返回 HTTP ${response.status}`)
     }
-    const submissionId = luoguSubmissionId(payload)
-    if (submissionId) {
-      acceptLuoguSubmission(task, submissionId)
-      return true
-    }
     if (luoguCaptchaRequired(payload)) {
       await requestLuoguVerification(task, payload.message || '洛谷要求完成人机验证')
       return false
@@ -1617,6 +1686,11 @@
         return false
       }
       throw new Error('洛谷账号尚未登录或登录状态已失效')
+    }
+    const submissionId = luoguSubmissionId(payload)
+    if (submissionId) {
+      acceptLuoguSubmission(task, submissionId)
+      return true
     }
     throw new Error(payload.message || payload.errorMessage || `洛谷提交失败，HTTP ${response.status}`)
   }
@@ -1741,6 +1815,13 @@
           )
           return
         }
+      }
+      if (task.provider === 'CODEFORCES' && isRemoteConnectionError(error)) {
+        openProviderRetryTab(
+          task,
+          '暂时无法后台连接 Codeforces，已切换到原生页面继续提交'
+        )
+        return
       }
       publishBridgeEvent(task, 'FAILED', { message: error.message || '远程提交失败' })
       discardTask(task)

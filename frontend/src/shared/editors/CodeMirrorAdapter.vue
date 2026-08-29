@@ -245,7 +245,7 @@ export default {
 .cm6-adapter .cm-editor:focus,
 .cm6-adapter .cm-editor.cm-focused { outline: none !important; box-shadow: none !important; }
 .cm6-adapter .cm-gutters { background: transparent !important; }
-.cm6-adapter .cm-scroller { font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', 'Fira Code Nerd Font', 'Fira Code', 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace; font-variant-ligatures: contextual; }
+.cm6-adapter .cm-scroller { font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', 'Fira Code Nerd Font', 'Fira Code', 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace; font-variant-ligatures: none; }
 .cm6-adapter .cm-tooltip-autocomplete { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); box-shadow: 0 8px 20px rgba(55, 53, 47, .07); animation: cm-completion-in 150ms ease both; }
 .cm6-adapter .cm-tooltip-autocomplete > ul { min-width: 280px; max-width: min(420px, 80vw); max-height: 232px; padding: 4px; background: var(--color-bg); font-family: var(--font-sans); scrollbar-color: var(--color-border) var(--color-bg); scrollbar-width: thin; }
 .cm6-adapter .cm-tooltip-autocomplete > ul::-webkit-scrollbar { width: 8px; }
