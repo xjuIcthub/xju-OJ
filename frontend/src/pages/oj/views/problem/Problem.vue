@@ -239,6 +239,7 @@
         acceptedCelebrationKey: 0,
         acceptedCelebrationTimer: null,
         acceptedCelebrationResolve: null,
+        problemCodeSaveTimer: null,
         remoteBridgeUnsubscribe: null,
         remoteNoticeStatus: '',
         problemLoaded: false,
@@ -263,23 +264,45 @@
     },
     mounted () {
       this.remoteBridgeUnsubscribe = subscribeRemoteBridgeEvents(this.handleRemoteBridgeEvent)
-      const problemCode = storage.get(buildProblemCodeKey(this.$route.params.problemID, this.$route.params.contestID))
-      if (problemCode) {
-        this.language = problemCode.language
-        this.code = problemCode.code
-        this.theme = problemCode.theme
-      }
+      this.loadProblemCode(this.$route.params.problemID, this.$route.params.contestID)
+      window.addEventListener('pagehide', this.handlePageExit)
+      window.addEventListener('beforeunload', this.handlePageExit)
       this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {menu: false})
       this.init()
     },
     methods: {
       ...mapActions(['changeDomTitle']),
-      init () {
+      loadProblemCode (problemID, contestID) {
+        const problemCode = storage.get(buildProblemCodeKey(problemID, contestID))
+        this.code = problemCode && typeof problemCode.code === 'string' ? problemCode.code : ''
+        this.language = (problemCode && problemCode.language) || DEFAULT_PROBLEM_LANGUAGE
+        this.theme = (problemCode && problemCode.theme) || 'solarized'
+      },
+      persistProblemCode (problemID = this.problemID || this.$route.params.problemID,
+        contestID = this.contestID || this.$route.params.contestID) {
+        clearTimeout(this.problemCodeSaveTimer)
+        this.problemCodeSaveTimer = null
+        if (!problemID) return
+        storage.set(buildProblemCodeKey(problemID, contestID), {
+          code: this.code,
+          language: this.language,
+          theme: this.theme,
+          updated_at: Date.now()
+        })
+      },
+      scheduleProblemCodeSave () {
+        clearTimeout(this.problemCodeSaveTimer)
+        this.problemCodeSaveTimer = setTimeout(() => this.persistProblemCode(), 300)
+      },
+      handlePageExit () {
+        this.persistProblemCode()
+      },
+      init (route = this.$route) {
         this.$Loading.start()
         this.problemLoaded = false
-        this.contestID = this.$route.params.contestID
-        this.problemID = this.$route.params.problemID
-        let func = this.$route.name === 'problem-details' ? 'getProblem' : 'getContestProblem'
+        this.contestID = route.params.contestID
+        this.problemID = route.params.problemID
+        let func = route.name === 'problem-details' ? 'getProblem' : 'getContestProblem'
         api[func](this.problemID, this.contestID).then(res => {
           const problem = applyDevelopmentProblemFixture(res.data.data)
           if (problem) this.applyProblem(problem)
@@ -589,20 +612,30 @@
       clearTimeout(this.acceptedCelebrationTimer)
 
       this.$store.commit(types.CHANGE_CONTEST_ITEM_VISIBLE, {menu: true})
-      storage.set(buildProblemCodeKey(this.problem._id, from.params.contestID), {
-        code: this.code,
-        language: this.language,
-        theme: this.theme
-      })
+      this.persistProblemCode(from.params.problemID, from.params.contestID || null)
+    },
+    beforeRouteUpdate (to, from) {
+      this.persistProblemCode(from.params.problemID, from.params.contestID || null)
+      this.loadProblemCode(to.params.problemID, to.params.contestID)
+      this.init(to)
     },
     beforeUnmount () {
       clearTimeout(this.refreshStatus)
       clearTimeout(this.acceptedCelebrationTimer)
+      this.persistProblemCode()
+      window.removeEventListener('pagehide', this.handlePageExit)
+      window.removeEventListener('beforeunload', this.handlePageExit)
       if (this.remoteBridgeUnsubscribe) this.remoteBridgeUnsubscribe()
     },
     watch: {
-      '$route' () {
-        this.init()
+      code () {
+        this.scheduleProblemCodeSave()
+      },
+      language () {
+        this.scheduleProblemCodeSave()
+      },
+      theme () {
+        this.scheduleProblemCodeSave()
       }
     }
   }
