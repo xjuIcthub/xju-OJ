@@ -232,22 +232,38 @@ class TestCaseUploadAPITest(APITestCase):
                     self.assertEqual(f.read(), name + "\n" + name + "\n" + "end")
 
 
-class ProblemAdminAPITest(APITestCase):
+class ProblemAdminAPITest(ProblemCreateTestBase):
     def setUp(self):
         self.url = self.reverse("problem_admin_api")
-        self.create_super_admin()
+        self.admin = self.create_super_admin()
         self.data = copy.deepcopy(DEFAULT_PROBLEM_DATA)
 
     def test_create_problem(self):
         resp = self.client.post(self.url, data=self.data)
         self.assertSuccess(resp)
+        self.assertEqual(resp.data["data"]["_id"], "1001")
         return resp
 
-    def test_duplicate_display_id(self):
+    def test_display_id_is_assigned_sequentially(self):
         self.test_create_problem()
-
         resp = self.client.post(self.url, data=self.data)
-        self.assertFailed(resp, "Display ID already exists")
+        self.assertSuccess(resp)
+        self.assertEqual(resp.data["data"]["_id"], "1002")
+
+    def test_remote_problem_does_not_advance_local_display_id(self):
+        remote_data = copy.deepcopy(DEFAULT_PROBLEM_DATA)
+        remote_data.update({
+            "_id": "CF4A",
+            "judge_mode": ProblemJudgeMode.REMOTE,
+            "remote_oj": RemoteOJ.CODEFORCES,
+            "remote_problem_id": "4A",
+            "test_case_id": "",
+            "test_case_score": [],
+        })
+        self.add_problem(remote_data, self.admin)
+        resp = self.client.post(self.url, data=self.data)
+        self.assertSuccess(resp)
+        self.assertEqual(resp.data["data"]["_id"], "1001")
 
     def test_spj(self):
         data = copy.deepcopy(self.data)
@@ -273,9 +289,11 @@ class ProblemAdminAPITest(APITestCase):
     def test_edit_problem(self):
         problem_id = self.test_create_problem().data["data"]["id"]
         data = copy.deepcopy(self.data)
+        data["_id"] = "9999"
         data["id"] = problem_id
         resp = self.client.put(self.url, data=data)
         self.assertSuccess(resp)
+        self.assertEqual(Problem.objects.get(id=problem_id)._id, "1001")
 
 
 class NowcoderProblemImportTest(APITestCase):
@@ -364,10 +382,9 @@ class NowcoderProblemImportTest(APITestCase):
         resp = self.client.post(self.url, data={
             "provider": RemoteOJ.NOWCODER,
             "remote_id": NOWCODER_PROBLEM_UUID,
-            "display_id": "NC-TEST",
         })
         self.assertSuccess(resp)
-        problem = Problem.objects.get(_id="NC-TEST")
+        problem = Problem.objects.get(_id="NC11742270")
         self.assertEqual(problem.judge_mode, ProblemJudgeMode.REMOTE)
         self.assertEqual(problem.remote_oj, RemoteOJ.NOWCODER)
         self.assertEqual(problem.remote_problem_id, NOWCODER_PROBLEM_UUID)
@@ -379,7 +396,6 @@ class NowcoderProblemImportTest(APITestCase):
         duplicate = self.client.post(self.url, data={
             "provider": RemoteOJ.NOWCODER,
             "remote_id": NOWCODER_PROBLEM_UUID,
-            "display_id": "NC-TEST-2",
         })
         self.assertFailed(duplicate, "Remote problem already exists")
 
@@ -389,7 +405,6 @@ class NowcoderProblemImportTest(APITestCase):
             data={
                 "problem_id": problem.id,
                 "contest_id": contest.id,
-                "display_id": "A",
             },
         )
         self.assertSuccess(add_to_contest)
@@ -404,10 +419,9 @@ class NowcoderProblemImportTest(APITestCase):
         def remote_problem(provider, reference):
             remote_id = "P1001" if provider == RemoteOJ.LUOGU else "4A"
             title = "A+B Problem" if provider == RemoteOJ.LUOGU else "Watermelon"
-            prefix = "LG" if provider == RemoteOJ.LUOGU else "CF"
             return {
                 "remote_id": remote_id,
-                "default_display_id": f"{prefix}-{remote_id}",
+                "default_display_id": f"LG{remote_id}" if provider == RemoteOJ.LUOGU else f"CF{remote_id}",
                 "title": title,
                 "description": "<p>Description</p>",
                 "input_description": "<p>Input</p>",
@@ -425,12 +439,11 @@ class NowcoderProblemImportTest(APITestCase):
 
         mock_fetch.side_effect = remote_problem
         for provider, expected_id in (
-                (RemoteOJ.LUOGU, "LG-P1001"),
-                (RemoteOJ.CODEFORCES, "CF-4A")):
+                (RemoteOJ.LUOGU, "LGP1001"),
+                (RemoteOJ.CODEFORCES, "CF4A")):
             response = self.client.post(self.url, data={
                 "provider": provider,
-                "remote_id": expected_id.split("-", 1)[1],
-                "display_id": "",
+                "remote_id": "P1001" if provider == RemoteOJ.LUOGU else "4A",
             })
             self.assertSuccess(response)
             problem = Problem.objects.get(_id=expected_id)
@@ -448,11 +461,10 @@ class NowcoderProblemImportTest(APITestCase):
         response = self.client.post(self.url, data={
             "provider": RemoteOJ.CODEFORCES,
             "remote_id": "4A",
-            "display_id": "CF-BROWSER-4A",
             "page_html": CODEFORCES_PROBLEM_HTML,
         })
         self.assertSuccess(response)
-        problem = Problem.objects.get(_id="CF-BROWSER-4A")
+        problem = Problem.objects.get(_id="CF4A")
         self.assertEqual(problem.remote_oj, RemoteOJ.CODEFORCES)
         self.assertEqual(problem.remote_problem_id, "4A")
         self.assertEqual(problem.title, "Watermelon")
@@ -464,7 +476,7 @@ class NowcoderProblemImportTest(APITestCase):
     def test_import_new_remote_problem_into_contest_and_publish_after_end(self, mock_fetch):
         mock_fetch.return_value = {
             "remote_id": "71A",
-            "default_display_id": "CF-71A",
+            "default_display_id": "CF71A",
             "title": "Way Too Long Words",
             "description": "<p>Description</p>",
             "input_description": "<p>Input</p>",
@@ -488,14 +500,12 @@ class NowcoderProblemImportTest(APITestCase):
         response = self.client.post(self.url, data={
             "provider": RemoteOJ.CODEFORCES,
             "remote_id": "71A",
-            "display_id": "",
             "contest_id": contest.id,
-            "public_display_id": "CF-71A",
         })
         self.assertSuccess(response)
         contest_problem = Problem.objects.get(contest=contest, _id="A")
         self.assertTrue(contest_problem.publish_after_contest)
-        self.assertEqual(contest_problem.post_contest_display_id, "CF-71A")
+        self.assertEqual(contest_problem.post_contest_display_id, "CF71A")
         self.assertFalse(Problem.objects.filter(contest_id__isnull=True, remote_problem_id="71A").exists())
 
         contest.end_time = timezone.now() - timedelta(seconds=1)
@@ -503,7 +513,7 @@ class NowcoderProblemImportTest(APITestCase):
         published = publish_due_contest_problems([contest.id])
         self.assertEqual(len(published), 1)
         public_problem = Problem.objects.get(contest_id__isnull=True, remote_problem_id="71A")
-        self.assertEqual(public_problem._id, "CF-71A")
+        self.assertEqual(public_problem._id, "CF71A")
         self.assertTrue(public_problem.visible)
         contest_problem.refresh_from_db()
         self.assertTrue(contest_problem.is_public)
@@ -537,6 +547,7 @@ class ContestProblemAdminTest(APITestCase):
         data["contest_id"] = self.contest["id"]
         resp = self.client.post(self.url, data=data)
         self.assertSuccess(resp)
+        self.assertEqual(resp.data["data"]["_id"], "A")
         return resp.data["data"]
 
     def test_get_contest_problem(self):
@@ -604,7 +615,6 @@ class AddProblemFromPublicProblemAPITest(ProblemCreateTestBase):
         self.problem = self.add_problem(DEFAULT_PROBLEM_DATA, admin)
         self.url = self.reverse("add_contest_problem_from_public_api")
         self.data = {
-            "display_id": "1000",
             "contest_id": self.contest["id"],
             "problem_id": self.problem.id
         }
@@ -616,7 +626,6 @@ class AddProblemFromPublicProblemAPITest(ProblemCreateTestBase):
         self.assertTrue(Problem.objects.filter(contest_id=self.contest["id"]).exists())
 
     def test_add_contest_problem_assigns_next_letter(self):
-        self.data["display_id"] = ""
         resp = self.client.post(self.url, data=self.data)
         self.assertSuccess(resp)
         self.assertTrue(Problem.objects.filter(contest_id=self.contest["id"], _id="A").exists())

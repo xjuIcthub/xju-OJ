@@ -12,7 +12,7 @@ def fetch_remote_problem(provider, reference, page_html=""):
     if provider == "NOWCODER":
         problem = fetch_nowcoder_problem(reference)
         is_acm_problem = problem.get("kind") == "acm"
-        default_display_id = problem["remote_id"] if is_acm_problem else f"NC-{problem['question_id']}"
+        default_display_id = problem["remote_id"] if is_acm_problem else f"NC{problem['question_id']}"
         return {
             **problem,
             "remote_id": problem["remote_id"],
@@ -43,7 +43,7 @@ def fetch_remote_problem(provider, reference, page_html=""):
             difficulty = Difficulty.MID
         return {
             **problem,
-            "default_display_id": f"LG-{problem['remote_id']}",
+            "default_display_id": f"LG{problem['remote_id']}",
             "tag": "洛谷",
             "source": f"洛谷 {problem['remote_id']}",
             "difficulty": difficulty,
@@ -70,7 +70,7 @@ def fetch_remote_problem(provider, reference, page_html=""):
             difficulty = Difficulty.MID
         return {
             **problem,
-            "default_display_id": f"CF-{problem['remote_id']}",
+            "default_display_id": f"CF{problem['remote_id']}",
             "tag": "Codeforces",
             "source": f"Codeforces {problem['remote_id']}",
             "difficulty": difficulty,

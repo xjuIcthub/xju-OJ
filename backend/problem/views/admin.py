@@ -56,6 +56,28 @@ def _next_contest_display_id(contest):
         index += 1
 
 
+def _next_public_display_id():
+    local_problem_count = Problem.objects.filter(
+        contest_id__isnull=True,
+        judge_mode=ProblemJudgeMode.LOCAL,
+    ).count()
+    candidate = 1001 + local_problem_count
+    while Problem.objects.filter(_id=str(candidate), contest_id__isnull=True).exists():
+        candidate += 1
+    return str(candidate)
+
+
+def _remote_problem_display_id(problem):
+    remote_id = str(problem.remote_problem_id or "").strip()
+    if problem.remote_oj == "NOWCODER":
+        return remote_id if remote_id.upper().startswith("NC") else f"NC{remote_id}"
+    if problem.remote_oj == "LUOGU":
+        return f"LG{remote_id}"
+    if problem.remote_oj == "CODEFORCES":
+        return f"CF{remote_id}"
+    return _next_public_display_id()
+
+
 class TestCaseZipProcessor(object):
     def process_zip(self, uploaded_zip_file, spj, dir=""):
         try:
@@ -226,11 +248,7 @@ class ProblemAPI(ProblemBase):
     @validate_serializer(CreateProblemSerializer)
     def post(self, request):
         data = request.data
-        _id = data["_id"]
-        if not _id:
-            return self.error("Display ID is required")
-        if Problem.objects.filter(_id=_id, contest_id__isnull=True).exists():
-            return self.error("Display ID already exists")
+        data["_id"] = _next_public_display_id()
 
         error_info = self.common_checks(request)
         if error_info:
@@ -289,11 +307,7 @@ class ProblemAPI(ProblemBase):
         except Problem.DoesNotExist:
             return self.error("Problem does not exist")
 
-        _id = data["_id"]
-        if not _id:
-            return self.error("Display ID is required")
-        if Problem.objects.exclude(id=problem_id).filter(_id=_id, contest_id__isnull=True).exists():
-            return self.error("Display ID already exists")
+        data["_id"] = problem._id
 
         error_info = self.common_checks(request)
         if error_info:
@@ -360,9 +374,8 @@ class RemoteProblemImportAPI(APIView):
                 return self.error("Contest has ended")
             if contest.rule_type != ProblemRuleType.ACM:
                 return self.error("Remote problems only support ACM contests")
-            if not data["display_id"]:
-                data["display_id"] = _next_contest_display_id(contest)
-            if Problem.objects.filter(contest=contest, _id=data["display_id"]).exists():
+            contest_display_id = _next_contest_display_id(contest)
+            if Problem.objects.filter(contest=contest, _id=contest_display_id).exists():
                 return self.error("Duplicate display id in this contest")
             if Problem.objects.filter(
                 contest=contest,
@@ -380,8 +393,8 @@ class RemoteProblemImportAPI(APIView):
         if contest is None and public_problem is not None:
             return self.error("Remote problem already exists")
 
-        display_id = data["display_id"] or remote["default_display_id"]
-        future_public_id = data.get("public_display_id") or remote["default_display_id"]
+        display_id = contest_display_id if contest is not None else remote["default_display_id"]
+        future_public_id = remote["default_display_id"]
         if contest is None and Problem.objects.filter(_id=display_id, contest_id__isnull=True).exists():
             return self.error("Display ID already exists")
         if contest is not None and public_problem is None and Problem.objects.filter(
@@ -462,7 +475,7 @@ class ContestProblemAPI(ProblemBase):
         if data["rule_type"] != contest.rule_type:
             return self.error("Invalid rule type")
 
-        _id = data["_id"] or _next_contest_display_id(contest)
+        _id = _next_contest_display_id(contest)
         data["_id"] = _id
 
         if Problem.objects.filter(_id=_id, contest=contest).exists():
@@ -534,11 +547,7 @@ class ContestProblemAPI(ProblemBase):
         except Problem.DoesNotExist:
             return self.error("Problem does not exist")
 
-        _id = data["_id"]
-        if not _id:
-            return self.error("Display ID is required")
-        if Problem.objects.exclude(id=problem_id).filter(_id=_id, contest=contest).exists():
-            return self.error("Display ID already exists")
+        data["_id"] = problem._id
 
         error_info = self.common_checks(request)
         if error_info:
@@ -583,9 +592,6 @@ class MakeContestProblemPublicAPIView(APIView):
     @problem_permission_required
     def post(self, request):
         data = request.data
-        display_id = data.get("display_id")
-        if Problem.objects.filter(_id=display_id, contest_id__isnull=True).exists():
-            return self.error("Duplicate display ID")
 
         try:
             problem = Problem.objects.get(id=data["id"])
@@ -595,6 +601,13 @@ class MakeContestProblemPublicAPIView(APIView):
         if not problem.contest or problem.is_public:
             return self.error("Already be a public problem")
         ensure_created_by(problem.contest, request.user)
+        display_id = (
+            _remote_problem_display_id(problem)
+            if problem.judge_mode == ProblemJudgeMode.REMOTE
+            else _next_public_display_id()
+        )
+        if Problem.objects.filter(_id=display_id, contest_id__isnull=True).exists():
+            return self.error("Display ID already exists")
         problem.is_public = True
         problem.publish_after_contest = False
         problem.post_contest_display_id = None
@@ -630,7 +643,7 @@ class AddContestProblemAPI(APIView):
 
         if contest.status == ContestStatus.CONTEST_ENDED:
             return self.error("Contest has ended")
-        display_id = data["display_id"] or _next_contest_display_id(contest)
+        display_id = _next_contest_display_id(contest)
         if Problem.objects.filter(contest=contest, _id=display_id).exists():
             return self.error("Duplicate display id in this contest")
 

@@ -113,9 +113,9 @@
   import { collectCodeforcesProblemPage, supportsRemoteProblemImport } from '../../remoteBridge'
 
   const remoteProviders = [
-    { value: 'NOWCODER', short: 'NC', name: '牛客', description: '导入公开编程题并绑定牛客远程判题', placeholder: 'NC322024 或 ACM 题目链接' },
-    { value: 'LUOGU', short: 'LG', name: '洛谷', description: '导入洛谷公开题面与样例', placeholder: 'P1001 或洛谷题目链接' },
-    { value: 'CODEFORCES', short: 'CF', name: 'Codeforces', description: '通过远程助手读取 Codeforces 题面', placeholder: '4A 或 Codeforces 题目链接' }
+    { value: 'NOWCODER', short: 'NC', name: '牛客', description: '导入公开编程题并绑定牛客远程判题', placeholder: '题目链接' },
+    { value: 'LUOGU', short: 'LG', name: '洛谷', description: '导入洛谷公开题面与样例', placeholder: '题目链接' },
+    { value: 'CODEFORCES', short: 'CF', name: 'Codeforces', description: '通过远程助手读取 Codeforces 题面', placeholder: '题目链接' }
   ]
 
   export default {
@@ -168,7 +168,7 @@
       async importRemoteProblem (provider) {
         const reference = this.remoteImports[provider].trim()
         if (!reference) {
-          this.$error('请输入外部题号或链接')
+          this.$error('请输入题目链接')
           return
         }
         this.remoteImportLoading[provider] = true
@@ -181,9 +181,7 @@
           await api.importRemoteProblem({
             provider,
             remote_id: reference,
-            display_id: '',
             contest_id: null,
-            public_display_id: '',
             page_html: pageHtml
           })
           this.remoteImports[provider] = ''

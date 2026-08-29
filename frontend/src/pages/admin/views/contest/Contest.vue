@@ -1,77 +1,105 @@
 <template>
-  <div class="view">
+  <div class="contest-editor">
     <Panel :title="title">
-      <el-form label-position="top">
-        <el-row :gutter="20">
-          <el-col :span="24">
+      <el-form class="contest-form" label-position="top">
+        <section class="form-section">
+          <div class="section-heading">
+            <div>
+              <h3>基本信息</h3>
+              <p>设置比赛名称、开放时间和访问凭据。</p>
+            </div>
+          </div>
+
+          <div class="field-grid identity-grid">
             <el-form-item :label="$t('m.ContestTitle')" required>
               <el-input v-model="contest.title" :placeholder="$t('m.ContestTitle')"></el-input>
             </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item :label="$t('m.ContestDescription')" required>
-              <Simditor v-model="contest.description"></Simditor>
+            <el-form-item :label="$t('m.Contest_Password')">
+              <el-input
+                v-model="contest.password"
+                clearable
+                show-password
+                placeholder="不填写则无需密码">
+              </el-input>
             </el-form-item>
-          </el-col>
-          <el-col :span="8">
+          </div>
+
+          <div class="field-grid time-grid">
             <el-form-item :label="$t('m.Contest_Start_Time')" required>
               <el-date-picker
                 v-model="contest.start_time"
+                class="full-control"
                 type="datetime"
                 :placeholder="$t('m.Contest_Start_Time')">
               </el-date-picker>
             </el-form-item>
-          </el-col>
-          <el-col :span="8">
             <el-form-item :label="$t('m.Contest_End_Time')" required>
               <el-date-picker
                 v-model="contest.end_time"
+                class="full-control"
                 type="datetime"
                 :placeholder="$t('m.Contest_End_Time')">
               </el-date-picker>
             </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item :label="$t('m.Contest_Password')">
-              <el-input v-model="contest.password" :placeholder="$t('m.Contest_Password')"></el-input>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <div class="inline-setting">
-              <span>{{ $t('m.Contest_Rule_Type') }}</span>
-              <el-radio-group v-model="contest.rule_type" :disabled="disableRuleType">
-                <el-radio class="radio rule-type-acm" label="ACM">ACM</el-radio>
-                <el-radio class="radio rule-type-oi" label="OI">OI</el-radio>
-              </el-radio-group>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <div>
+              <h3>比赛设置</h3>
+              <p>确定计分规则、排名更新方式和比赛可见状态。</p>
             </div>
-          </el-col>
-          <el-col :span="8">
-            <div class="inline-setting">
-              <span>{{ $t('m.Real_Time_Rank') }}</span>
-              <el-switch
-                v-model="contest.real_time_rank"
-                active-color="#13ce66"
-                inactive-color="#ff4949">
-              </el-switch>
+          </div>
+
+          <div class="setting-grid">
+            <div class="setting-card">
+              <span class="setting-copy">
+                <strong>{{ $t('m.Contest_Rule_Type') }}</strong>
+                <small>创建后不可更改</small>
+              </span>
+              <el-select v-model="contest.rule_type" class="rule-select" :disabled="disableRuleType">
+                <el-option label="ACM" value="ACM"></el-option>
+                <el-option label="OI" value="OI"></el-option>
+              </el-select>
             </div>
-          </el-col>
-          <el-col :span="8">
-            <div class="inline-setting">
-              <span>{{ $t('m.Contest_Status') }}</span>
-              <el-switch
-                v-model="contest.visible"
-                active-text=""
-                inactive-text="">
-              </el-switch>
+            <div class="setting-card">
+              <span class="setting-copy">
+                <strong>{{ $t('m.Real_Time_Rank') }}</strong>
+                <small>比赛期间实时更新排名</small>
+              </span>
+              <el-switch v-model="contest.real_time_rank"></el-switch>
             </div>
-          </el-col>
-        </el-row>
+            <div class="setting-card">
+              <span class="setting-copy">
+                <strong>{{ $t('m.Contest_Status') }}</strong>
+                <small>允许用户看到并进入比赛</small>
+              </span>
+              <el-switch v-model="contest.visible"></el-switch>
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section description-section">
+          <div class="section-heading">
+            <div>
+              <h3>{{ $t('m.ContestDescription') }}</h3>
+              <p>填写比赛说明、规则补充和其他参赛须知。</p>
+            </div>
+          </div>
+          <Simditor v-model="contest.description"></Simditor>
+        </section>
+
+        <ContestProblemComposer
+          v-if="isCreate"
+          ref="problemComposer"
+          v-model="problemPlan"
+          :rule-type="contest.rule_type" />
+
+        <div class="form-actions">
+          <save :disabled="saving" @click="saveContest"></save>
+        </div>
       </el-form>
-      <ContestProblemComposer v-if="isCreate"
-                              ref="problemComposer"
-                              v-model="problemPlan"
-                              :rule-type="contest.rule_type" />
-      <save @click="saveContest"></save>
     </Panel>
   </div>
 </template>
@@ -89,7 +117,7 @@
     },
     data () {
       return {
-        title: 'Create Contest',
+        title: '创建比赛',
         disableRuleType: false,
         problemPlan: [],
         saving: false,
@@ -148,7 +176,7 @@
     },
     mounted () {
       if (this.$route.name === 'edit-contest') {
-        this.title = 'Edit Contest'
+        this.title = '编辑比赛'
         this.disableRuleType = true
         api.getContest(this.$route.params.contestId).then(res => {
           this.contest = res.data.data
@@ -160,9 +188,37 @@
 </script>
 
 <style scoped lang="less">
-:deep(.rule-type-acm .el-radio__label) { color: #b7791f; font-weight: 700; }
-:deep(.rule-type-oi .el-radio__label) { color: #7656c9; font-weight: 700; }
-.inline-setting { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; padding: 0 13px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); }
-.inline-setting > span { color: var(--color-text-muted); font-size: 13px; font-weight: 600; }
-:deep(.inline-setting .el-radio) { margin-right: 12px; }
+  .contest-editor { --form-gap: 18px; }
+  .contest-form { display: grid; gap: 18px; }
+  .form-section { padding: 20px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+  .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+  .section-heading h3 { margin: 0; color: var(--color-text); font-size: 16px; font-weight: 680; }
+  .section-heading p { margin: 4px 0 0; color: var(--color-text-muted); font-size: 12px; line-height: 1.55; }
+  .field-grid { display: grid; gap: 0 var(--form-gap); }
+  .identity-grid { grid-template-columns: minmax(0, 3fr) minmax(220px, 1fr); }
+  .time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .full-control { width: 100%; }
+  .setting-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .setting-card { display: flex; min-height: 66px; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-subtle); }
+  .setting-copy, .setting-copy strong, .setting-copy small { display: block; }
+  .setting-copy { min-width: 0; flex: 1; }
+  .setting-copy strong { color: var(--color-text); font-size: 13px; }
+  .setting-copy small { margin-top: 3px; color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
+  .form-actions { display: flex; justify-content: flex-end; padding: 2px 0 6px; }
+
+  :deep(.el-form-item) { min-width: 0; }
+  :deep(.el-form-item__label) { color: var(--color-text-muted); font-size: 12px; font-weight: 620; }
+  :deep(.el-input), :deep(.el-select), :deep(.el-date-editor) { width: 100%; }
+  :deep(.setting-card .el-select.rule-select) { width: 108px; flex: none; }
+
+  @media (max-width: 1000px) {
+    .setting-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 760px) {
+    .form-section { padding: 15px; }
+    .identity-grid, .time-grid { grid-template-columns: 1fr; }
+    .section-heading { align-items: flex-start; }
+    .setting-card { min-height: 62px; }
+  }
 </style>

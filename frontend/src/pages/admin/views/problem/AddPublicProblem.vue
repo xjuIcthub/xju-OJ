@@ -84,8 +84,7 @@
       handleAddProblem (problemID) {
         api.addProblemFromPublic({
           problem_id: problemID,
-          contest_id: this.contestID,
-          display_id: ''
+          contest_id: this.contestID
         }).then(() => {
           this.$emit('on-change')
           this.$success('Problem added with the next contest display ID')

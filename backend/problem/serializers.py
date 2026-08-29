@@ -47,7 +47,8 @@ class ProblemIOModeSerializer(serializers.Serializer):
 
 
 class CreateOrEditProblemSerializer(serializers.Serializer):
-    _id = serializers.CharField(max_length=32, allow_blank=True, allow_null=True)
+    _id = serializers.CharField(max_length=32, allow_blank=True, allow_null=True,
+                                required=False, default="")
     title = serializers.CharField(max_length=1024)
     description = serializers.CharField()
     input_description = serializers.CharField()
@@ -116,9 +117,7 @@ class EditContestProblemSerializer(CreateOrEditProblemSerializer):
 class RemoteProblemImportSerializer(serializers.Serializer):
     provider = serializers.ChoiceField(choices=RemoteOJ.choices())
     remote_id = serializers.CharField(max_length=512)
-    display_id = serializers.CharField(max_length=32, allow_blank=True, required=False, default="")
     contest_id = serializers.IntegerField(required=False, allow_null=True, default=None)
-    public_display_id = serializers.CharField(max_length=32, allow_blank=True, required=False, default="")
     page_html = serializers.CharField(max_length=2 * 1024 * 1024, allow_blank=True,
                                       required=False, default="", trim_whitespace=False)
 
@@ -173,7 +172,6 @@ class ProblemSafeSerializer(BaseProblemSerializer):
 
 class ContestProblemMakePublicSerializer(serializers.Serializer):
     id = serializers.IntegerField()
-    display_id = serializers.CharField(max_length=32)
 
 
 class ExportProblemSerializer(serializers.ModelSerializer):
@@ -235,7 +233,6 @@ class ExportProblemSerializer(serializers.ModelSerializer):
 class AddContestProblemSerializer(serializers.Serializer):
     contest_id = serializers.IntegerField()
     problem_id = serializers.IntegerField()
-    display_id = serializers.CharField(allow_blank=True, required=False, default="")
 
 
 class ExportProblemRequestSerialzier(serializers.Serializer):

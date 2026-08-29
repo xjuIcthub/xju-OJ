@@ -67,17 +67,19 @@
                   width="680px"
                   :visible="remoteDialogVisible"
                   @update:visible="remoteDialogVisible = $event">
-      <div class="provider-cards">
-        <button v-for="provider in providers"
-                :key="provider.value"
-                type="button"
-                :class="['provider-card', `provider-${provider.value.toLowerCase()}`, { active: remoteProvider === provider.value }]"
-                @click="remoteProvider = provider.value">
-          <strong>{{ provider.name }}</strong>
-          <small>{{ provider.hint }}</small>
-        </button>
-      </div>
-      <el-input v-model="remoteReference" :placeholder="remotePlaceholder" @keyup.enter="addRemoteProblem"></el-input>
+      <el-form label-position="top" class="remote-problem-form">
+        <el-form-item label="来源平台" required>
+          <el-select v-model="remoteProvider" style="width: 100%">
+            <el-option v-for="provider in providers"
+                       :key="provider.value"
+                       :label="provider.name"
+                       :value="provider.value"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="题目链接" required>
+          <el-input v-model="remoteReference" placeholder="题目链接" @keyup.enter="addRemoteProblem"></el-input>
+        </el-form-item>
+      </el-form>
       <template #footer>
         <cancel @click="remoteDialogVisible = false"></cancel>
         <el-button type="primary" @click="addRemoteProblem">加入比赛</el-button>
@@ -91,9 +93,9 @@ import api from '../../api.js'
 import { collectCodeforcesProblemPage, supportsRemoteProblemImport } from '../../remoteBridge'
 
 const providers = [
-  { value: 'NOWCODER', name: '牛客', hint: 'NC322024 或 ACM 题目链接' },
-  { value: 'LUOGU', name: '洛谷', hint: 'P1001 或题目链接' },
-  { value: 'CODEFORCES', name: 'Codeforces', hint: '4A 或题目链接' }
+  { value: 'NOWCODER', name: '牛客' },
+  { value: 'LUOGU', name: '洛谷' },
+  { value: 'CODEFORCES', name: 'Codeforces' }
 ]
 
 function indexToLabel (index) {
@@ -130,14 +132,7 @@ export default {
     }
   },
   computed: {
-    items () { return this.modelValue },
-    remotePlaceholder () {
-      return {
-        NOWCODER: 'NC322024 或 https://ac.nowcoder.com/acm/problem/322024',
-        LUOGU: 'P1001 或 https://www.luogu.com.cn/problem/P1001',
-        CODEFORCES: '4A 或 https://codeforces.com/problemset/problem/4/A'
-      }[this.remoteProvider]
-    }
+    items () { return this.modelValue }
   },
   methods: {
     displayId: indexToLabel,
@@ -199,7 +194,7 @@ export default {
     addRemoteProblem () {
       const reference = this.remoteReference.trim()
       if (!reference) {
-        this.$error('请输入外部题号或链接')
+        this.$error('请输入题目链接')
         return
       }
       const key = `REMOTE:${this.remoteProvider}:${reference.toLowerCase()}`
@@ -222,9 +217,8 @@ export default {
     async materialize (contestId) {
       for (let index = 0; index < this.items.length; ++index) {
         const item = this.items[index]
-        const displayId = indexToLabel(index)
         if (item.kind === 'PUBLIC') {
-          await api.addProblemFromPublic({ problem_id: item.problemId, contest_id: contestId, display_id: displayId })
+          await api.addProblemFromPublic({ problem_id: item.problemId, contest_id: contestId })
           continue
         }
         let pageHtml = ''
@@ -235,9 +229,7 @@ export default {
         await api.importRemoteProblem({
           provider: item.provider,
           remote_id: item.remoteId,
-          display_id: displayId,
           contest_id: contestId,
-          public_display_id: '',
           page_html: pageHtml
         })
       }
@@ -279,20 +271,10 @@ export default {
 .composer-empty { padding: 34px 18px; color: var(--color-text-faint); font-size: 13px; text-align: center; }
 .public-problem-table { margin-top: 12px; }
 .public-pagination { margin-top: 12px; justify-content: flex-end; }
-.provider-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-.provider-card { appearance: none; min-height: 92px; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); color: var(--color-text-muted); text-align: left; cursor: pointer; transition: border-color var(--transition), background-color var(--transition), transform var(--transition); }
-.provider-card:hover { transform: translateY(-1px); }
-.provider-card.active { border-color: var(--color-link); background: color-mix(in srgb, var(--color-link) 5%, var(--color-bg)); }
-.provider-card strong, .provider-card small { display: block; }
-.provider-card strong { color: var(--color-text); font-size: 14px; }
-.provider-card small { margin-top: 7px; font-size: 11px; line-height: 1.5; }
-.provider-nowcoder.active { border-color: var(--cat-course); }
-.provider-luogu.active { border-color: var(--cat-tools); }
-.provider-codeforces.active { border-color: var(--cat-kaggle); }
+.remote-problem-form { margin-bottom: -12px; }
 
 @media (max-width: 760px) {
   .composer-header { align-items: flex-start; flex-direction: column; }
   .composer-actions { width: 100%; flex-wrap: wrap; }
-  .provider-cards { grid-template-columns: 1fr; }
 }
 </style>

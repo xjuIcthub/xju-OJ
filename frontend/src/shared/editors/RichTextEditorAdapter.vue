@@ -2,12 +2,12 @@
   <div class="markdown-editor-adapter">
     <div class="markdown-editor-toolbar">
       <div class="markdown-format-actions" aria-label="Markdown formatting">
-        <button type="button" title="Bold" aria-label="Bold" @click="wrapSelection('**', '**', 'bold')"><strong>B</strong></button>
-        <button type="button" title="Italic" aria-label="Italic" @click="wrapSelection('*', '*', 'italic')"><em>I</em></button>
-        <button type="button" title="Underline" aria-label="Underline" @click="wrapSelection('<u>', '</u>', 'underline')"><u>U</u></button>
-        <button type="button" title="Strikethrough" aria-label="Strikethrough" @click="wrapSelection('~~', '~~', 'strikethrough')"><s>S</s></button>
-        <button type="button" title="Inline code" aria-label="Inline code" @click="wrapSelection('`', '`', 'code')"><span>&lt;/&gt;</span></button>
-        <button type="button" title="Inline formula" aria-label="Inline formula" @click="wrapSelection('$', '$', 'a+b')"><span>∑</span></button>
+        <button type="button" title="Bold" aria-label="Bold" @mousedown.prevent @click="applyFormat('bold')"><strong>B</strong></button>
+        <button type="button" title="Italic" aria-label="Italic" @mousedown.prevent @click="applyFormat('italic')"><em>I</em></button>
+        <button type="button" title="Underline" aria-label="Underline" @mousedown.prevent @click="applyFormat('underline')"><u>U</u></button>
+        <button type="button" title="Strikethrough" aria-label="Strikethrough" @mousedown.prevent @click="applyFormat('strikethrough')"><s>S</s></button>
+        <button type="button" title="Inline code" aria-label="Inline code" @mousedown.prevent @click="applyFormat('code')"><span>&lt;/&gt;</span></button>
+        <button type="button" title="Inline formula" aria-label="Inline formula" @mousedown.prevent @click="applyFormat('formula')"><span>∑</span></button>
       </div>
       <div class="markdown-mode-switch" role="group" aria-label="Editor mode">
         <button type="button" :class="{ active: mode === 'raw' }" @click="setMode('raw')">Raw</button>
@@ -21,8 +21,15 @@
               spellcheck="false"
               @input="emitMarkdown"></textarea>
     <div v-show="mode === 'preview'"
+         ref="previewEditor"
          class="markdown-preview markdown-body"
+         contenteditable="true"
+         role="textbox"
+         aria-multiline="true"
+         spellcheck="true"
          v-html="previewHtml"
+         @input="onPreviewInput"
+         @blur="syncPreviewHtml"
          v-katex
          v-highlight></div>
   </div>
@@ -52,8 +59,22 @@ function createTurndown () {
 }
 
 function htmlToMarkdown (value, turndown) {
-  const content = String(value || '')
+  let content = String(value || '')
   if (!/<[a-z][\s\S]*>/i.test(content)) return content
+  if (typeof document !== 'undefined' && content.includes('katex')) {
+    const root = document.createElement('div')
+    root.innerHTML = content
+    root.querySelectorAll('.katex').forEach(node => {
+      if (node.parentElement && node.parentElement.closest('.katex')) return
+      const annotation = node.querySelector('annotation[encoding="application/x-tex"]')
+      if (!annotation) return
+      const display = Boolean(node.closest('.katex-display'))
+      node.replaceWith(document.createTextNode(display
+        ? `$$${annotation.textContent || ''}$$`
+        : `$${annotation.textContent || ''}$`))
+    })
+    content = root.innerHTML
+  }
   const math = []
   const protectedHtml = content.replace(
     /\$\$[\s\S]*?\$\$|\$[^$]+\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]/g,
@@ -106,21 +127,89 @@ export default {
     }
   },
   methods: {
-    emitMarkdown () {
-      const html = renderer.render(this.source || '')
-      this.previewHtml = html
+    emitValue (html) {
       this.lastRenderedHtml = html
       this.$emit('input', html)
       this.$emit('change', html)
       this.$emit('update:value', html)
       this.$emit('update:modelValue', html)
     },
+    emitMarkdown () {
+      const html = renderer.render(this.source || '')
+      this.previewHtml = html
+      this.emitValue(html)
+    },
+    onPreviewInput () {
+      const editor = this.$refs.previewEditor
+      if (!editor || !this.turndown) return
+      const html = editor.innerHTML
+      this.source = htmlToMarkdown(html, this.turndown)
+      this.emitValue(html)
+    },
+    syncPreviewHtml () {
+      const editor = this.$refs.previewEditor
+      if (editor) this.previewHtml = editor.innerHTML
+    },
     setMode (mode) {
+      if (this.mode === 'preview') this.syncPreviewHtml()
       this.mode = mode
-      if (mode === 'raw') this.$nextTick(() => this.$refs.rawEditor?.focus())
+      if (mode === 'preview') this.previewHtml = renderer.render(this.source || '')
+      this.$nextTick(() => {
+        if (mode === 'raw') this.$refs.rawEditor?.focus()
+        else this.$refs.previewEditor?.focus()
+      })
+    },
+    applyFormat (type) {
+      const rawFormats = {
+        bold: ['**', '**', 'bold'],
+        italic: ['*', '*', 'italic'],
+        underline: ['<u>', '</u>', 'underline'],
+        strikethrough: ['~~', '~~', 'strikethrough'],
+        code: ['`', '`', 'code']
+      }
+      if (this.mode === 'raw') {
+        if (type === 'formula') {
+          this.wrapSelection('$', '$', 'a+b')
+          return
+        }
+        this.wrapSelection(...rawFormats[type])
+        return
+      }
+      const editor = this.$refs.previewEditor
+      if (!editor) return
+      editor.focus()
+      const commands = {
+        bold: 'bold',
+        italic: 'italic',
+        underline: 'underline',
+        strikethrough: 'strikeThrough'
+      }
+      if (commands[type]) {
+        document.execCommand(commands[type], false, null)
+      } else if (type === 'formula') {
+        const selection = window.getSelection()
+        const text = selection && selection.toString() ? selection.toString() : 'a+b'
+        document.execCommand('insertText', false, `$${text}$`)
+      } else if (type === 'code') {
+        this.wrapPreviewSelection('code', 'code')
+      }
+      this.onPreviewInput()
+    },
+    wrapPreviewSelection (tagName, placeholder) {
+      const editor = this.$refs.previewEditor
+      const selection = window.getSelection()
+      if (!editor || !selection || !selection.rangeCount) return
+      const range = selection.getRangeAt(0)
+      if (!editor.contains(range.commonAncestorContainer)) return
+      const node = document.createElement(tagName)
+      if (range.collapsed) node.textContent = placeholder
+      else node.appendChild(range.extractContents())
+      range.insertNode(node)
+      range.selectNodeContents(node)
+      selection.removeAllRanges()
+      selection.addRange(range)
     },
     wrapSelection (before, after, placeholder) {
-      this.mode = 'raw'
       this.$nextTick(() => {
         const editor = this.$refs.rawEditor
         if (!editor) return
@@ -142,16 +231,17 @@ export default {
 </script>
 
 <style scoped lang="less">
-.markdown-editor-adapter { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); }
+.markdown-editor-adapter { width: 100%; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); box-sizing: border-box; }
 .markdown-editor-toolbar { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 7px; border-bottom: 1px solid var(--color-border); background: var(--color-bg); }
 .markdown-format-actions, .markdown-mode-switch { display: flex; align-items: center; gap: 2px; }
 .markdown-editor-toolbar button { appearance: none; display: inline-grid; min-width: 30px; height: 30px; place-items: center; padding: 0 7px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-muted); cursor: pointer; font-family: var(--font-sans); font-size: 13px; transition: color var(--transition), background-color var(--transition); }
 .markdown-editor-toolbar button:hover, .markdown-editor-toolbar button:focus-visible { background: var(--color-bg-subtle); color: var(--color-text); outline: none; }
-.markdown-mode-switch { padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-bg-subtle); }
-.markdown-mode-switch button { min-width: 62px; height: 26px; border-radius: var(--radius-pill); font-size: 12px; }
+.markdown-mode-switch { padding: 2px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg-subtle); }
+.markdown-mode-switch button { display: inline-flex; min-width: 62px; height: 26px; align-items: center; justify-content: center; border-radius: 4px; font-size: 12px; line-height: 1; }
 .markdown-mode-switch button.active { background: var(--color-bg); color: var(--color-text); box-shadow: 0 1px 3px rgba(55, 53, 47, .09); }
-.markdown-raw-editor { display: block; width: 100%; min-height: 190px; resize: vertical; padding: 13px 15px; border: 0; outline: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-mono); font-size: 13px; line-height: 1.7; tab-size: 2; }
-.markdown-preview { min-height: 190px; padding: 13px 15px; color: var(--color-text); }
+.markdown-raw-editor { display: block; width: 100%; min-height: 190px; resize: vertical; padding: 13px 15px; border: 0; outline: 0; background: var(--color-bg); color: var(--color-text); box-sizing: border-box; font-family: var(--font-mono); font-size: 13px; line-height: 1.7; tab-size: 2; }
+.markdown-preview { min-height: 190px; padding: 13px 15px; color: var(--color-text); cursor: text; outline: 0; }
+.markdown-preview:focus { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-link) 52%, transparent); }
 .markdown-preview :deep(> :last-child) { margin-bottom: 0; }
 
 @media (max-width: 640px) {

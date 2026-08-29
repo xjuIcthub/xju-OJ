@@ -24,11 +24,7 @@
           width="150"
           label="Display ID">
           <template #default="{row}">
-            <span v-show="!row.isEditing">{{row._id}}</span>
-            <el-input v-show="row.isEditing" v-model="row._id"
-                      @keyup.enter="handleInlineEdit(row)">
-
-            </el-input>
+            <span>{{row._id}}</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -143,17 +139,9 @@
             <el-option label="Codeforces" value="CODEFORCES"></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item :label="remoteImportIdLabel" required>
+        <el-form-item label="题目链接" required>
           <el-input v-model="remoteImportForm.remote_id"
-                    :placeholder="remoteImportPlaceholder"></el-input>
-        </el-form-item>
-        <el-form-item :label="contestId ? 'Contest Display ID' : 'Display ID'">
-          <el-input v-model="remoteImportForm.display_id"
-                    :placeholder="remoteImportDisplayIdPlaceholder"></el-input>
-        </el-form-item>
-        <el-form-item v-if="contestId" label="Public Library Display ID">
-          <el-input v-model="remoteImportForm.public_display_id"
-                    :placeholder="remoteImportPublicDisplayIdPlaceholder"></el-input>
+                    placeholder="题目链接"></el-input>
         </el-form-item>
         <el-alert type="info" :closable="false"
                   :title="contestId
@@ -199,9 +187,7 @@
         remoteImportLoading: false,
         remoteImportForm: {
           provider: 'NOWCODER',
-          remote_id: '',
-          display_id: '',
-          public_display_id: ''
+          remote_id: ''
         }
       }
     },
@@ -209,37 +195,6 @@
       this.routeName = this.$route.name
       this.contestId = this.$route.params.contestId
       this.getProblemList(this.currentPage)
-    },
-    computed: {
-      remoteImportIdLabel () {
-        return {
-          NOWCODER: 'Nowcoder NC problem ID or ACM problem URL',
-          LUOGU: 'Luogu problem ID or URL',
-          CODEFORCES: 'Codeforces problem ID or URL'
-        }[this.remoteImportForm.provider]
-      },
-      remoteImportPlaceholder () {
-        return {
-          NOWCODER: 'NC322024 or https://ac.nowcoder.com/acm/problem/322024',
-          LUOGU: 'P1001',
-          CODEFORCES: '4A'
-        }[this.remoteImportForm.provider]
-      },
-      remoteImportDisplayIdPlaceholder () {
-        if (this.contestId) return 'Leave blank to assign A, B, C automatically'
-        return {
-          NOWCODER: 'Leave blank to use NC322024',
-          LUOGU: 'Leave blank to use LG-P1001',
-          CODEFORCES: 'Leave blank to use CF-4A'
-        }[this.remoteImportForm.provider]
-      },
-      remoteImportPublicDisplayIdPlaceholder () {
-        return {
-          NOWCODER: 'Leave blank to use NC322024',
-          LUOGU: 'Leave blank to use LG-P1001',
-          CODEFORCES: 'Leave blank to use CF-4A'
-        }[this.remoteImportForm.provider]
-      }
     },
     methods: {
       handleDblclick (row) {
@@ -261,7 +216,7 @@
       },
       async importRemoteProblem () {
         if (!this.remoteImportForm.remote_id.trim()) {
-          this.$error('Remote problem ID or URL is required')
+          this.$error('请输入题目链接')
           return
         }
         this.remoteImportLoading = true
@@ -284,18 +239,14 @@
         api.importRemoteProblem({
           provider: this.remoteImportForm.provider,
           remote_id: this.remoteImportForm.remote_id.trim(),
-          display_id: this.remoteImportForm.display_id.trim(),
           contest_id: this.contestId || null,
-          public_display_id: this.remoteImportForm.public_display_id.trim(),
           page_html: pageHtml
         }).then(() => {
           this.remoteImportLoading = false
           this.remoteImportDialogVisible = false
           this.remoteImportForm = {
             provider: 'NOWCODER',
-            remote_id: '',
-            display_id: '',
-            public_display_id: ''
+            remote_id: ''
           }
           this.$success('Remote problem imported')
           this.getProblemList(1)
@@ -341,10 +292,12 @@
         })
       },
       makeContestProblemPublic (problemID) {
-        this.$prompt('Please input display id for the public problem', 'confirm').then(({value}) => {
-          api.makeContestProblemPublic({id: problemID, display_id: value}).catch()
-        }, () => {
-        })
+        this.$confirm('确定将该题加入公共题库吗？题号将由系统自动分配。', '确认').then(() => {
+          api.makeContestProblemPublic({id: problemID}).then(() => {
+            this.$success('题目已加入公共题库')
+            this.getProblemList(this.currentPage)
+          }).catch(() => {})
+        }).catch(() => {})
       },
       updateProblem (row) {
         let data = Object.assign({}, row)
