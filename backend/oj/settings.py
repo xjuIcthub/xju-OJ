@@ -273,7 +273,7 @@ AUTHENTIK_OIDC_REDIRECT_URI = get_env(
 ).strip()
 AUTHENTIK_OIDC_REGISTER_URL = get_env(
     'AUTHENTIK_OIDC_REGISTER_URL',
-    'https://auth.icthub.top/if/flow/icthub-public-registration/',
+    'https://auth.icthub.top/if/flow/icthub-xju-oj-registration/',
 ).strip()
 AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI = get_env(
     'AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI',

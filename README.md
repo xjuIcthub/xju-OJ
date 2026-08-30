@@ -113,7 +113,7 @@ DEPLOY_MODE=build
 生产 OJ 不应把 Authentik client secret 贴入聊天、命令行或 `.env`。仓库提供
 `ops/configure-authentik-oidc.py`：可在 OJ 主机本地隐藏输入，也可接收 Authentik
 主机 root 环境通过 SSH 管道传来的两行值，并原子写入 `.env` 与 0600 secret 文件。
-脚本会固定 issuer、callback、public registration URL、`groups` scope，并关闭 OJ
+脚本会固定 issuer、callback、xju-OJ 专用 registration URL、`groups` scope，并关闭 OJ
 本地登录/注册。
 
 ## 域名与 HTTPS

@@ -119,7 +119,7 @@ def main() -> int:
             "AUTHENTIK_OIDC_CLIENT_ID": client_id,
             "AUTHENTIK_OIDC_CLIENT_SECRET_FILE": str(secret_path),
             "AUTHENTIK_OIDC_REDIRECT_URI": "https://oj.icthub.top/api/auth/oidc/callback/",
-            "AUTHENTIK_OIDC_REGISTER_URL": "https://auth.icthub.top/if/flow/icthub-public-registration/",
+            "AUTHENTIK_OIDC_REGISTER_URL": "https://auth.icthub.top/if/flow/icthub-xju-oj-registration/",
             "AUTHENTIK_OIDC_SCOPES": "openid profile email groups",
         },
     )

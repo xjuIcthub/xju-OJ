@@ -319,7 +319,7 @@ fi
 AUTHENTIK_OIDC_ISSUER=${AUTHENTIK_OIDC_ISSUER:-https://auth.icthub.top/application/o/xju-oj/}
 AUTHENTIK_OIDC_CLIENT_ID=${AUTHENTIK_OIDC_CLIENT_ID:-}
 AUTHENTIK_OIDC_REDIRECT_URI=${AUTHENTIK_OIDC_REDIRECT_URI:-$PUBLIC_BASE_URL/api/auth/oidc/callback/}
-AUTHENTIK_OIDC_REGISTER_URL=${AUTHENTIK_OIDC_REGISTER_URL:-https://auth.icthub.top/if/flow/icthub-public-registration/}
+AUTHENTIK_OIDC_REGISTER_URL=${AUTHENTIK_OIDC_REGISTER_URL:-https://auth.icthub.top/if/flow/icthub-xju-oj-registration/}
 AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI=${AUTHENTIK_OIDC_POST_LOGOUT_REDIRECT_URI:-$PUBLIC_BASE_URL}
 AUTHENTIK_OIDC_SCOPES=${AUTHENTIK_OIDC_SCOPES:-openid profile email groups}
 AUTHENTIK_OIDC_STATE_TTL_SECONDS=${AUTHENTIK_OIDC_STATE_TTL_SECONDS:-300}
@@ -380,6 +380,7 @@ import sys
 from urllib.parse import urlparse
 
 issuer, redirect_uri, register_url, logout_uri, scopes = sys.argv[1:]
+expected_register_url = "https://auth.icthub.top/if/flow/icthub-xju-oj-registration/"
 issuer_parts = urlparse(issuer)
 redirect_parts = urlparse(redirect_uri)
 register_parts = urlparse(register_url)
@@ -393,6 +394,8 @@ if redirect_parts.path != "/api/auth/oidc/callback/":
 for parts in (register_parts, logout_parts):
     if parts.scheme != "https" or not parts.netloc or parts.query or parts.fragment:
         raise SystemExit(1)
+if register_url != expected_register_url:
+    raise SystemExit(1)
 if "openid" not in scopes.split():
     raise SystemExit(1)
 PY

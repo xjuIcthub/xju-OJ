@@ -3,7 +3,7 @@ const defaults = {
   DEV_LOGIN_USERNAME: '',
   DEV_LOGIN_PASSWORD: '',
   AUTHENTIK_OIDC_ENABLED: false,
-  AUTHENTIK_OIDC_REGISTER_URL: 'https://auth.icthub.top/if/flow/icthub-public-registration/',
+  AUTHENTIK_OIDC_REGISTER_URL: 'https://auth.icthub.top/if/flow/icthub-xju-oj-registration/',
   AUTHENTIK_LOCAL_LOGIN_ENABLED: true,
   AUTHENTIK_LOCAL_REGISTER_ENABLED: true
 }

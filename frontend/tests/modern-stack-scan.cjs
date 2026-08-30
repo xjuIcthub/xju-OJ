@@ -98,6 +98,19 @@ assert.ok(frontendDockerfile.includes('/src/static/userscripts/') && frontendDoc
 const bake = fs.readFileSync(path.join(root, '..', 'docker-bake.hcl'), 'utf8')
 assert.ok(bake.includes('target "frontend-base"'), 'frontend base bake target is missing')
 const deploy = fs.readFileSync(path.join(root, '..', 'deploy.sh'), 'utf8')
+const oidcRegistrationFlowUrl = 'https://auth.icthub.top/if/flow/icthub-xju-oj-registration/'
+const oidcRegistrationContracts = {
+  runtime: fs.readFileSync(path.join(root, 'src/utils/runtime.js'), 'utf8'),
+  settings: fs.readFileSync(path.join(root, '..', 'backend/oj/settings.py'), 'utf8'),
+  configurator: fs.readFileSync(path.join(root, '..', 'ops/configure-authentik-oidc.py'), 'utf8'),
+  envExample: fs.readFileSync(path.join(root, '..', '.env.example'), 'utf8'),
+  deploy
+}
+for (const [name, content] of Object.entries(oidcRegistrationContracts)) {
+  assert.ok(content.includes(oidcRegistrationFlowUrl), `${name} must use the xju-OJ registration flow`)
+  assert.ok(!content.includes('https://auth.icthub.top/if/flow/icthub-public-registration/'), `${name} still uses the generic registration flow`)
+}
+assert.ok(deploy.includes('if register_url != expected_register_url:'), 'deploy must reject registration URL drift')
 assert.ok(deploy.includes('--frontend-only'), 'frontend-only deploy mode is missing')
 assert.ok(deploy.includes('frontend_only_source_guard'), 'frontend-only source guard is missing')
 assert.ok(deploy.includes('compose up -d --no-deps --force-recreate --wait frontend'), 'frontend-only deploy must not restart dependencies')
