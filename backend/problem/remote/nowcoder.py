@@ -1,11 +1,13 @@
 import html
 import re
 from html.parser import HTMLParser
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import requests
 
-from .common import DEFAULT_USER_AGENT, RemoteProblemError
+from .common import (ALLOWED_RICH_TEXT_TAGS, DEFAULT_USER_AGENT,
+                     RemoteProblemError, node_text, parse_html_tree,
+                     safe_external_url)
 
 
 NOWCODER_BASE_URL = "https://www.nowcoder.com"
@@ -59,6 +61,57 @@ def _normalize_nowcoder_math_text(value):
     return text
 
 
+def _nowcoder_image(attrs):
+    attrs = dict(attrs or [])
+    source = (attrs.get("src") or "").strip()
+    if source.startswith("//"):
+        source = "https:" + source
+    parsed = urlparse(source)
+    if parsed.hostname in {"nowcoder.com", "www.nowcoder.com"} and parsed.path == "/equation":
+        expression = (parse_qs(parsed.query).get("tex") or [""])[0].strip()
+        return html.escape(r"\(" + expression + r"\)") if expression else ""
+    source = safe_external_url(source)
+    if not source:
+        return html.escape(attrs.get("alt", ""))
+    return (
+        f'<img src="{html.escape(source, quote=True)}" '
+        f'alt="{html.escape(attrs.get("alt", ""), quote=True)}" loading="lazy">'
+    )
+
+
+def _render_nowcoder_node(node):
+    def render(item):
+        if isinstance(item, str):
+            return html.escape(_normalize_nowcoder_math_text(item))
+        if item.tag in {"script", "style", "iframe", "object"}:
+            return ""
+        if item.tag == "img":
+            return _nowcoder_image(item.attrs)
+        body = "".join(render(child) for child in item.children)
+        if item.tag == "a":
+            href = safe_external_url(item.attrs.get("href", ""))
+            if href:
+                return (
+                    f'<a href="{html.escape(href, quote=True)}" target="_blank" '
+                    f'rel="noopener noreferrer">{body}</a>'
+                )
+            return body
+        if item.tag not in ALLOWED_RICH_TEXT_TAGS:
+            return body
+        if item.tag in {"br", "hr"}:
+            return f"<{item.tag}>"
+        return f"<{item.tag}>{body}</{item.tag}>"
+
+    return "".join(render(child) for child in node.children).strip()
+
+
+def _page_node(content, class_name, field_name):
+    node = parse_html_tree(content).find_first(class_name=class_name)
+    if node is None:
+        raise NowcoderProblemError(f"Unable to parse Nowcoder {field_name}")
+    return node
+
+
 class _SafeRichTextParser(HTMLParser):
     allowed_tags = {
         "p", "br", "pre", "code", "strong", "b", "em", "i",
@@ -81,9 +134,7 @@ class _SafeRichTextParser(HTMLParser):
         if self.blocked_depth:
             return
         if tag == "img":
-            alt = next((value for name, value in attrs if name.lower() == "alt"), "")
-            if alt:
-                self.parts.append(html.escape(alt))
+            self.parts.append(_nowcoder_image(attrs))
             return
         if tag in self.allowed_tags:
             self.parts.append(f"<{tag}>")
@@ -232,11 +283,7 @@ def parse_nowcoder_problem_page(content, expected_uuid):
         content,
         "title",
     )
-    description_html = _extract(
-        r'<div\s+class="nc-post-content"[^>]*>(.*?)</div>',
-        content,
-        "description",
-    )
+    description_node = _page_node(content, "nc-post-content", "description")
     input_html = _extract(
         r'<h5>\s*<b>\s*输入描述\s*:?\s*</b>\s*</h5>\s*<pre>(.*?)</pre>',
         content,
@@ -281,7 +328,7 @@ def parse_nowcoder_problem_page(content, expected_uuid):
         "uuid": page_uuid,
         "question_id": numeric_id,
         "title": _plain_text(title_html),
-        "description": _safe_rich_text(description_html),
+        "description": _render_nowcoder_node(description_node),
         "input_description": _safe_rich_text(input_html),
         "output_description": _safe_rich_text(output_html),
         "samples": samples,
@@ -313,16 +360,8 @@ def parse_nowcoder_acm_problem_page(content, expected_problem_id):
     if page_problem_id != str(expected_problem_id):
         raise NowcoderProblemError("Nowcoder ACM page problem ID does not match the request")
 
-    title_html = _extract(
-        r'<div[^>]*class="[^"]*question-title[^"]*"[^>]*>(.*?)</div>',
-        content,
-        "title",
-    )
-    description_html = _extract(
-        r'<div[^>]*class="[^"]*subject-question[^"]*"[^>]*>(.*?)</div>',
-        content,
-        "description",
-    )
+    title_node = _page_node(content, "question-title", "title")
+    description_node = _page_node(content, "subject-question", "description")
     input_html = _extract(
         r'<h2[^>]*>\s*输入描述\s*:?[\s\S]*?</h2>\s*<pre>(.*?)</pre>',
         content,
@@ -368,8 +407,8 @@ def parse_nowcoder_acm_problem_page(content, expected_problem_id):
         "problem_id": page_problem_id,
         "question_id": question_id,
         "uuid": problem_uuid,
-        "title": _plain_text(title_html),
-        "description": _safe_rich_text(description_html),
+        "title": node_text(title_node).strip(),
+        "description": _render_nowcoder_node(description_node),
         "input_description": _safe_rich_text(input_html),
         "output_description": _safe_rich_text(output_html),
         "samples": samples,

@@ -72,7 +72,15 @@ NOWCODER_ACM_PROBLEM_HTML = r"""
   <div class="question-title"><i class="icon-list"></i>小月的数组</div>
   <span>时间限制：C/C++/Rust/Pascal 2秒，其他语言4秒</span>
   <span>空间限制：C/C++/Rust/Pascal 256 M，其他语言512 M</span>
-  <div class="subject-question"><p>\hspace{15pt}数组 a = \{a_1, a_2,\dots, a_n\}。对于所有 i\left(1 \leq i \leq n \right)，元素均合法。</p><script>bad()</script></div>
+  <div class="subject-question">
+    <div><p>\hspace{15pt}数组 a = \{a_1, a_2,\dots, a_n\}。对于所有 i\left(1 \leq i \leq n \right)，元素均合法。</p></div>
+    <div>
+      <img src="https://www.nowcoder.com/equation?tex=x%2Ai">
+      <a href="https://example.com/note">说明</a>
+      <img alt="diagram" src="https://uploadfiles.nowcoder.com/example.png">
+    </div>
+    <script>bad()</script>
+  </div>
   <h2>输入描述:</h2><pre>两个整数 n,r\left(1 \le n; 0 \le r&lt;4\right)。</pre>
   <h2>输出描述:</h2><pre>输出答案。</pre>
   <textarea data-clipboard-text-id="input1">1 0
@@ -536,6 +544,10 @@ class NowcoderProblemImportTest(APITestCase):
         self.assertNotIn(r"\hspace", acm["description"])
         self.assertIn(r"\(a = \{a_1, a_2,\dots, a_n\}\)", acm["description"])
         self.assertIn(r"\(i\left(1 \leq i \leq n \right)\)", acm["description"])
+        self.assertIn(r"\(x*i\)", acm["description"])
+        self.assertIn('<a href="https://example.com/note"', acm["description"])
+        self.assertIn('<img src="https://uploadfiles.nowcoder.com/example.png"', acm["description"])
+        self.assertIn("说明", acm["description"])
         self.assertIn(r"\(n,r\left(1 \le n; 0 \le r&lt;4\right)\)", acm["input_description"])
 
     def test_parse_luogu_and_codeforces_pages(self):
