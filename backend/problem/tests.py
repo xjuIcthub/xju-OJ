@@ -76,6 +76,8 @@ NOWCODER_ACM_PROBLEM_HTML = r"""
     <div><p>\hspace{15pt}数组 a = \{a_1, a_2,\dots, a_n\}。对于所有 i\left(1 \leq i \leq n \right)，元素均合法。</p></div>
     <div>
       <img src="https://www.nowcoder.com/equation?tex=x%2Ai">
+      <img src="https://hr.nowcoder.com/equation?tex=y_1">
+      <img src="https://hr.nowcoder.com/equation?tex=%5Chspace%7B15pt%7D">
       <a href="https://example.com/note">说明</a>
       <img alt="diagram" src="https://uploadfiles.nowcoder.com/example.png">
     </div>
@@ -545,6 +547,8 @@ class NowcoderProblemImportTest(APITestCase):
         self.assertIn(r"\(a = \{a_1, a_2,\dots, a_n\}\)", acm["description"])
         self.assertIn(r"\(i\left(1 \leq i \leq n \right)\)", acm["description"])
         self.assertIn(r"\(x*i\)", acm["description"])
+        self.assertIn(r"\(y_1\)", acm["description"])
+        self.assertNotIn(r"\hspace", acm["description"])
         self.assertIn('<a href="https://example.com/note"', acm["description"])
         self.assertIn('<img src="https://uploadfiles.nowcoder.com/example.png"', acm["description"])
         self.assertIn("说明", acm["description"])

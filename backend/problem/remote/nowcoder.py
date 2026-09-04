@@ -67,8 +67,13 @@ def _nowcoder_image(attrs):
     if source.startswith("//"):
         source = "https:" + source
     parsed = urlparse(source)
-    if parsed.hostname in {"nowcoder.com", "www.nowcoder.com"} and parsed.path == "/equation":
+    is_nowcoder = parsed.hostname == "nowcoder.com" or (
+        parsed.hostname or ""
+    ).endswith(".nowcoder.com")
+    if is_nowcoder and parsed.path == "/equation":
         expression = (parse_qs(parsed.query).get("tex") or [""])[0].strip()
+        if re.fullmatch(r"\\hspace\{[^}]+\}", expression):
+            return " "
         return html.escape(r"\(" + expression + r"\)") if expression else ""
     source = safe_external_url(source)
     if not source:
