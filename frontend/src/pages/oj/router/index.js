@@ -14,7 +14,10 @@ setStoreRouter(router)
 router.beforeEach(to => {
   if (to.matched.some(record => record.meta.requiresAuth) && !storage.get(STORAGE_KEY.AUTHED)) {
     store.commit(types.CHANGE_MODAL_STATUS, { mode: 'login', visible: true })
-    return { name: 'home' }
+    // Preserve an OIDC failure code while redirecting so the app can explain
+    // the sign-in failure instead of dropping it with the query string.
+    const query = to.query.auth_error ? { auth_error: to.query.auth_error } : undefined
+    return { name: 'home', query }
   }
 })
 

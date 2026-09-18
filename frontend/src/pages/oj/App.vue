@@ -14,14 +14,29 @@
 </template>
 <script>
 import { mapActions, mapState } from '@/store/compat'
+import { parseAuthError } from '@oj/authError'
 import NavBar from '@oj/components/NavBar.vue'
 export default {
   name: 'app', components: { NavBar },
+  data () { return { authErrorHandled: false } },
   created () { try { document.body.removeChild(document.getElementById('app-loader')) } catch (e) {} },
-  mounted () { this.getWebsiteConfig(); this.getAuthProviders() },
-  methods: { ...mapActions(['getWebsiteConfig', 'getAuthProviders', 'changeDomTitle']) },
+  mounted () { this.getWebsiteConfig(); this.getAuthProviders(); this.surfaceAuthError() },
+  methods: {
+    ...mapActions(['getWebsiteConfig', 'getAuthProviders', 'changeDomTitle']),
+    surfaceAuthError () {
+      // The backend reports OIDC failures with a fixed `auth_error` code. The
+      // module only resolves allow-listed codes; unknown values fall back to a
+      // generic message and the raw value is never rendered.
+      if (this.authErrorHandled) return
+      const authError = parseAuthError(this.$route.fullPath)
+      if (!authError) return
+      this.authErrorHandled = true
+      this.$error(this.$t(`m.${authError.key}`))
+      if (authError.path !== this.$route.fullPath) this.$router.replace(authError.path)
+    }
+  },
   computed: { ...mapState(['website']) },
-  watch: { website () { this.changeDomTitle() }, '$route' () { this.changeDomTitle() } }
+  watch: { website () { this.changeDomTitle() }, '$route' () { this.changeDomTitle(); this.surfaceAuthError() } }
 }
 </script>
 <style lang="less">
